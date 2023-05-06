@@ -232,6 +232,14 @@ struct perturbations
 
   //@}
 
+  /** @name - version of the Boltzmann equation */
+
+  //@{
+
+  enum hierarchies hierarchy; /**< wich version of the polarization Boltzmann hierarchy */
+
+  //@}
+
   /** @name - indices running on modes (scalar, vector, tensor) */
 
   //@{

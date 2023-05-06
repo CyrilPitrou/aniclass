@@ -6310,7 +6310,14 @@ int perturbations_initial_conditions(struct precision * ppr,
     We use the fact that F_0^(2)' = sqrt(6)*h' +... as seen in Eq 2.35 of 1305.3261
     If one wishes one day to use the TAM hierarchy, we shall use here Theta_2^(2) = -1/sqrt(6) F_0^(2) since the F_2^(2) and F_4^(2) are subdominant for initial conditions. */
     if (ppt->evolve_tensor_ur == _TRUE_) {
-      ppw->pv->y[ppw->pv->index_pt_delta_ur] = _SQRT6_ *h_corr_2;
+      switch (ppt->hierarchy) {
+      case optimal:
+        ppw->pv->y[ppw->pv->index_pt_l0_ur] = _SQRT6_ *h_corr_2;
+        break;
+      case tam:
+        ppw->pv->y[ppw->pv->index_pt_l2_ur] = -h_corr_2;
+        break;
+      }
     }
     
     /** Idem for non-cold dark matter. TBC. */
@@ -6330,7 +6337,7 @@ int perturbations_initial_conditions(struct precision * ppr,
       }
     }
   }
-  
+
   return _SUCCESS_;
 }
 
