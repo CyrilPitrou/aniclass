@@ -48,6 +48,10 @@ cdef extern from "class.h":
         out_sigma_prime
         out_sigma_disp
 
+    cdef enum hierarchies:
+        optimal
+        tam
+
     cdef struct precision:
         double nonlinear_min_k_max
         ErrorMsg error_message
