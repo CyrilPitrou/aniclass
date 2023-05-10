@@ -1758,7 +1758,8 @@ int input_read_parameters_general(struct file_content * pfc,
   char * options_number_count[8] = {"density","dens","rsd","RSD","lensing","lens","gr","GR"};
   char * options_modes[6] = {"s","v","t","S","V","T"};
   char * options_ics[10] = {"ad","bi","cdi","nid","niv","AD","BI","CDI","NID","NIV"};
-
+  char * options_icv[4] = {"iso","oct","ISO","OCT"};
+  
   /* Set local default values */
   ppt->has_perturbations = _FALSE_;
   ppt->has_cls = _FALSE_;
@@ -2031,7 +2032,7 @@ int input_read_parameters_general(struct file_content * pfc,
                  "Inconsistency: you want density transfer functions, but no scalar modes\n");
     }
 
-    /** 3.b) List of initial conditions for scalars */
+    /** 3.b) List of methods for tensors */
     if (ppt->has_tensors == _TRUE_) {
       /* Read */
       class_call(parser_read_string(pfc,"tensor_method",&string1,&flag1,errmsg),
@@ -2060,8 +2061,57 @@ int input_read_parameters_general(struct file_content * pfc,
         }
       }
     }
-  }
+    
+    /** 3.c) List of initial conditions for vectors */
+    if (ppt->has_vectors == _TRUE_) {
+      /* Read */
+      class_call(parser_read_string(pfc,"ic_v",&string1,&flag1,errmsg),
+                 errmsg,
+                 errmsg);
+      /* Complete set of parameters */
+      if (flag1 == _TRUE_) {
+        ppt->has_iso_v=_FALSE_;
+        if ((strstr(string1,"iso") != NULL) || (strstr(string1,"ISO") != NULL)){
+          ppt->has_iso_v=_TRUE_;
+        }
+        if ((strstr(string1,"oct") != NULL) || (strstr(string1,"OCT") != NULL)){
+          ppt->has_oct_v=_TRUE_;
+        }
+        /* Test */
+        class_call(parser_check_options(string1, options_icv, 4, &flag1),
+                   errmsg,
+                   errmsg);
+        class_test(flag1==_FALSE_,
+                   errmsg, "The options for 'ic_v' are {'iso','oct'}, you entered '%s'",string1);
+        class_test(ppt->has_iso_v==_FALSE_ && ppt->has_oct_v ==_FALSE_,
+                   errmsg,
+                   "You specified 'ic' as '%s'. It has to contain some of {'iso','oct'}.",string1);
+      }
+    }
 
+    /** 3.d) List of methods for vectors */
+    if (ppt->has_vectors == _TRUE_) {
+      /* Read */
+      class_call(parser_read_string(pfc,"vector_method",&string1,&flag1,errmsg),
+		 errmsg,
+		 errmsg);
+      /* Complete set of parameters */
+      if (flag1 == _TRUE_) {
+	if (strstr(string1,"massless") != NULL){
+	  ppt->vector_method = vm_massless_approximation;
+	}
+	else if (strstr(string1,"exact") != NULL){
+	  ppt->vector_method = vm_exact;
+	}
+	else{
+	  class_stop(errmsg,"incomprehensible input '%s' for the field 'vector_method'",string1);
+	}
+      }
+    }
+  }
+  
+  
+  
 
   /** 4) Gauge */
   /** 4.a) Set gauge */
@@ -4253,8 +4303,17 @@ int input_read_parameters_primordial(struct file_content * pfc,
         }
       }
     }
-  }
 
+    /** 1.b.3) For vector perturbations */
+    if (ppt->has_vectors == _TRUE_){
+      /* Read */
+      class_read_double("r_v",ppm->r_v);
+      if (ppt->has_scalars == _FALSE_){
+        class_read_double("A_s",ppm->A_s);
+      }
+    }
+  }
+  
   else if ((ppm->primordial_spec_type == inflation_V) || (ppm->primordial_spec_type == inflation_H)) {
 
     /** 1.c) For type 'inflation_V' */
@@ -5692,11 +5751,19 @@ int input_default_params(struct background *pba,
   ppt->has_cdi=_FALSE_;
   ppt->has_nid=_FALSE_;
   ppt->has_niv=_FALSE_;
-  /** 3.b) Initial conditions for tensors */
+  /** 3.b) Methods for tensors */
   ppt->tensor_method = tm_massless_approximation;
   ppt->evolve_tensor_ur = _FALSE_;
   ppt->evolve_tensor_ncdm = _FALSE_;
+  /** 3.c) Initial conditions for vectors */
+  ppt->has_iso_v=_TRUE_;
+  ppt->has_oct_v=_FALSE_;
+  /** 3.d) Methods for vectors */
+  ppt->vector_method = vm_massless_approximation;
+  ppt->evolve_vector_ur = _FALSE_;
+  ppt->evolve_vector_ncdm = _FALSE_;
 
+  
   /** 4.a) Gauge */
   ppt->gauge=synchronous;
   /** 4.b) N-body gauge */
@@ -6005,6 +6072,10 @@ int input_default_params(struct background *pba,
   ppm->r = 1.;
   ppm->n_t = -ppm->r/8.*(2.-ppm->r/8.-ppm->n_s);
   ppm->alpha_t = ppm->r/8.*(ppm->r/8.+ppm->n_s-1.);
+  /** 1.b.3) For vector perturbations */
+  ppm->r_v = 1.;
+  ppm->n_v = 0.;
+  ppm->alpha_v = 0.;
   /** 1.c) For type 'inflation_V' */
   /** 1.c.2) Coefficients of the Taylor expansion */
   ppm->V0=1.25e-13;

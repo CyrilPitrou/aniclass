@@ -816,9 +816,9 @@ int perturbations_init(
 
   }
 
-  class_test(ppt->has_vectors == _TRUE_,
+  /*class_test(ppt->has_vectors == _TRUE_,
              ppt->error_message,
-             "Vectors not coded yet");
+             "Vectors not coded yet");*/
 
   if ((ppt->has_niv == _TRUE_) && (ppt->perturbations_verbose > 0)) {
     printf("Warning: the niv initial conditions in CLASS (and also in CAMB) should still be double-checked: if you want to do it and send feedback, you are welcome!\n");
@@ -844,6 +844,29 @@ int perturbations_init(
         ppt->evolve_tensor_ur = _TRUE_;
       if (pba->has_ncdm == _TRUE_)
         ppt->evolve_tensor_ncdm = _TRUE_;
+      break;
+    }
+  }
+
+  if (ppt->has_vectors == _TRUE_) {
+    class_test(!(pba->has_ur || pba->has_ncdm),
+	       ppt->error_message,
+	       "For vector modes, one needs either ur species or ncdm species, because the early free-streaming of these particles sustains the vector metric potential.");
+
+    ppt->evolve_vector_ur = _FALSE_;
+    ppt->evolve_vector_ncdm = _FALSE_;
+
+    switch (ppt->vector_method) {
+
+    case (vm_massless_approximation):
+      ppt->evolve_vector_ur = _TRUE_;
+      break;
+      
+    case (vm_exact):
+      if (pba->has_ur == _TRUE_)
+        ppt->evolve_vector_ur = _TRUE_;
+      if (pba->has_ncdm == _TRUE_)
+        ppt->evolve_vector_ncdm = _TRUE_;
       break;
     }
   }
@@ -1472,8 +1495,9 @@ int perturbations_indices(
 
       /** - --> source flags and indices, for sources that are specific to vectors */
 
+      /** We do not use the same tp_t1 index as for scalars, hence we define tp_t1_v */
       index_type = index_type_common;
-      class_define_index(ppt->index_tp_t1,ppt->has_source_t,index_type,1);
+      class_define_index(ppt->index_tp_t1_v,ppt->has_source_t,index_type,1);
       ppt->tp_size[index_md] = index_type;
 
       /*
@@ -1485,7 +1509,8 @@ int perturbations_indices(
       /** - --> initial conditions for vectors*/
 
       index_ic = 0;
-      /* not coded yet */
+      class_define_index(ppt->index_ic_iso_v, ppt->has_iso_v, index_ic,1);
+      class_define_index(ppt->index_ic_oct_v, ppt->has_oct_v, index_ic,1);
       ppt->ic_size[index_md] = index_ic;
 
     }
@@ -2100,7 +2125,10 @@ int perturbations_get_k_list(
     }
     else if (pba->sgnK == 1) {
       /* K>0 (closed): start from q=sqrt(k2+(1+m)K) equal to 3sqrt(K), i.e. k=sqrt((8-m)K) */
-      k_min = sqrt((8.-1.e-4)*pba->K);
+      k_min = sqrt((8.-1.e-4)*pba->K);//C. Pitrou disagrees with that. TBC.
+      /* In principle, the rule is q_min/sqrt(K)=m+1 since we must have q/sqrt(K)>=l+1 and m<=l.          Hence with q^2 = k^2 + (1+m)*K, we get k_min = sqrt(m*(m+1)*K).
+	 However we never want multipoles with l=0 nor l=1.
+	 Hence we use q_min/sqrt(K) = 2 and this implies k_min = sqrt((8-m)*K).*/
     }
 
     /** - --> find k_max (as well as k_max_cmb[ppt->index_md_scalars], k_max_cl[ppt->index_md_scalars]) */
@@ -2299,7 +2327,7 @@ int perturbations_get_k_list(
                   ppt->error_message);
   }
 
-  /** - vector modes */
+  /** - vector modes. Copied from tensor modes. */
 
   if (ppt->has_vectors == _TRUE_) {
 
@@ -2640,7 +2668,7 @@ int perturbations_get_k_list(
      fclose(out);
   */
 
-  /** - finally, find the global k_min and k_max for the ensemble of all modes 9scalars, vectors, tensors) */
+  /** - finally, find the global k_min and k_max for the ensemble of all modes (scalars, vectors, tensors) */
 
   ppt->k_min = _HUGE_;
   ppt->k_max = 0.;
@@ -2706,6 +2734,28 @@ int perturbations_workspace_init(
     if (pba->has_ncdm == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ncdm);
     if (pba->has_dr == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_dr);
   }
+
+  if (_vectors_) {
+    switch (ppt->hierarchy) {
+    case optimal:
+      ppw->max_l_max = MAX(ppr->l_max_g_vec, ppr->l_max_pol_g_vec);
+      if (pba->has_ur == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_vec);
+      break;
+    case tam:
+      /* vector modes: l_max should be incremented by 1 to reach the same expansion order as in optimal (see 2005.12119) */
+      ppw->max_l_max = MAX(ppr->l_max_g_vec+1, ppr->l_max_pol_g_vec+1);
+      if (pba->has_ur == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_vec+1);
+      break;
+    }
+    if (pba->has_ncdm == _TRUE_) {
+      if (ppt->vector_method == vm_exact)//We need to fall back to lmax_ur_vec if massless_aproximation is used.
+	ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ncdm);
+      else
+	ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_vec+1);
+    }
+  }
+
+  
   if (_tensors_) {
     switch (ppt->hierarchy) {
     case optimal:
@@ -2718,8 +2768,14 @@ int perturbations_workspace_init(
       if (pba->has_ur == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_ten+2);
       break;
     }
-    if (pba->has_ncdm == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ncdm);
+    if (pba->has_ncdm == _TRUE_) {
+      if (ppt->tensor_method == tm_exact)//We need to fall back to lmax_ur_ten if massless_aproximation is used.
+	ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ncdm);
+      else
+	ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_ten+2);
+    }
   }
+
 
   /** - Allocate \f$ s_l\f$[ ] array for freestreaming of multipoles (see arXiv:1305.3261) and initialize
       to 1.0, which is the K=0 value. */
@@ -2779,20 +2835,12 @@ int perturbations_workspace_init(
 
   if (_vectors_) {
 
-    /* newtonian gauge */
-
-    if (ppt->gauge == newtonian) {
-
-      class_define_index(ppw->index_mt_V_prime,_TRUE_,index_mt,1);
-
-    }
-
-    if (ppt->gauge == synchronous) {
-
-      class_define_index(ppw->index_mt_hv_prime_prime,_TRUE_,index_mt,1);
-
-    }
-
+    /* Old implementation used hv_prime for synchronous gauge.
+       But hv_prime  = kV so it is better to always use V, whatever the gauge.
+       Gauge differ only for the definitions of velocities, with v^synchronous = v^newt - V
+       (recall that V is the vector metric potential) */
+    
+    class_define_index(ppw->index_mt_V_prime,_TRUE_,index_mt,1);
   }
 
   if (_tensors_) {
@@ -2852,6 +2900,12 @@ int perturbations_workspace_init(
     }
   }
 
+  if (_vectors_) {
+    
+    ppw->approx[ppw->index_ap_tca]=(int)tca_on;
+    ppw->approx[ppw->index_ap_rsa]=(int)rsa_off;
+  }
+  
   if (_tensors_) {
 
     ppw->approx[ppw->index_ap_tca]=(int)tca_on;
@@ -3075,6 +3129,9 @@ int perturbations_solve(
   int (*perhaps_print_variables)(double, double*, double*, void*, char*);
   int index_ikout;
 
+  /* energy densities needed to build the omega_m constant to set initial conditions for vector modes */
+  double om, rho_m, rho_b, rho_r, rho_ur;
+
   /** - initialize indices relevant for back/thermo tables search */
   ppw->last_index_back=0;
   ppw->last_index_thermo=0;
@@ -3158,7 +3215,7 @@ int perturbations_solve(
 
     class_call(background_at_tau(pba,
                                  tau_mid,
-                                 normal_info,
+                                 long_info,
                                  inter_normal,
                                  &(ppw->last_index_back),
                                  ppw->pvecback),
@@ -3194,6 +3251,19 @@ int perturbations_solve(
            ppr->start_large_k_at_tau_h_over_tau_k))
 
         is_early_enough = _FALSE_;
+
+      if (_vectors_) {
+	/* 8piG/3 rho_m(t_i) */
+	rho_m = ppw->pvecback[pba->index_bg_Omega_m]*ppw->pvecback[pba->index_bg_rho_crit];
+	/* 8piG/3 rho_r(t_i) */
+	rho_r = ppw->pvecback[pba->index_bg_Omega_r]*ppw->pvecback[pba->index_bg_rho_crit];
+	
+	om = ppw->pvecback[pba->index_bg_a]*rho_m/sqrt(rho_r);
+	
+	if (om*tau_mid > ppr->start_small_omega_tau) 
+	  is_early_enough = _FALSE_;
+     
+      }
     }
 
     if (is_early_enough == _TRUE_)
@@ -3494,6 +3564,42 @@ int perturbations_prepare_k_output(struct background * pba,
         get_number_of_titles(ppt->scalar_titles);
     }
 
+    if (ppt->has_vectors == _TRUE_){
+      class_store_columntitle(ppt->vector_titles,"tau [Mpc]",_TRUE_);
+      class_store_columntitle(ppt->vector_titles,"a",_TRUE_);
+      switch (ppt->hierarchy) {
+      case optimal:
+	class_store_columntitle(ppt->vector_titles,"V (vec. mod.)",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"theta_b",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_ur_0",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_ur_1",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_ur_2",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_ur_3",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_g_0",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_g_1",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_g_2",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"F_g_3",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"G_g_0",_TRUE_);
+	class_store_columntitle(ppt->vector_titles,"G_g_2",_TRUE_);
+	break;
+      case tam:
+	  class_store_columntitle(ppt->vector_titles,"V (vec. mod.)",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"theta_b",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"N_1",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"N_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"N_3",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"T_1",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"T_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"E_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"B_2",_TRUE_);
+	  break;
+      }
+      
+      ppt->number_of_vector_titles =
+        get_number_of_titles(ppt->vector_titles);
+    }
+
+    
     if (ppt->has_tensors == _TRUE_){
 
       class_store_columntitle(ppt->tensor_titles,"tau [Mpc]",_TRUE_);
@@ -3880,6 +3986,18 @@ int perturbations_find_approximation_switches(
           }
         }
 
+	if (_vectors_) {
+	  
+          if ((interval_approx[index_switch-1][ppw->index_ap_tca]==(int)tca_on) &&
+              (interval_approx[index_switch][ppw->index_ap_tca]==(int)tca_off))
+            fprintf(stdout,"Mode k=%e: will switch off tight-coupling approximation for vectors at tau=%e\n",k,interval_limit[index_switch]);
+	  
+          if ((interval_approx[index_switch-1][ppw->index_ap_rsa]==(int)rsa_off) &&
+              (interval_approx[index_switch][ppw->index_ap_rsa]==(int)rsa_on))
+            fprintf(stdout,"Mode k=%e: will switch on radiation streaming approximation for vectors at tau=%e\n",k,interval_limit[index_switch]);
+	  
+        }
+
         if (_tensors_) {
 
           if ((interval_approx[index_switch-1][ppw->index_ap_tca]==(int)tca_on) &&
@@ -3976,7 +4094,7 @@ int perturbations_vector_init(
   int index_pt;
   int l;
   int n_ncdm,index_q,ncdm_l_size;
-  double rho_plus_p_ncdm,q,q2,epsilon,a,factor;
+  double rho_plus_p_ncdm,q,q2,epsilon,a,factor,R;
 
   /** - allocate a new perturbations_vector structure to which ppw-->pv will point at the end of the routine */
 
@@ -4175,43 +4293,92 @@ int perturbations_vector_init(
   }
 
   if (_vectors_) {
-
+    
     /* Vector baryon velocity: v_b^{(1)}. */
     class_define_index(ppv->index_pt_theta_b,_TRUE_,index_pt,1);
     
     /* eventually reject inconsistent values of the number of mutipoles in photon temperature hierarchy and polarization*/
-
+    
+    class_test(ppr->l_max_g_vec < 4,
+               ppt->error_message,
+               "ppr->l_max_g_vec should be at least 4, i.e. we must integrate at least over photon density, velocity, shear, third momentum");
+    
+    /* reject inconsistent values of the number of mutipoles in photon polarization hierarchy */
+    class_test(ppr->l_max_pol_g_vec < 4,
+               ppt->error_message,
+               "ppr->l_max_pol_g_vec should be at least 4");
+    
+    /* reject inconsistent values of the number of mutipoles in ur hierarchy */
+    class_test(ppr->l_max_ur_vec < 4,
+               ppt->error_message,
+               "ppr->l_max_ur_vec should be at least 4, i.e. we must integrate at least over ur density, velocity, shear, third momentum");
+    
+    
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
-
-        ppv->l_max_g = ppr->l_max_g_ten;
-
-        class_define_index(ppv->index_pt_delta_g,_TRUE_,index_pt,1); /* photon density */
-        class_define_index(ppv->index_pt_theta_g,_TRUE_,index_pt,1); /* photon velocity */
-        class_define_index(ppv->index_pt_shear_g,_TRUE_,index_pt,1); /* photon shear */
-        class_define_index(ppv->index_pt_l3_g,_TRUE_,index_pt,ppv->l_max_g-2); /* photon l=3 */
-
-        ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
-
-        class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
-        class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
-        class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1); /* photon polarization, l=2 */
-        class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
+	
+        switch (ppt->hierarchy) {
+        case optimal:
+          ppv->l_max_g = ppr->l_max_g_vec;
+          ppv->l_max_pol_g = ppr->l_max_pol_g_vec;
+          class_define_index(ppv->index_pt_l0_g,_TRUE_,index_pt,ppv->l_max_g+1);       /* F_0^(1) */
+          class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,ppv->l_max_pol_g+1); /* G_0^(1) */
+          break;
+        case tam:
+          ppv->l_max_g = ppr->l_max_g_vec+1;
+          ppv->l_max_pol_g = ppr->l_max_pol_g_vec+1;
+          class_define_index(ppv->index_pt_l1_g,_TRUE_,index_pt,ppv->l_max_g);         /* Theta_1^(1) */
+          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,ppv->l_max_pol_g-1);     /* E_2^(1) */
+          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,ppv->l_max_pol_g-1);     /* B_2^(1) */
+          break;
+        }
       }
     }
-
-    /** - (a) metric perturbations V or \f$ h_v \f$ depending on gauge */
-    if (ppt->gauge == synchronous){
-      class_define_index(ppv->index_pt_hv_prime,_TRUE_,index_pt,1);
+    
+    if (ppt->evolve_vector_ur == _TRUE_) {
+      switch (ppt->hierarchy) {
+      case optimal:
+        ppv->l_max_ur = ppr->l_max_ur_vec;
+        class_define_index(ppv->index_pt_l0_ur,_TRUE_,index_pt,ppv->l_max_ur+1); /* ur F_0^(1) */
+        break;
+      case tam:
+        /* vector modes: l_max should be incremented by 1 to reach the same expansion order as in optimal (see 2005.12119) */
+        ppv->l_max_ur = ppr->l_max_ur_vec+1;
+        class_define_index(ppv->index_pt_l1_ur,_TRUE_,index_pt,ppv->l_max_ur); /* ur Theta_1^(1) */
+      }
     }
-    if (ppt->gauge == newtonian){
-      class_define_index(ppv->index_pt_V,_TRUE_,index_pt,1);
+    
+    if (ppt->evolve_vector_ncdm == _TRUE_) {
+      ppv->index_pt_psi0_ncdm1 = index_pt;
+      ppv->N_ncdm = pba->N_ncdm;
+      class_alloc(ppv->l_max_ncdm,ppv->N_ncdm*sizeof(double),ppt->error_message);
+      class_alloc(ppv->q_size_ncdm,ppv->N_ncdm*sizeof(double),ppt->error_message);
+      
+      for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++){
+        // Set value of ppv->l_max_ncdm:
+        class_test(ppr->l_max_ncdm < 4,
+                   ppt->error_message,
+                   "ppr->l_max_ncdm=%d should be at least 4, i.e. we must integrate at least over first four momenta of non-cold dark matter perturbed phase-space distribution",n_ncdm);
+        //Copy value from precision parameter:
+        ppv->l_max_ncdm[n_ncdm] = ppr->l_max_ncdm;
+        ppv->q_size_ncdm[n_ncdm] = pba->q_size_ncdm[n_ncdm];
+	
+        index_pt += (ppv->l_max_ncdm[n_ncdm]+1)*ppv->q_size_ncdm[n_ncdm];
+      }
     }
-
+    
+    
+    /** - (a) metric perturbations V, which is also related to \f$ h'_v \f$.
+	Hence in synchronous gauge we also use V as a metric perturbation.
+	The synchronous gauge changes the definition of velocities and dipoles but not the metric perturbations.
+    */
+    
+    class_define_index(ppv->index_pt_V,_TRUE_,index_pt,1);
+    
   }
-
+  
   if (_tensors_) {
-
+    
     /* reject inconsistent values of the number of mutipoles in photon temperature hierarchy */
     class_test(ppr->l_max_g_ten < 4,
                ppt->error_message,
@@ -4238,7 +4405,7 @@ int perturbations_vector_init(
           class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,ppv->l_max_g+1); /* photon G_0^(2) */
           break;
         case tam:
-          /* tensor modes: l_max should be incremented by 2 to reach the same expansion order as in optimal (see 2005.xxxxx) */
+          /* tensor modes: l_max should be incremented by 2 to reach the same expansion order as in optimal (see 2005.12119) */
           ppv->l_max_g = ppr->l_max_g_ten+2;
           ppv->l_max_pol_g = ppr->l_max_pol_g_ten+2;
           /* tam hierachy does not use first two multipoles for tensors */
@@ -4391,6 +4558,58 @@ int perturbations_vector_init(
       }
     }
   }
+  
+  if (_vectors_) {
+    
+    if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
+      if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
+	
+        switch (ppt->hierarchy) {
+	  
+        case optimal:
+	  /* optimal: we only need F_1, F_3, G_0, G_2, G_4 */
+          ppv->used_in_sources[ppv->index_pt_l0_g]=_FALSE_;
+          ppv->used_in_sources[ppv->index_pt_l0_g+2]=_FALSE_;
+          for (index_pt=ppv->index_pt_l0_g+4; index_pt <= ppv->index_pt_l0_g+ppv->l_max_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          ppv->used_in_sources[ppv->index_pt_pol0_g+1]=_FALSE_;
+          ppv->used_in_sources[ppv->index_pt_pol0_g+3]=_FALSE_;
+          for (index_pt=ppv->index_pt_pol0_g+5; index_pt <= ppv->index_pt_pol0_g+ppv->l_max_pol_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          break;
+	  
+        case tam:
+	  /* tam: we only need (maybe Theta_1?) Theta_2, E2 */
+	  ppv->used_in_sources[ppv->index_pt_l1_g]=_FALSE_;
+          for (index_pt=ppv->index_pt_l1_g+2; index_pt <= ppv->index_pt_l1_g-1+ppv->l_max_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          for (index_pt=ppv->index_pt_E2+1; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          for (index_pt=ppv->index_pt_B2; index_pt <= ppv->index_pt_B2+ppv->l_max_pol_g-2; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          break;
+        }
+      }
+    }
+    
+    if ((pba->has_ncdm == _TRUE_)&&(ppt->evolve_vector_ncdm == _TRUE_)) {
+      
+      /** we don't need ncdm multipoles above l=3 in optimal hierarchy */
+      
+      index_pt = ppv->index_pt_psi0_ncdm1;
+      for (n_ncdm = 0; n_ncdm < ppv-> N_ncdm; n_ncdm++){
+        for (index_q=0; index_q < ppv->q_size_ncdm[n_ncdm]; index_q++){
+          for (l=0; l<=ppv->l_max_ncdm[n_ncdm]; l++){
+            if (l>3) ppv->used_in_sources[index_pt]=_FALSE_;
+            index_pt++;
+          }
+        }
+      }
+    }
+  
+    /* we do not need neutrinos in sources beyond quadrupole, but I like to output them in the _perturbation_t.dat file hence I keep them. */
+    
+  }
 
   if (_tensors_) {
 
@@ -4476,6 +4695,18 @@ int perturbations_vector_init(
 
     }
 
+    if (_vectors_) {
+      
+      class_test(ppw->approx[ppw->index_ap_tca] == (int)tca_off,
+                 ppt->error_message,
+                 "vector initial conditions assume tight-coupling approximation turned on");
+      
+      class_test(ppw->approx[ppw->index_ap_rsa] == (int)rsa_on,
+                 ppt->error_message,
+                 "vector initial conditions assume radiation streaming approximation turned off");
+      
+    }
+    
     if (_tensors_) {
 
       class_test(ppw->approx[ppw->index_ap_tca] == (int)tca_off,
@@ -5312,9 +5543,22 @@ int perturbations_vector_init(
     }
 
     /** - --> (b) for the vector mode */
-
+    
     if (_vectors_) {
 
+      //We shall need the R quantity, hence we need to call the background.
+      class_call(background_at_tau(pba,
+				   tau,
+				   normal_info,
+				   inter_normal,
+				   &(ppw->last_index_back),
+				   ppw->pvecback),
+		 pba->error_message,
+		 ppt->error_message);
+      
+      //I am using opposite definition for R than those used in perturbations_derivs. Dangerous life.
+      R = 3./4. * ppw->pvecback[pba->index_bg_rho_b]/ppw->pvecback[pba->index_bg_rho_g];
+            
       /** - ---> (b.1.) check that the change of approximation scheme makes
           sense (note: before calling this routine there is already a
           check that we wish to change only one approximation flag at
@@ -5323,43 +5567,73 @@ int perturbations_vector_init(
       class_test((pa_old[ppw->index_ap_tca] == (int)tca_off) && (ppw->approx[ppw->index_ap_tca] == (int)tca_on),
                  ppt->error_message,
                  "at tau=%g: the tight-coupling approximation can be switched off, not on",tau);
+      
 
       /** - ---> (b.2.) some variables (gw, gwdot, ...) are not affected by
           any approximation. They need to be reconducted whatever
           the approximation switching is. We treat them here. Below
           we will treat other variables case by case. */
+      
+      ppv->y[ppv->index_pt_V] =
+	ppw->pv->y[ppw->pv->index_pt_V];
 
-      if (ppt->gauge == synchronous){
-
-        ppv->y[ppv->index_pt_hv_prime] =
-          ppw->pv->y[ppw->pv->index_pt_hv_prime];
-
+      if (ppt->evolve_vector_ur == _TRUE_) {
+	switch (ppt->hierarchy) {
+	case optimal:
+	  for (l=0; l <= ppv->l_max_ur; l++)
+	    ppv->y[ppv->index_pt_l0_ur+l] =
+	      ppw->pv->y[ppw->pv->index_pt_l0_ur+l];
+	  break;
+	  
+	case tam:
+	  /* tam hierachy does not use first temperature multipole for vectors */
+	  for (l=1; l <= ppv->l_max_ur; l++)
+	    ppv->y[ppv->index_pt_l1_ur+l-1] =
+	      ppw->pv->y[ppw->pv->index_pt_l1_ur+l-1];
+	  break;
+	}
       }
-      if (ppt->gauge == newtonian){
-
-        ppv->y[ppv->index_pt_V] =
-          ppw->pv->y[ppw->pv->index_pt_V];
-
+      
+      if (ppt->evolve_vector_ncdm == _TRUE_) {
+	index_pt = 0;
+        for (n_ncdm = 0; n_ncdm < ppv->N_ncdm; n_ncdm++){
+          for (index_q=0; index_q < ppv->q_size_ncdm[n_ncdm]; index_q++){
+            for (l=0; l<=ppv->l_max_ncdm[n_ncdm];l++){
+              // This is correct with or without ncdmfa, since ppv->lmax_ncdm is set accordingly.
+              ppv->y[ppv->index_pt_psi0_ncdm1+index_pt] =
+                ppw->pv->y[ppw->pv->index_pt_psi0_ncdm1+index_pt];
+              index_pt++;
+            }
+          }
+        }
       }
-
-      ppv->y[ppv->index_pt_theta_b] =
-        ppw->pv->y[ppw->pv->index_pt_theta_b];
-
 
       /* -- case of switching off tight coupling
          approximation. Provide correct initial conditions to new set
          of variables */
-
+      
       if ((pa_old[ppw->index_ap_tca] == (int)tca_on) && (ppw->approx[ppw->index_ap_tca] == (int)tca_off)) {
 
         if (ppt->perturbations_verbose>2)
-          fprintf(stdout,"Mode k=%e: switch off tight-coupling approximation at tau=%e\n",k,tau);
-
-        ppv->y[ppv->index_pt_delta_g] = 0.0; //TBC
-        //-4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
-
-        ppv->y[ppv->index_pt_pol0_g] = 0.0; //TBC
-        //1./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+          fprintf(stdout,"Mode k=%e: switch off tight-coupling approximation at tau=%e for vector modes \n",(double)k,tau);
+	
+	//infer baryons from coupled fluid
+	ppv->y[ppv->index_pt_theta_b] =
+	  ppw->pv->y[ppw->pv->index_pt_theta_b] + 1./(1.+R)*ppw->tca_slip_vector;
+      
+	switch (ppt->hierarchy) {
+        case optimal://Needs a heavy and serious check
+          ppv->y[ppv->index_pt_l0_g] = -2.*sqrt(2.)*(ppw->pv->y[ppw->pv->index_pt_theta_b]-R/(1.+R)*ppw->tca_slip_vector);
+	  ppv->y[ppv->index_pt_l0_g+1] = -4./sqrt(6)*ppw->tca_T2_vector;
+	  ppv->y[ppv->index_pt_pol0_g] = 2. * (-1.*sqrt(3./8.)) *ppw->tca_T2_vector;
+          break;
+	  
+        case tam:
+          ppv->y[ppv->index_pt_l1_g] = ppw->pv->y[ppw->pv->index_pt_theta_b]-R/(1.+R)*ppw->tca_slip_vector;
+	  ppv->y[ppv->index_pt_l1_g+1] = ppw->tca_T2_vector;
+	  ppv->y[ppv->index_pt_E2] = -sqrt(3./8.)*ppw->tca_T2_vector;
+          break;
+        }
       }
 
       /* -- case of switching on radiation streaming
@@ -5367,12 +5641,14 @@ int perturbations_vector_init(
          of variables */
 
       if ((pa_old[ppw->index_ap_rsa] == (int)rsa_off) && (ppw->approx[ppw->index_ap_rsa] == (int)rsa_on)) {
-
+	
         if (ppt->perturbations_verbose>2)
-          fprintf(stdout,"Mode k=%e: switch on radiation streaming approximation at tau=%e with Omega_r=%g\n",k,tau,ppw->pvecback[pba->index_bg_Omega_r]);
-
+          fprintf(stdout,"Mode k=%e: switch on radiation streaming approximation at tau=%e with Omega_r=%g\n",(double)k,tau,ppw->pvecback[pba->index_bg_Omega_r]);
+	
+	ppv->y[ppv->index_pt_theta_b] =
+	  ppw->pv->y[ppw->pv->index_pt_theta_b];
       }
-
+      
     }
 
     /** - --> (c) for the tensor mode */
@@ -5548,19 +5824,23 @@ int perturbations_initial_conditions(struct precision * ppr,
   double w_fld,dw_over_da_fld,integral_fld;
   double delta_ur=0.,theta_ur=0.,shear_ur=0.,l3_ur=0.,eta=0.,delta_cdm=0.,alpha, alpha_prime;
   double delta_dr=0;
-  double q,epsilon,k2;
+  double q,epsilon;
   int index_q,n_ncdm,idx;
-  double rho_r,rho_m,rho_nu,rho_m_over_rho_r, rho_cdm =0.,rho_fs;
+  double rho_r,rho_m,rho_b,rho_nu,rho_m_over_rho_r, rho_cdm =0.,rho_fs, rho_g;
   double fracnu,fracg,fracb,fraccdm = 0.,fracidm = 0.;
-  double om;
+  
   double ktau_two,ktau_three;
   double f_dr;
 
   double delta_tot;
   double velocity_tot;
-  double s2_squared;
-  double q2, h_corr_2;
-  
+  double s2_squared, ssqrt3;
+  //For vector initial conditions :
+  double Phi0,R,om,cH;
+  double V_init, theta_b, l1_ur, l2_ur, l4_ur;
+  //for tensor initial conditions
+  double k2, q2, h_corr_2;
+
   class_call(background_at_tau(pba,
 			       tau,
 			       normal_info,
@@ -6108,6 +6388,147 @@ int perturbations_initial_conditions(struct precision * ppr,
     }
 
   }
+
+  /** --> For vectors */
+
+  if (_vectors_) {
+
+    /** - (a) compute relevant background quantities: compute rho_r,
+        rho_m, rho_nu (= all relativistic except photons), and their
+        ratio. */
+
+    class_call(background_at_tau(pba,
+			       tau,
+			       normal_info,
+			       inter_normal,
+			       &(ppw->last_index_back),
+			       ppw->pvecback),
+	     pba->error_message,
+	     ppt->error_message);
+  
+    a = ppw->pvecback[pba->index_bg_a];
+    
+    /* 8piG/3 rho_b(t_i) */
+    rho_b = ppw->pvecback[pba->index_bg_rho_b];
+    
+    /* 8piG/3 rho_m(t_i) */
+    rho_m = rho_b;
+    if (pba->has_cdm == _TRUE_) {
+      rho_m += ppw->pvecback[pba->index_bg_rho_cdm];
+    }
+
+    /* 8piG/3 rho_r(t_i) */
+    rho_g = ppw->pvecback[pba->index_bg_rho_g];
+    /* 8piG/3 rho_nu(t_i) (all neutrinos and collisionless relics being relativistic at that time) */
+    rho_nu = 0.;
+    rho_r = rho_g;
+    
+    if (pba->has_ur == _TRUE_) {
+      rho_r += ppw->pvecback[pba->index_bg_rho_ur];
+      rho_nu += ppw->pvecback[pba->index_bg_rho_ur];
+    }
+
+    if (pba->has_ncdm == _TRUE_) {
+      for (n_ncdm=0; n_ncdm<pba->N_ncdm; n_ncdm++){
+	rho_r += ppw->pvecback[pba->index_bg_rho_ncdm1 + n_ncdm];
+	rho_nu += ppw->pvecback[pba->index_bg_rho_ncdm1 + n_ncdm];
+      }
+    }
+  
+    //Using opposite definition for R than those used in perturbations_derivs. Dangerous life.
+    R = 3./4. * rho_b/rho_g;
+
+    ssqrt3 = 1.-2.*pba->K/k/k;
+
+    /* omega = Omega_m(t_i) a(t_i) H(t_i) / sqrt(Omega_r(t_i))
+       = Omega_m(t_0) a(t_0) H(t_0) / sqrt(Omega_r(t_0)) assuming rho_m in a-3 and rho_r in a^-4
+       = (8piG/3 rho_m(t_i)) a(t_i) / sqrt(8piG/3 rho_r(t_i))  in Mpc-1
+       This (a priori strange) parameter is the relevant one for expressing a
+       as a function of tau during radiation and matter domination (but not DE domination).
+       Indeed the exact solution of Friedmann when there is only radiation and matter in
+       the universe is
+       a = [H(t_0)^2 Omega_m(t_0) a(t_0)^3 / 4] x [tau^2 + 4 tau / omega]
+    */
+    om = a*rho_m/sqrt(rho_r);
+    cH= om *15.*rho_r/(30.*rho_r + 8.*rho_nu);
+    
+    //Initial conditions in the isocurvature case
+    if ((ppt->has_iso_v == _TRUE_) && (index_ic == ppt->index_ic_iso_v)) {
+      Phi0 = 1.;
+      V_init = -1.* (Phi0 *(1.- cH*tau) );
+      l1_ur = Phi0*((5.*rho_r + 4.*rho_nu) / (4.*rho_nu) + cH*tau);
+      theta_b = -Phi0/(1.+R)* (5.*rho_r + 4.*rho_nu) / (4.*rho_g);
+      //If not synchronous gauge we must add V to the velocities
+      if (ppt->gauge == newtonian) { 
+	l1_ur += V_init;
+	theta_b += V_init;
+      }
+      l2_ur = Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
+      if ( !((pba->K>0)&&(k*k -7.*pba->K<=0)) )//l=3 is not excited for small k corresponding to q/sqrt(K) = 3, since in that case l_max = 2.
+	l3_ur = Phi0 /(2.*sqrt(6.)) * sqrt((k*k -2.*pba->K) * (k*k -7.*pba->K)) *rho_r/rho_nu *tau*tau;
+      l4_ur =0.;
+    }
+    //Initial conditions in the octupole case
+    if ((ppt->has_oct_v == _TRUE_) && (index_ic == ppt->index_ic_oct_v)) {
+      Phi0 = 1.;
+      V_init = -1.* (Phi0 *(1.- cH*tau) );
+      l1_ur = -Phi0/8.*(k*k -2.*pba->K)*rho_r/rho_nu*tau*tau;
+      theta_b = 0.;
+      //If not synchronous gauge we must add V to the velocities
+      if (ppt->gauge == newtonian) { 
+	l1_ur += V_init;
+	theta_b += V_init;
+      }
+      l2_ur = Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
+      if ( !((pba->K>0)&&(k*k -7.*pba->K<=0)) )//l=3 is not excited for small k corresponding to q/sqrt(K) = 3, since in that case l_max = 2.
+	l3_ur = -7./3. * sqrt(3./8.) *sqrt((k*k -2.*pba->K) / (k*k -7.*pba->K))
+	  * (5.*rho_r + 4.*rho_nu) / (4.*rho_nu) * Phi0 ;
+      if ( !((pba->K>0)&&(k*k -14.*pba->K<=0)) )//l=4 is not excited for small k corresponding to q/sqrt(K) = 4, since in that case l_max = 3.
+	l4_ur = -Phi0*(5.*rho_r+4.*rho_nu)/rho_nu /8.*sqrt(5./2.)*sqrt((k*k -2.*pba->K) * (k*k -14.*pba->K) / (k*k -7.*pba->K))*tau;
+    }
+
+    ppw->pv->y[ppw->pv->index_pt_V] = V_init;
+    ppw->pv->y[ppw->pv->index_pt_theta_b] = theta_b;
+
+    if (ppt->evolve_vector_ur == _TRUE_){
+      switch (ppt->hierarchy) {
+      case optimal:
+	ppw->pv->y[ppw->pv->index_pt_l0_ur] = -2.*_SQRT2_*l1_ur + 2./sqrt(3.)*l3_ur;
+	ppw->pv->y[ppw->pv->index_pt_l0_ur+1] = -sqrt(8./3.)*l2_ur + 2./sqrt(5.)*l4_ur;
+	ppw->pv->y[ppw->pv->index_pt_l0_ur+2] = -2./sqrt(3.)*l3_ur ;
+	ppw->pv->y[ppw->pv->index_pt_l0_ur+3] = -2./sqrt(5.)*l4_ur ;
+	break;
+      case tam:
+	ppw->pv->y[ppw->pv->index_pt_l1_ur] = l1_ur;
+	ppw->pv->y[ppw->pv->index_pt_l1_ur+1] = l2_ur;
+	ppw->pv->y[ppw->pv->index_pt_l1_ur+2] = l3_ur;
+	ppw->pv->y[ppw->pv->index_pt_l1_ur+3] = l4_ur;
+	break;
+      }
+    }
+
+    if (ppt->evolve_vector_ncdm == _TRUE_){
+      
+      idx = ppw->pv->index_pt_psi0_ncdm1;
+      //The hierarchy is only integrated in the optimal case
+      for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
+	for (index_q=0; index_q < ppw->pv->q_size_ncdm[n_ncdm]; index_q ++) {
+	  
+	  //TBC
+	  ppw->pv->y[idx] = (-2.*_SQRT2_*l1_ur + 2./sqrt(3.)*l3_ur)* (-0.25 * pba->dlnf0_dlnq_ncdm[n_ncdm][index_q]);
+	  ppw->pv->y[idx+1] = (-sqrt(8./3.)*l2_ur + 2./sqrt(5.)*l4_ur)* (-0.25 * pba->dlnf0_dlnq_ncdm[n_ncdm][index_q]);
+	  ppw->pv->y[idx+2] = (-2./sqrt(3.)*l3_ur)* (-0.25 * pba->dlnf0_dlnq_ncdm[n_ncdm][index_q]);
+	  ppw->pv->y[idx+3] = (-2./sqrt(5.)*l4_ur)* (-0.25 * pba->dlnf0_dlnq_ncdm[n_ncdm][index_q]);
+	  
+	  // jump to next momentum
+	  idx+=(ppw->pv->l_max_ncdm[n_ncdm]+1);
+	}
+      }
+    }
+    
+  }
+
+  
   /** --> For tensors */
 
   if (_tensors_) {
@@ -6580,6 +7001,60 @@ int perturbations_approximations(
       }
     }
   }
+  
+  /** - for vector modes: (entirely copied on tensor modes for the moment...) */
+
+  if (_vectors_) {
+    
+    /** - --> (a) evaluate thermodynamical quantities with thermodynamics_at_z() */
+    
+    class_call(thermodynamics_at_z(pba,
+                                   pth,
+                                   1./ppw->pvecback[pba->index_bg_a]-1.,  /* redshift z=1/a-1 */
+                                   ppw->inter_mode,
+                                   &(ppw->last_index_thermo),
+                                   ppw->pvecback,
+                                   ppw->pvecthermo),
+               pth->error_message,
+               ppt->error_message);
+    
+    /** - ---> (b.1.) if \f$ \kappa'=0 \f$, recombination is finished; tight-coupling approximation must be off */
+
+    if (ppw->pvecthermo[pth->index_th_dkappa] == 0.) {
+
+      ppw->approx[ppw->index_ap_tca] = (int)tca_off;
+
+    }
+
+    /** - ---> (b.2.) if \f$ \kappa' \neq 0 \f$, recombination is not finished: check tight-coupling approximation */
+
+    else {
+
+      /** - ----> (b.2.a) compute recombination time scale for photons, \f$ \tau_{\gamma} = 1/ \kappa' \f$ */
+      tau_c = 1./ppw->pvecthermo[pth->index_th_dkappa];
+      
+      /** - ----> (b.2.b) check whether tight-coupling approximation should be on */
+      if ((tau_c/tau_h < ppr->tight_coupling_trigger_tau_c_over_tau_h) &&
+          (tau_c/tau_k < ppr->tight_coupling_trigger_tau_c_over_tau_k)) {
+        ppw->approx[ppw->index_ap_tca] = (int)tca_on;
+      }
+      else {
+        ppw->approx[ppw->index_ap_tca] = (int)tca_off;
+      }
+    }
+    
+    if ((tau/tau_k > ppr->radiation_streaming_trigger_tau_over_tau_k) &&
+        (tau > pth->tau_free_streaming) &&
+        (ppr->radiation_streaming_approximation != rsa_none)) {
+
+      ppw->approx[ppw->index_ap_rsa] = (int)rsa_on;
+    }
+    else {
+      ppw->approx[ppw->index_ap_rsa] = (int)rsa_off;
+    }
+  }
+
+
 
   /** - for tensor modes: */
 
@@ -6747,9 +7222,9 @@ int perturbations_timescale(
   }
 
   /** - for vector modes: */
-
+  
   if ((ppt->has_vectors == _TRUE_) && (pppaw->index_md == ppt->index_md_vectors)) {
-
+    
     *timescale = MIN(tau_h,tau_k);
 
     if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
@@ -7008,33 +7483,15 @@ int perturbations_einstein(
       }
     }
   }
+
   /** - for vector modes */
-
+  
   if (_vectors_) {
-
-    if (ppt->gauge == newtonian) {
-
-      ppw->pvecmetric[ppw->index_mt_V_prime] = -2.*a_prime_over_a*y[ppw->pv->index_pt_V] - 3.*ppw->vector_source_pi/k;
-
-    }
-
-    if (ppt->gauge == synchronous) {
-
-      // assuming    vector_source_pi = p_class a^2 pi_T^{(1)} and  vector_source_v = (rho_class+p_class)a^2 v^{(1)}
-
-      // from Hu and White:
-      ppw->pvecmetric[ppw->index_mt_hv_prime_prime] = -2.*a_prime_over_a*y[ppw->pv->index_pt_hv_prime] - 3.*ppw->vector_source_pi/k2;
-
-      // what we suspect:
-      //ppw->pvecmetric[ppw->index_mt_hv_prime_prime] = -2.*a_prime_over_a*y[ppw->pv->index_pt_hv_prime] - 3.*ppw->vector_source_pi;
-
-      // if we use the other equation:
-      //ppw->pvecmetric[ppw->index_mt_hv_prime] = -2./k/ (1.-2.*pba->K/k2) * 3. * ppw->vector_source_v;
-
-    }
+    
+    ppw->pvecmetric[ppw->index_mt_V_prime] = -2.*a_prime_over_a*y[ppw->pv->index_pt_V] - 3.*ppw->vector_source_pi/k;
 
   }
-
+  
   /** - for tensor modes */
 
   if (_tensors_) {
@@ -7085,8 +7542,8 @@ int perturbations_total_stress_energy(
   int index_q,n_ncdm,idx;
   double epsilon,q,q2,cg2_ncdm,w_ncdm,rho_ncdm_bg,p_ncdm_bg,pseudo_p_ncdm;
   double w_fld,dw_over_da_fld,integral_fld;
-  double gwncdm;
-  double rho_relativistic;
+  double gwncdm,pincdm;
+  double rho_relativistic, rho_fs;
   double rho_dr_over_f;
   double delta_rho_scf, delta_p_scf, psi;
   /** Variables used for FLD and PPF */
@@ -7587,41 +8044,128 @@ int perturbations_total_stress_energy(
 
   }
 
-  /** - for vector modes */
 
+  /** - for vector modes */
+  
   if (_vectors_) {
     
     ppw->vector_source_pi = 0.;
-    ppw->vector_source_v = 0.;
+    //ppw->vector_source_v = 0.;
+    rho_fs=0.;
     
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       
-      //Contribution of neutrino or ultra relativistic particles.
-      rho_relativistic = ppw->pvecback[pba->index_bg_rho_ur];
-      ppw->vector_source_pi += -1./3.*a2*rho_relativistic
-	* (6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k))
-	* (y[ppw->pv->index_pt_l0_ur+1]+y[ppw->pv->index_pt_l0_ur+3]);
-      
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
-
-	/** - --> photon contribution to vector sources: */
-	// todo: re-check carefully
-          /*ppw->vector_source_v += 4./3.*a2*ppw->pvecback[pba->index_bg_rho_g]
-            * (-1./4.*_SQRT2_)
-            * (y[ppw->pv->index_pt_l0_g]+2.*y[ppw->pv->index_pt_l0_g]+0.5*y[ppw->pv->index_pt_l0_g+2]);*/
-	  //Cannot be really correct because we need the tilde velocity on the right that or the velocity in synchronous gauge.
-	  //We do not need this equation, but checking that it is conserved could help on day.
-
-          // todo: re-check the overall sign. TODO indeed it was wrong because of the minus sign 2.40c of 1305.3261
-          ppw->vector_source_pi += -1./3.*a2*ppw->pvecback[pba->index_bg_rho_g]
+	
+	//Contribution of photons.
+        switch (ppt->hierarchy) {
+        case optimal:
+	  ppw->vector_source_pi += -1./3.*a2*ppw->pvecback[pba->index_bg_rho_g]
             * (6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k))
             * (y[ppw->pv->index_pt_l0_g+1]+y[ppw->pv->index_pt_l0_g+3]);
-        
+	  //ppw->vector_source_v = 0.;
+          break;
+        case tam:
+	  ppw->vector_source_pi += 1./3.*a2*ppw->pvecback[pba->index_bg_rho_g]
+            * (8.*sqrt(3.)/5./sqrt(1.-2.*pba->K/k/k))
+            * (y[ppw->pv->index_pt_l1_g+1]);
+	  //ppw->vector_source_v = 0.;
+          break;
+        }
+      }
+      else {//If TCA is one we can still know what is the anisotropic stress, hence the source or vector modes. For the moment we do nothing.
+	/*switch (ppt->hierarchy) {
+        case optimal:
+	  ppw->vector_source_pi += -1./3.*a2*ppw->pvecback[pba->index_bg_rho_g]
+            * (6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k))
+            * ( -4./sqrt(6)*ppw->tca_T2_vector);
+	  //ppw->vector_source_v = 0.;
+          break;
+        case tam:
+	  ppw->vector_source_pi += 1./3.*a2*ppw->pvecback[pba->index_bg_rho_g]
+            * (8.*sqrt(3.)/5./sqrt(1.-2.*pba->K/k/k))
+            * (ppw->tca_T2_vector);
+	  //ppw->vector_source_v = 0.;
+          break;
+	  }*/
+      }
+    }
+    /** Contribution of neutrino or ultra relativistic particles. */
+    if (ppt->evolve_vector_ur == _TRUE_){
+      
+      /* depending on approximation scheme, rho_fs (which is in fact 3*P) should
+	 include only massless relics, or also the fraction of ncdm
+	 that is relativistic */
+      rho_fs = 0.;
+      
+      if (ppt->vector_method == vm_exact)
+	rho_fs += ppw->pvecback[pba->index_bg_rho_ur];
+      
+      if (ppt->vector_method == vm_massless_approximation) {
+	
+	if (pba->has_ur == _TRUE_)
+	  rho_fs += ppw->pvecback[pba->index_bg_rho_ur];
+	
+	if (pba->has_ncdm == _TRUE_) {
+	  for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++) {
+	    /* 3*(p_ncdm1) is the "relativistic" contribution */
+	    rho_fs += 3.*ppw->pvecback[pba->index_bg_p_ncdm1+n_ncdm];
+	  }
+	}
+      }
+      
+      switch (ppt->hierarchy) {
+      case optimal:
+	ppw->vector_source_pi += -1./3.*a2*rho_fs
+	  * (6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k))
+	  * (y[ppw->pv->index_pt_l0_ur+1]+y[ppw->pv->index_pt_l0_ur+3]);
+	//ppw->vector_source_v = 0.;//Not used anywhere. This constrain equation would also be the least efficient method to determine V
+	break;
+      case tam:
+	ppw->vector_source_pi += 1./3.*a2*rho_fs
+	  * (8.*sqrt(3.)/5./sqrt(1.-2.*pba->K/k/k))
+	  * (y[ppw->pv->index_pt_l1_ur+1]);
+	//ppw->vector_source_v = 0.;
+	break;
       }
     }
     
-    /** - --> baryons */
+    /** - --> ncdm contribution to vector source: */
+    if (ppt->evolve_vector_ncdm == _TRUE_){
 
+      /* note that for ncdm we always use the optimal temperature
+	 hierarchy, not the tam temperature hierarchy. In principle
+	 this could lead to tiny differences for large |Omega_k-1| when
+	 the option "tensor_method = tm_exact" is selected. In
+	 practice the error is always completely negligible. */
+      
+      idx = ppw->pv->index_pt_psi0_ncdm1;
+      
+      // We must integrate to find perturbations:
+      for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
+	
+	pincdm = 0.;
+	
+	factor = pba->factor_ncdm[n_ncdm]/pow(a,4);
+	
+	for (index_q=0; index_q < ppw->pv->q_size_ncdm[n_ncdm]; index_q ++) {
+	  
+	  q = pba->q_ncdm[n_ncdm][index_q];
+	  q2 = q*q;
+	  epsilon = sqrt(q2+pba->M_ncdm[n_ncdm]*pba->M_ncdm[n_ncdm]*a2);
+	  
+	  pincdm += q2*q2/epsilon*pba->w_ncdm[n_ncdm][index_q]*(y[idx+1]+y[idx+3]);
+	  
+	  //Jump to next momentum bin:
+	  idx+=(ppw->pv->l_max_ncdm[n_ncdm]+1);
+	}
+	
+	pincdm *= -1./3.*a2*(6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k)) *factor;
+	
+	ppw->vector_source_pi += pincdm;
+	
+      }
+    }
   }
   
   /** - for tensor modes */
@@ -7799,6 +8343,8 @@ int perturbations_sources(
   double dkappa, ddkappa, exp_m_kappa, g, g_prime;
   double theta_idm = 0., theta_idm_prime = 0.;
   double dmu_idm_g = 0., ddmu_idm_g = 0., exp_mu_idm_g = 0.;
+
+  double ssqrt3;
   /** - rename structure fields (just to avoid heavy notations) */
 
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
@@ -8372,6 +8918,71 @@ int perturbations_sources(
     }
   }
 
+  /** - for vectors */
+  if (_vectors_) {
+
+    ssqrt3 = sqrt(1.-2.*pba->K/k/k);
+    /* Function P^(1) appearing in polarisation source */
+    if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
+      if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
+	
+        /* P^(1) exact (no tca, no rsa) */
+        switch (ppt->hierarchy) {
+        case optimal:
+          /* P^(1) using (2.16b) of 1305.3261 */
+          P =  -_SQRT6_/40.*(y[ppw->pv->index_pt_l0_g+1]
+			     +y[ppw->pv->index_pt_l0_g+3]
+			     +2.*y[ppw->pv->index_pt_pol0_g]
+			     +10./7.*y[ppw->pv->index_pt_pol0_g+2]
+			     -4./7.*y[ppw->pv->index_pt_pol0_g+4]);
+	  break;
+	  
+        case tam:
+          P = (y[ppw->pv->index_pt_l1_g+1] - _SQRT6_*y[ppw->pv->index_pt_E2])/10.;
+          break;
+        }
+      }
+      //Tight-coupling
+      else {
+	if (ppt->gauge == newtonian)
+	  P = -1./15. * k*sqrt(3.)*ssqrt3/3. /ppw->pvecthermo[pth->index_th_dkappa] * y[ppw->pv->index_pt_theta_b];//Careful here. theta_b is a proxy for the coupled fluid. It is not the baryon velocity in tight coupling.
+	else if (ppt->gauge == synchronous) {
+	  P = -1./15. * k*sqrt(3.)*ssqrt3/3. /ppw->pvecthermo[pth->index_th_dkappa]
+	    * (y[ppw->pv->index_pt_theta_b] + y[ppw->pv->index_pt_V]);//Idem here theta_b as a proxy for tight-coupled fluid velocity.
+	}
+	  
+      }
+    }
+    else {
+      P=0.;
+    }
+
+    if (ppt->has_source_t == _TRUE_) {
+      if (ppt->gauge == synchronous) {
+
+	_set_source_(ppt->index_tp_t1_v) =pvecthermo[pth->index_th_g]*y[ppw->pv->index_pt_theta_b];
+
+	_set_source_(ppt->index_tp_t2) =k*sqrt(3.)*ssqrt3 /3. *y[ppw->pv->index_pt_V]*pvecthermo[pth->index_th_exp_m_kappa]
+	  +pvecthermo[pth->index_th_g] * P;
+	
+      }
+      else if (ppt->gauge == newtonian) {
+
+	_set_source_(ppt->index_tp_t1_v) = ppw->pvecmetric[ppw->index_mt_V_prime]*pvecthermo[pth->index_th_exp_m_kappa]
+	  +pvecthermo[pth->index_th_g]*y[ppw->pv->index_pt_theta_b];
+
+	_set_source_(ppt->index_tp_t2) = pvecthermo[pth->index_th_g] * P;
+      }
+      
+    }
+    if (ppt->has_source_p == _TRUE_) {
+      //Note that the correct source should have a minus sign, but we add this historical sign 'mistake' as for tensor modes.
+      _set_source_(ppt->index_tp_p) = _SQRT6_ * pvecthermo[pth->index_th_g] * P;
+    }
+  }
+  
+  
+
   /** - for tensors */
   if (_tensors_) {
 
@@ -8505,7 +9116,7 @@ int perturbations_print_variables(double tau,
   double a,a2,H;
   int idx,index_q, storeidx;
   double *dataptr;
-
+  double R;
 
   /** - rename structure fields (just to avoid heavy notations) */
 
@@ -8955,6 +9566,185 @@ int perturbations_print_variables(double tau,
     //fprintf(ppw->perturbations_output_file,"\n");
 
   }
+
+  /** - for vector modes: */
+
+  if (_vectors_) {
+
+    /* This definition is the inverse of the definition used in scalars */
+    R = 3./4. * pvecback[pba->index_bg_rho_b]/pvecback[pba->index_bg_rho_g];
+    
+    if (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off) {
+      if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
+
+        /* exact quantities. */
+        switch (ppt->hierarchy) {
+        case optimal:
+          l0_g = y[ppw->pv->index_pt_l0_g];
+	  l1_g = y[ppw->pv->index_pt_l0_g+1]; 
+          l2_g = y[ppw->pv->index_pt_l0_g+2];
+	  l3_g = y[ppw->pv->index_pt_l0_g+3]; 
+          pol0_g = y[ppw->pv->index_pt_pol0_g];
+          pol2_g = y[ppw->pv->index_pt_pol0_g+2];
+          break;
+        case tam:
+          l1_g = y[ppw->pv->index_pt_l1_g];      
+          l2_g = y[ppw->pv->index_pt_l1_g+1];    
+          E2 = y[ppw->pv->index_pt_E2];          
+	  B2 = y[ppw->pv->index_pt_B2];
+          break;
+        }
+	theta_b = y[ppw->pv->index_pt_theta_b];
+      }
+      else {
+
+        /** Quantities in tca approximation :
+	    In TCA theta_b stands for the velocity theta_fl of the coupled baryon-photon fluid, hence theta_b = theta_fl + Vslip/(1+R)
+	    and theta_g = theta_fl -R/(1+R)Vslip where R = 3/4 rho_b/rho_g. 
+	    This allows to deduce at first order in TCA E_2^(1) and Theta_2^(1)
+	    which are \Theta_2^(1) = 4/9* {}_0\kappa_2^1 \Theta_1^(1)/kappa' 
+	    where \Theta_1^(1) is the photon dipole in newtonian gauge.
+	    The electric quadrupole is related by E_2^(1) = -sqrt(3/8)*\Theta_2^(1).*/
+	
+	
+	/** The optimal hierarchy is related to the TAM hierarchy thanks to 2.40c-2.40e of 1305.3261
+	    In TCA we therefore get the relations F_0^(1) = -sqrt(8)*Theta_1^(1),
+	    F_1^(1) = -4/sqrt(6) * Theta_2^(1) and G_0^(1) = 2 E_2^(1). */
+	
+	switch (ppt->hierarchy) {
+        case optimal:
+          l0_g = -sqrt(8.)*(y[ppw->pv->index_pt_theta_b] - R/(1.+R)*ppw->tca_slip_vector);
+	  l1_g = -4./sqrt(6.)*ppw->tca_T2_vector;
+          l2_g = 0.;
+	  l3_g = 0.;
+          pol0_g = 2.*(-sqrt(3./8.)*ppw->tca_T2_vector);
+          pol2_g = 0.;
+	  break;
+
+        case tam:
+          l1_g = y[ppw->pv->index_pt_theta_b] - R/(1.+R)*ppw->tca_slip_vector;
+          l2_g = ppw->tca_T2_vector;
+          E2 = -sqrt(3./8.)*ppw->tca_T2_vector;
+	  B2 = 0.;
+	  break;
+        }
+	theta_b = y[ppw->pv->index_pt_theta_b] + 1./(1.+R)*ppw->tca_slip_vector;
+      }
+
+      //Neutrinos when RSA is off
+      switch (ppt->hierarchy) {
+      case optimal:
+	l0_ur = y[ppw->pv->index_pt_l0_ur];
+	l1_ur = y[ppw->pv->index_pt_l0_ur+1]; 
+	l2_ur = y[ppw->pv->index_pt_l0_ur+2];
+	l3_ur = y[ppw->pv->index_pt_l0_ur+3]; 
+	break;
+      case tam:
+	l1_ur = y[ppw->pv->index_pt_l1_ur];
+	l2_ur = y[ppw->pv->index_pt_l1_ur+1];
+	l3_ur = y[ppw->pv->index_pt_l1_ur+2];
+	break;
+      }
+      
+    }
+    else {
+      
+      /* quantities in rsa approximation */
+
+      switch (ppt->hierarchy) {
+      case optimal:
+	if (ppt->gauge == newtonian) {
+	  /* This is the TAM hierarchy RSA condition (see hereafter) with the relation F_0^(1)= -sqrt(8) \Theta_1^(1). */
+	  l0_g = -2.*_SQRT2_*y[ppw->pv->index_pt_V];
+	  l0_ur = -2.*_SQRT2_*y[ppw->pv->index_pt_V];
+	}
+	else {
+	  l0_g = 0.;
+	  l0_ur = 0.;
+	}
+        l1_g = 0.;
+	l2_g = 0.;
+	l3_g = 0.;
+        pol0_g = 0.;
+        pol2_g = 0.;
+	l1_ur = 0.;
+	l2_ur = 0.;
+	l3_ur = 0.;
+        break;
+      case tam:
+	/* In RSA we assume that \tilde Theta_1 = Theta_1 - V = 0 in average. */
+	/* where \tilde \Theta_1 is the dipole in synchronous gauge and \Theta_1 is the dipole in newtonian gauge. But this is never really used except here. */
+	if (ppt->gauge == newtonian) {
+	  l1_g = y[ppw->pv->index_pt_V];
+	  l1_ur = y[ppw->pv->index_pt_V];
+	}
+	else {
+	  l1_g = 0.;
+	  l1_ur = 0.;
+	}
+        l2_g = 0.;
+        E2 = 0.;
+	B2 = 0.;
+	l2_ur = 0.;
+	l3_ur = 0.;
+        break;
+      }
+      
+      theta_b = y[ppw->pv->index_pt_theta_b];
+    }
+    
+
+    /** - --> Handle (re-)allocation */
+    if (ppt->vector_perturbations_data[ppw->index_ikout] == NULL){
+      class_alloc(ppt->vector_perturbations_data[ppw->index_ikout],
+                  sizeof(double)*ppt->number_of_vector_titles,
+                  error_message);
+      ppt->size_vector_perturbation_data[ppw->index_ikout] = 0;
+    }
+    else{
+      ppt->vector_perturbations_data[ppw->index_ikout] =
+        realloc(ppt->vector_perturbations_data[ppw->index_ikout],
+                sizeof(double)*(ppt->size_vector_perturbation_data[ppw->index_ikout]+ppt->number_of_vector_titles));
+    }
+    storeidx = 0;
+    dataptr = ppt->vector_perturbations_data[ppw->index_ikout]+
+      ppt->size_vector_perturbation_data[ppw->index_ikout];
+    ppt->size_vector_perturbation_data[ppw->index_ikout] += ppt->number_of_vector_titles;
+    
+    //fprintf(ppw->perturbations_output_file," ");
+    class_store_double(dataptr, tau, _TRUE_, storeidx);
+    class_store_double(dataptr, pvecback[pba->index_bg_a], _TRUE_, storeidx);
+    
+    switch (ppt->hierarchy) {
+    case optimal:
+      class_store_double(dataptr, y[ppw->pv->index_pt_V], _TRUE_, storeidx);
+      class_store_double(dataptr, theta_b, _TRUE_, storeidx);
+      class_store_double(dataptr, l0_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l1_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l2_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l3_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l0_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l1_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l2_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l3_g, _TRUE_, storeidx);
+      class_store_double(dataptr, pol0_g, _TRUE_, storeidx);
+      class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
+      break;
+    case tam:
+      class_store_double(dataptr, y[ppw->pv->index_pt_V], _TRUE_, storeidx);
+      class_store_double(dataptr, theta_b, _TRUE_, storeidx);
+      class_store_double(dataptr, l1_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l2_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l3_ur, _TRUE_, storeidx);
+      class_store_double(dataptr, l1_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l2_g, _TRUE_, storeidx);
+      class_store_double(dataptr, E2, _TRUE_, storeidx);
+      class_store_double(dataptr, B2, _TRUE_, storeidx);
+      break;
+    }
+    
+  }  
+  
   /** - for tensor modes: */
 
   if (_tensors_) {
@@ -9247,7 +10037,6 @@ int perturbations_derivs(double tau,
   double q_m, zerokappam2;
 
   /** - rename the fields of the input structure (just to avoid heavy notations) */
-
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
 
   k = pppaw->k;
@@ -10235,140 +11024,404 @@ int perturbations_derivs(double tau,
   /** - vector mode */
   if (_vectors_) {
 
-    fprintf(stderr,"we are in vectors\n");
+    //The definition of R for scalar modes is the opposite as for scalar perturbations.
+    R = 3./4. * pvecback[pba->index_bg_rho_b]/pvecback[pba->index_bg_rho_g];
 
     ssqrt3 = sqrt(1.-2.*pba->K/k2);
+    zerokappam2 = sqrt(3.)*k*ssqrt3;
+    
     cb2 = pvecthermo[pth->index_th_cb2];
 
-    /** - --> baryon velocity */
-
-    if (ppt->gauge == synchronous) {
-
-      dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
-        - pvecthermo[pth->index_th_dkappa]*(_SQRT2_/4.*delta_g + y[pv->index_pt_theta_b]);
-
-    }
-
-    else if (ppt->gauge == newtonian) {
-
-      dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
-        - _SQRT2_/4.*pvecthermo[pth->index_th_dkappa]*(delta_g+2.*_SQRT2_*y[pv->index_pt_theta_b])
-        + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
-
-    }
-
-    /*
-      if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
+    if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
-    */
+	
+	/* (P^{(1)}) (see Eq. B.23 in 1305.3261)*/
+	switch (ppt->hierarchy) {
+	case optimal:
+	  theta_g = -1./sqrt(8.)*(y[pv->index_pt_l0_g]+y[pv->index_pt_l0_g+2]);
+	  
+	  /** - --> baryon velocity */
+	  if (ppt->gauge == synchronous) {
+	    
+	    dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
+	      - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]-theta_g)/R;
+	    
+	  }
+	  
+	  else if (ppt->gauge == newtonian) {
+	    
+	    dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
+	      - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]-theta_g)/R
+	      + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
+	    
+	  }
+	  
+	  P1 = -_SQRT6_/40.*(y[pv->index_pt_l0_g+1]
+			     +y[pv->index_pt_l0_g+3]
+			     +2.*y[pv->index_pt_pol0_g]
+			     +10./7.*y[pv->index_pt_pol0_g+2]
+			     -4./7.*y[pv->index_pt_pol0_g+4]);
+	  
+	  if (ppt->gauge == synchronous) {
+	    
+	    /* photon density (delta_g = F_0) */
+	    dy[pv->index_pt_l0_g] = -k*y[pv->index_pt_l0_g+1]
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g]+2.*_SQRT2_*y[pv->index_pt_theta_b]);
+	    
+	    /* photon velocity (theta_g = (3k/4)*F_1) */
+	    dy[pv->index_pt_l0_g+1] = k/3.*(y[pv->index_pt_l0_g]-2.*s_l[2]*y[pv->index_pt_l0_g+2])
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g+1]+2./3.*_SQRT6_*P1)
+	      +4.0/(3.0*_SQRT2_)*ssqrt3*(-k*y[pv->index_pt_V]);
+	  }
+	  
+	  else if (ppt->gauge == newtonian) {
+	    
+	    /* photon density (delta_g = F_0) */
+	    dy[pv->index_pt_l0_g] = -k*y[pv->index_pt_l0_g+1]
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g]+2.*_SQRT2_*y[pv->index_pt_theta_b])
+	      -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime];
+	    
+	    /* photon velocity (theta_g = (3k/4)*F_1) */
+	    dy[pv->index_pt_l0_g+1] = k/3.*(y[pv->index_pt_l0_g]-2.*s_l[2]*y[pv->index_pt_l0_g+2])
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g+1]+2./3.*_SQRT6_*P1);
+	    
+	  }
+	  
+	  /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
+	  for (l=2; l < pv->l_max_g; l++)
+	    dy[pv->index_pt_l0_g+l] =
+	      k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_l0_g+l-1]
+			   -(l+1.)*s_l[l+1]*y[pv->index_pt_l0_g+l+1])
+	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l0_g+l];
+	  	  
+	  /* l=lmax */
+	  l = pv->l_max_g;
+	  dy[pv->index_pt_l0_g+l] =
+	    k*(s_l[l]*y[pv->index_pt_l0_g+l-1]
+	       -(1.+l)*cotKgen*y[pv->index_pt_l0_g+l])
+	    - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l0_g+l];
+	  
+	  /* photon polarization, l=0 (pol0_g = G_0)*/
+	  dy[pv->index_pt_pol0_g] =
+	    -k*y[pv->index_pt_pol0_g+1]
+	    //-pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g] -_SQRT6_*P1);
+	    /** Typo alert. The factor in front of P1 must be -2*sqrt(6) but in Tram 1305.3261 there is a sign typo and this factor is displayed as 2*sqrt(6) */
+	    -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g] + 2*_SQRT6_*P1);
+	  	  
+	  /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
+	  for (l=1; l < pv->l_max_pol_g; l++)
+	    dy[pv->index_pt_pol0_g+l] =
+	      k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_pol0_g+l-1]
+			   -(l+1.)*s_l[l+1]*y[pv->index_pt_pol0_g+l+1])
+	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+	  
+	  /* l=lmax */
+	  l = pv->l_max_pol_g;
+	  dy[pv->index_pt_pol0_g+l] =
+	    k*(s_l[l]*y[pv->index_pt_pol0_g+l-1]
+	       -(l+1.)*cotKgen*y[pv->index_pt_pol0_g+l])
+	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
 
-    /* short-cut notations for the tensor perturbations */
-    delta_g = y[pv->index_pt_delta_g];
-    theta_g = y[pv->index_pt_theta_g];
-    shear_g = y[pv->index_pt_shear_g];
+	  break;
+	case tam:
+	  if (ppt->gauge == synchronous) {
+	    
+	    dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
+	      - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]-y[pv->index_pt_l1_g])/R;
 
+	  }
+	  
+	  else if (ppt->gauge == newtonian) {
+	    
+	    dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
+	      - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]-y[pv->index_pt_l1_g])/R
+	      + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
+	    
+	  }
+	  
+	  P1 = 1./10.*(y[pv->index_pt_l1_g+1] - _SQRT6_*y[pv->index_pt_E2]);
+	  
+	  //l=1
+	  if (ppt->gauge == synchronous) {
+	    dy[pv->index_pt_l1_g] = -zerokappam[2] /5.*y[pv->index_pt_l1_g+1]
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g]-y[pv->index_pt_theta_b]);
+	    
+	  }
+	  else if (ppt->gauge == newtonian) {
+	    dy[pv->index_pt_l1_g] = -zerokappam[2] /5.*y[pv->index_pt_l1_g+1]
+	      + pvecmetric[ppw->index_mt_V_prime]
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g]-y[pv->index_pt_theta_b]);
+	  }
+	  
+	  //l=2
+	  if (ppt->gauge == synchronous) {
+	    dy[pv->index_pt_l1_g+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_g+2]
+	      + zerokappam[2] /3.*(y[pv->index_pt_l1_g] + y[pv->index_pt_V])
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g+1]-P1);
+	  }
+	  else if (ppt->gauge == newtonian) {
+	    dy[pv->index_pt_l1_g+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_g+2]
+	      + zerokappam[2] /3.*y[pv->index_pt_l1_g]
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g+1]-P1);
+	  }
 
-    /* (P^{(1)}) (see Eq. B.23 in 1305.3261)*/
-    P1 = -_SQRT6_/40.*(
-                       4./(3.*k)*theta_g //F1
-                       +y[pv->index_pt_delta_g+3]
-                       +2.*y[pv->index_pt_pol0_g]
-                       +10./7.*y[pv->index_pt_pol2_g]
-                       -4./7.*y[pv->index_pt_pol0_g+4]);
+	  dy[pv->index_pt_E2] = -q_m*2./2./3.*y[pv->index_pt_B2]
+             -twokappam[3] /7.*y[pv->index_pt_E2+1]
+	     -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+_SQRT6_ * P1);
 
-    if (ppt->gauge == synchronous) {
+          dy[pv->index_pt_B2] = q_m*2./2./3.*y[pv->index_pt_E2]
+	    -twokappam[3] /7.*y[pv->index_pt_B2+1]
+	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
+	  
+	  //l>=3
+	  for (l=3; l < pv->l_max_g; l++) {
+	    dy[pv->index_pt_l1_g+l-1] = -zerokappam[l+1] /(2.*l+3.)*y[pv->index_pt_l1_g+l]
+	      + zerokappam[l] /(2.*l-1.) *y[pv->index_pt_l1_g+l-2]
+	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g+l-1]);
+	  }
 
-      /* photon density (delta_g = F_0) */
-      dy[pv->index_pt_delta_g] =
-        -4./3.*theta_g
-        -pvecthermo[pth->index_th_dkappa]*(delta_g+2.*_SQRT2_*y[pv->index_pt_theta_b]);
-
-      /* photon velocity (theta_g = (3k/4)*F_1) */
-      dy[pv->index_pt_theta_g] =
-        k2*(delta_g/4.-s_l[2]*shear_g)
-        -pvecthermo[pth->index_th_dkappa]*(theta_g+4.0/_SQRT6_*P1)
-        +4.0/(3.0*_SQRT2_)*ssqrt3*y[pv->index_pt_hv_prime];
-
-    }
-
-    else if (ppt->gauge == newtonian) {
-
-      /* photon density (delta_g = F_0) */
-      dy[pv->index_pt_delta_g] =
-        -4./3.*theta_g
-        -pvecthermo[pth->index_th_dkappa]*(delta_g+2.*_SQRT2_*y[pv->index_pt_theta_b])
-        -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime];
-
-      /* photon velocity (theta_g = (3k/4)*F_1) */
-      dy[pv->index_pt_theta_g] =
-        k2*(delta_g/4.-s_l[2]*shear_g)
-        -pvecthermo[pth->index_th_dkappa]*(theta_g+4.0/_SQRT6_*P1);
-
-    }
-
-    /* photon shear (shear_g = F_2/2) */
-    dy[pv->index_pt_shear_g] =
-      4./15.*s_l[2]*theta_g-3./10.*k*s_l[3]*y[pv->index_pt_shear_g+1]
-      -pvecthermo[pth->index_th_dkappa]*shear_g;
-
-    /* photon l=3 */
-    dy[pv->index_pt_l3_g] =
-      k/7.*(6.*s_l[3]*shear_g-4.*s_l[4]*y[pv->index_pt_l3_g+1])
-      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
-
-    /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
-    for (l=4; l < pv->l_max_g; l++)
-      dy[pv->index_pt_delta_g+l] =
-        k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_delta_g+l-1]
-                     -(l+1.)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
-        -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
-
-    /* l=lmax */
-    l = pv->l_max_g;
-    dy[pv->index_pt_delta_g+l] =
-      k*(s_l[l]*y[pv->index_pt_delta_g+l-1]
-         -(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
-      - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
-
-    /* photon polarization, l=0 (pol0_g = G_0)*/
-    dy[pv->index_pt_pol0_g] =
-      -k*y[pv->index_pt_pol0_g+1]
-      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g]-_SQRT6_*P1);
-
-    /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
-    for (l=1; l < pv->l_max_pol_g; l++)
-      dy[pv->index_pt_pol0_g+l] =
-        k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_pol0_g+l-1]
-                     -(l+1.)*s_l[l+1]*y[pv->index_pt_pol0_g+l+1])
-        -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
-
-    /* l=lmax */
-    l = pv->l_max_pol_g;
-    dy[pv->index_pt_pol0_g+l] =
-      k*(s_l[l]*y[pv->index_pt_pol0_g+l-1]
-         -(l+1.)*cotKgen*y[pv->index_pt_pol0_g+l])
-      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
-
-    /*
+          for (l=3; l < pv->l_max_pol_g; l++) {	  
+	    dy[pv->index_pt_E2+l-2] = twokappam[l] /(2.*l-1.)*y[pv->index_pt_E2+l-3]
+	      -q_m*2./l/(l+1.)*y[pv->index_pt_B2+l-2]
+	      -twokappam[l+1] /(2.*l+3.)*y[pv->index_pt_E2+l-1]
+	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
+	    
+            dy[pv->index_pt_B2+l-2] = twokappam[l] /(2.*l-1.)*y[pv->index_pt_B2+l-3]
+	      +q_m*2./l/(l+1.)*y[pv->index_pt_E2+l-2]
+	      -twokappam[l+1] /(2.*l+3.)*y[pv->index_pt_B2+l-1]
+	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
+	  }
+	  
+	  /* l=lmax */
+	  l = pv->l_max_g;
+          dy[pv->index_pt_l1_g+l-1] = zerokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_g+l-2]
+            -(l+2.)*k*cotKgen*y[pv->index_pt_l1_g+l-1]
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l1_g+l-1];
+	  
+	  l = pv->l_max_pol_g;
+          dy[pv->index_pt_E2+l-2] = twokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_E2+l-3]
+	    +q_m*2./l*y[pv->index_pt_B2+l-2]
+	    -(l+2.)*k*cotKgen*y[pv->index_pt_E2+l-2]
+	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
+	  
+          dy[pv->index_pt_B2+l-2] = twokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_B2+l-3]
+	    -q_m*2./l*y[pv->index_pt_E2+l-2]
+	    -(l+2.)*k*cotKgen*y[pv->index_pt_B2+l-2]
+	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
+	  
+	  break;
+	}
+	
       }
+      else {
+	// We recall that in TCA the baryons stand in fact for the tight-coupled fluid of baryons and photons 
+	switch (ppt->hierarchy) {
+	case optimal:
+	  if (ppt->gauge == synchronous) {
+	    
+	    ppw->tca_T2_vector = 4./9.* zerokappam2/pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b] + y[pv->index_pt_V]);
+	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*y[pv->index_pt_theta_b] - zerokappam2/5*ppw->tca_T2_vector);
+	    /** We have added the correction to the slip coming from the first order quadrupole. This is second order in tight coupling,
+		but the leading term when initial condition have a vanishing initial baryon/photon fluid velocity (in synchronous gauge) */
+	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
+	      -zerokappam2/5./(1.+R)*ppw->tca_T2_vector;
+
+	  }
+	  else if (ppt->gauge == newtonian) {
+	    
+	    ppw->tca_T2_vector = 4./9.* zerokappam2 /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]);
+	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*(y[pv->index_pt_theta_b]-y[pv->index_pt_V]) - zerokappam2/5*ppw->tca_T2_vector);
+
+	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
+	      + pvecmetric[ppw->index_mt_V_prime] +a_prime_over_a*R/(1.+R)*y[pv->index_pt_V]
+	      -zerokappam2/5./(1.+R)*ppw->tca_T2_vector;
+
+	  }
+	  break;
+	case tam:
+	  if (ppt->gauge == synchronous) {
+
+	    ppw->tca_T2_vector = 4./9.* zerokappam[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b] + y[pv->index_pt_V]);
+	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*y[pv->index_pt_theta_b] - zerokappam[2]/5*ppw->tca_T2_vector);
+	    //We have added the correction to the slip coming from the first order quadrupole. This is second order in tight coupling,
+	    //but the leading term when initial condition have a vanishing initial baryon/photon fluid velocity (in synchronous gauge)
+
+	    //We only integrate the baryons which stand for the tight-coupled fluid of baryons and photons.
+	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
+	      -zerokappam[2]/5./(1.+R)*ppw->tca_T2_vector;
+
+	  }
+	  else if (ppt->gauge == newtonian) {
+
+	    ppw->tca_T2_vector = 4./9.* zerokappam[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]);
+	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*(y[pv->index_pt_theta_b]-y[pv->index_pt_V]) - zerokappam[2]/5*ppw->tca_T2_vector);
+
+	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
+	      + pvecmetric[ppw->index_mt_V_prime] +a_prime_over_a*R/(1.+R)*y[pv->index_pt_V]
+	      -zerokappam[2]/5./(1.+R)*ppw->tca_T2_vector;
+
+	  }
+	  break;
+	}
       }
-    */
-
-    if (ppt->gauge == synchronous) {
-
-      /* Vector metric perturbation in synchronous gauge: */
-      dy[pv->index_pt_hv_prime] = pvecmetric[ppw->index_mt_hv_prime_prime];
-
     }
-    else if (ppt->gauge == newtonian){
-
-      /* Vector metric perturbation in Newtonian gauge: */
-      dy[pv->index_pt_V] = pvecmetric[ppw->index_mt_V_prime];
-
+    else {
+      //If RSA is on we still need to integrate the baryons
+      if (ppt->gauge == synchronous) {
+	
+	dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
+	  - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]-0.);
+	
+      }
+      
+      else if (ppt->gauge == newtonian) {
+	
+	dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
+	  - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b] - y[pv->index_pt_V])
+	  + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
+	
+      }
     }
+    
+    
+    //ur species
+    if (ppt->evolve_vector_ur == _TRUE_) {
+      //In all cases we integrate neutrinos (even if RSA is on !)
+      switch (ppt->hierarchy) {
+      case optimal: 
+	if (ppt->gauge == synchronous) {
+	  
+	  dy[pv->index_pt_l0_ur] = -k*y[pv->index_pt_l0_ur+1];
+	  
+	  
+	  dy[pv->index_pt_l0_ur+1] = k/3.*(y[pv->index_pt_l0_ur]-2.*s_l[2]*y[pv->index_pt_l0_ur+2])
+	    +4.0/(3.0*_SQRT2_)*ssqrt3*(-k*y[pv->index_pt_V]); 
 
-  }
+	}
+	
+	else if (ppt->gauge == newtonian) {
+	  dy[pv->index_pt_l0_ur] = -k*y[pv->index_pt_l0_ur+1]
+	    -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime];
+	  
+	  dy[pv->index_pt_l0_ur+1] = k/3.*(y[pv->index_pt_l0_ur]-2.*s_l[2]*y[pv->index_pt_l0_ur+2]);
+	}
+	
+	/* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
+	for (l=2; l < pv->l_max_ur; l++)
+	  dy[pv->index_pt_l0_ur+l] =
+	    k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_l0_ur+l-1]
+			 -(l+1.)*s_l[l+1]*y[pv->index_pt_l0_ur+l+1]);
+	
+	/* l=lmax */
+	l = pv->l_max_ur;
+	dy[pv->index_pt_l0_ur+l] =
+	  k*(s_l[l]*y[pv->index_pt_l0_ur+l-1] -(1.+l)*cotKgen*y[pv->index_pt_l0_ur+l]);//Check this closure which I think is not correct.
+	
+	break;
+      case tam:
+	
+	if (ppt->gauge == synchronous) {
+	  dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1];
+	}
+	else if (ppt->gauge == newtonian) {
+	  dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1]
+	    + pvecmetric[ppw->index_mt_V_prime];
+	}
+	//l=2
+	if (ppt->gauge == synchronous) {
+	  dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
+	    + zerokappam[2] /3.*(y[pv->index_pt_l1_ur] + y[pv->index_pt_V]);
+	}
+	else if (ppt->gauge == newtonian) {
+	  dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
+	    + zerokappam[2] /3.*y[pv->index_pt_l1_ur];
+	}
+	
+	//l>=3
+	for (l=3; l < pv->l_max_ur; l++) {
+	  
+	  dy[pv->index_pt_l1_ur+l-1] = -zerokappam[l+1] /(2.*l+3.)*y[pv->index_pt_l1_ur+l]
+	    + zerokappam[l] /(2.*l-1.)*y[pv->index_pt_l1_ur+l-2];
+	}
+	/* l=lmax */
+	l = pv->l_max_ur;
+	dy[pv->index_pt_l1_ur+l-1] = zerokappam[l] * (2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_ur+l-2]
+	  -(l+2.)*k*cotKgen*y[pv->index_pt_l1_ur+l-1];
+	
+	break;
+      }
+    }
+    
+    if (ppt->evolve_vector_ncdm == _TRUE_) {
+      /** - --> non-cold dark matter (ncdm): massive neutrinos, WDM, etc. */
 
+      /* note that for ncdm we always use the optimal temperature
+         hierarchy, not the tam temperature hierarchy. In principle
+         this could lead to tiny differences for large |Omega_k| when
+         the option "tensor_method = tm_exact" is selected. In
+         practice the error is always completly negligible. */
+
+      //TBC:
+
+      idx = pv->index_pt_psi0_ncdm1;
+
+      /** - ---> loop over species */
+
+      for (n_ncdm=0; n_ncdm<pv->N_ncdm; n_ncdm++) {
+	
+        /** - ----> loop over momentum */
+	
+        for (index_q=0; index_q < pv->q_size_ncdm[n_ncdm]; index_q++) {
+
+          /** - ----> define intermediate quantities */
+
+          dlnf0_dlnq = pba->dlnf0_dlnq_ncdm[n_ncdm][index_q];
+          q = pba->q_ncdm[n_ncdm][index_q];
+          epsilon = sqrt(q*q+a2*pba->M_ncdm[n_ncdm]*pba->M_ncdm[n_ncdm]);
+          qk_div_epsilon = k*q/epsilon;
+
+ 
+	  if (ppt->gauge == synchronous) {
+
+	    /** - ----> ncdm density for given momentum bin */
+	    dy[idx] = -qk_div_epsilon*y[idx+1];
+	    
+            dy[idx+1] = qk_div_epsilon/3.*(1*s_l[1]*y[idx]-2.*s_l[2]*y[idx+2])
+	      +4.0/(3.0*_SQRT2_)*ssqrt3*(-qk_div_epsilon*y[pv->index_pt_V])*(-0.25*dlnf0_dlnq);//TBC
+	    
+	  }
+	  
+	  else if (ppt->gauge == newtonian) {
+
+	    /** - ----> ncdm density for given momentum bin */
+	    dy[idx] = -qk_div_epsilon*y[idx+1] -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime]*(-0.25*dlnf0_dlnq);
+
+            dy[idx+1] = qk_div_epsilon/3.*(1*s_l[1]*y[idx]-2.*s_l[2]*y[idx+2]);
+
+	  }
+	  
+          /** - ----> ncdm l>1 for given momentum bin */
+
+          for(l=2; l<pv->l_max_ncdm[n_ncdm]; l++){
+            dy[idx+l] = qk_div_epsilon/(2.*l+1.0)*(l*s_l[l]*y[idx+(l-1)]-(l+1.)*s_l[l+1]*y[idx+(l+1)]);
+          }
+	  
+          /** - ----> ncdm lmax for given momentum bin (truncation as in Ma and Bertschinger)
+              but with curvature taken into account a la arXiv:1305.3261 */
+	  
+          dy[idx+l] = qk_div_epsilon*s_l[l]*y[idx+l-1]-(1.+l)*k*cotKgen*y[idx+l];
+	  
+          /** - ----> jump to next momentum bin or species */
+	  
+          idx += (pv->l_max_ncdm[n_ncdm]+1);
+        }
+      }
+    }
+    
+    //In all cases we integrate the metric
+    dy[pv->index_pt_V] = pvecmetric[ppw->index_mt_V_prime];
+    
+  }  
 
   /** - tensor modes: */
   if (_tensors_) {

@@ -46,7 +46,7 @@ enum rsa_idr_method {rsa_idr_none,rsa_idr_MD};  /* for the idm-idr case */
 enum ufa_method {ufa_mb,ufa_hu,ufa_CLASS,ufa_none};
 enum ncdmfa_method {ncdmfa_mb,ncdmfa_hu,ncdmfa_CLASS,ncdmfa_none};
 enum tensor_methods {tm_photons_only,tm_massless_approximation,tm_exact};
-
+enum vector_methods {vm_massless_approximation,vm_exact};
 //@}
 
 /**
@@ -69,7 +69,7 @@ enum possible_gauges {
  * with just two hierarchies F_l, G_l; or 'tam' for total angular
  * momentum method by Hu, Seljak, White, Zaldarriaga with three
  * hierarchies Theta_l, E_l, B_l (astro-ph/9702170, astro-ph/9709066,
- * 1909.13687, 2005.xxxxx). The two hierarchies are also implemented
+ * 1909.13687, 2005.12119). The two hierarchies are also implemented
  * for neutrino tensor modes (for neutrino scalar modes they are
  * exactly equivalent). The two hierarchies are also implemented for
  * neutrino tensor modes (for neutrino scalar modes they are exactly
@@ -77,7 +77,7 @@ enum possible_gauges {
  * almost negligible speed up and almost negligible accuracy
  * degradation in the curved case (biggest relative error is ~
  * 0.5*|Omega_k| on the large-l tensor polarisation spectrum, see
- * 2005.xxxxx). Credits C. Pitrou and T. Pereira.
+ * 2005.12119). Credits C. Pitrou and T. Pereira.
  */
 
 //@{
@@ -139,15 +139,22 @@ struct perturbations
   short has_nid;     /**< do we need isocurvature nid mode? */
   short has_niv;     /**< do we need isocurvature niv mode? */
 
+  short has_iso_v;     /**< do we need isocurvature vector mode? */
+  short has_oct_v;     /**< do we need (neutrino) octupole vector mode? */
+
   /* perturbed recombination */
   /** Do we want to consider perturbed temperature and ionization fraction? */
   short has_perturbed_recombination;
   /** Neutrino contribution to tensors */
   enum tensor_methods tensor_method;  /**< way to treat neutrinos in tensor perturbations(neglect, approximate as massless, take exact equations) */
+  enum vector_methods vector_method;  /**< way to treat neutrinos in vector perturbations (approximate as massless, take exact equations) */
 
   short evolve_tensor_ur;             /**< will we evolve ur tensor perturbations (either because we have ur species, or we have ncdm species with massless approximation) ? */
   short evolve_tensor_ncdm;             /**< will we evolve ncdm tensor perturbations (if we have ncdm species and we use the exact method) ? */
 
+  short evolve_vector_ur;             /**< will we evolve ur vector perturbations (either because we have ur species, or we have ncdm species with massless approximation) ? */
+  short evolve_vector_ncdm;             /**< will we evolve ncdm vector perturbations (if we have ncdm species and we use the exact method) ? */
+  
   short has_cl_cmb_temperature;       /**< do we need \f$ C_l \f$'s for CMB temperature? */
   short has_cl_cmb_polarization;      /**< do we need \f$ C_l \f$'s for CMB polarization? */
   short has_cl_cmb_lensing_potential; /**< do we need \f$ C_l \f$'s for CMB lensing potential? */
@@ -263,6 +270,9 @@ struct perturbations
   int index_ic_niv; /**< index value for neutrino velocity isocurvature */
   int index_ic_ten; /**< index value for unique possibility for tensors */
 
+  int index_ic_iso_v; /**< index value for isocurvature in vector modes */
+  int index_ic_oct_v; /**< index value for neutrino octupolar in vector modes */
+
   int * ic_size;       /**< for a given mode, ic_size[index_md] = number of initial conditions included in computation */
 
   //@}
@@ -318,8 +328,9 @@ struct perturbations
      to avoid the integration by part that would reduce the source to
      a single term) */
   int index_tp_t0; /**< index value for temperature (j=0 term) */
-  int index_tp_t1; /**< index value for temperature (j=1 term) */
-  int index_tp_t2; /**< index value for temperature (j=2 term) */
+  int index_tp_t1; /**< index value for temperature (j=1 term) for scalar mode (m=0) */
+  int index_tp_t1_v; /**< index value for temperature (j=1 term) for vector mode (m=1) */
+  int index_tp_t2; /**< index value for temperature (j=2 term), common index for m=0,1,2 */
   int index_tp_p; /**< index value for polarization */
   int index_tp_delta_m; /**< index value for matter density fluctuation */
   int index_tp_delta_cb; /**< index value for delta cb */
@@ -649,6 +660,10 @@ struct perturbations_workspace
 
   double tca_shear_g;  /**< photon shear in tight-coupling approximation */
   double tca_slip;     /**< photon-baryon slip in tight-coupling approximation */
+
+  double tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
+  double tca_slip_vector;     /**< photon-baryon slip in tight-coupling approximation for vector modes */
+  
   double tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
   double rsa_delta_g;  /**< photon density in radiation streaming approximation */
   double rsa_theta_g;  /**< photon velocity in radiation streaming approximation */

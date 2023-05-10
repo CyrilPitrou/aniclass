@@ -352,6 +352,13 @@ int output_cl(
 
       }
 
+      if (_vectors_) {
+
+        sprintf(file_name,"%s%s",pop->root,"clv.dat");
+        strcpy(first_line,"[l(l+1)/2pi] C_l's for vector mode");
+
+      }      
+
       if (_tensors_) {
 
         class_sprintf(file_name,"%s%s",pop->root,"clt.dat");
@@ -492,6 +499,31 @@ int output_cl(
             }
 
           }
+
+	  if (_vectors_) {
+
+            if ((ppt->has_iso_v == _TRUE_) &&
+                (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_iso_v)) {
+
+              sprintf(file_name,"%s%s",pop->root,"clv_iso.dat");
+              strcpy(first_line,"[l(l+1)/2pi] C_l's for vector isocurvature (ISO_V) mode");
+            }
+
+            if ((ppt->has_oct_v == _TRUE_) &&
+                (index_ic1 == ppt->index_ic_oct_v) && (index_ic2 == ppt->index_ic_oct_v)) {
+
+              sprintf(file_name,"%s%s",pop->root,"clv_oct.dat");
+              strcpy(first_line,"[l(l+1)/2pi] C_l's for vector octupole (OCT_V) mode");
+            }
+
+	    if ((ppt->has_iso_v == _TRUE_) && (ppt->has_oct_v == _TRUE_) &&
+                (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_oct_v)) {
+
+              sprintf(file_name,"%s%s",pop->root,"clv_iso_oct.dat");
+              strcpy(first_line,"[l(l+1)/2pi] C_l's for vector cross ISO_VxOCT_V mode");
+            }
+
+	  }
 
           if (_tensors_) {
 
