@@ -4110,12 +4110,12 @@ int perturbations_vector_init(
   index_pt = 0;
 
   if (_scalars_) {
-
+    
     /* reject inconsistent values of the number of mutipoles in photon temperature hierarchy */
     class_test(ppr->l_max_g < 4,
                ppt->error_message,
                "ppr->l_max_g should be at least 4, i.e. we must integrate at least over photon density, velocity, shear, third and fourth momentum");
-
+    
     /* reject inconsistent values of the number of mutipoles in photon polarization hierarchy */
     class_test(ppr->l_max_pol_g < 4,
                ppt->error_message,
@@ -4335,19 +4335,23 @@ int perturbations_vector_init(
       }
     }
     
+    //We decide to switch-off ur as well when RSA is on
     if (ppt->evolve_vector_ur == _TRUE_) {
-      switch (ppt->hierarchy) {
-      case optimal:
-        ppv->l_max_ur = ppr->l_max_ur_vec;
-        class_define_index(ppv->index_pt_l0_ur,_TRUE_,index_pt,ppv->l_max_ur+1); /* ur F_0^(1) */
-        break;
-      case tam:
-        /* vector modes: l_max should be incremented by 1 to reach the same expansion order as in optimal (see 2005.12119) */
-        ppv->l_max_ur = ppr->l_max_ur_vec+1;
-        class_define_index(ppv->index_pt_l1_ur,_TRUE_,index_pt,ppv->l_max_ur); /* ur Theta_1^(1) */
+      if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
+	switch (ppt->hierarchy) {
+	case optimal:
+	  ppv->l_max_ur = ppr->l_max_ur_vec;
+	  class_define_index(ppv->index_pt_l0_ur,_TRUE_,index_pt,ppv->l_max_ur+1); /* ur F_0^(1) */
+	  break;
+	case tam:
+	  /* vector modes: l_max should be incremented by 1 to reach the same expansion order as in optimal (see 2005.12119) */
+	  ppv->l_max_ur = ppr->l_max_ur_vec+1;
+	  class_define_index(ppv->index_pt_l1_ur,_TRUE_,index_pt,ppv->l_max_ur); /* ur Theta_1^(1) */
+	}
       }
     }
     
+    //ncdm are integrated in all cases. Hence whenever we have one species, the code is much smaller as these never enjoy the RSA approximation
     if (ppt->evolve_vector_ncdm == _TRUE_) {
       ppv->index_pt_psi0_ncdm1 = index_pt;
       ppv->N_ncdm = pba->N_ncdm;
@@ -4383,17 +4387,17 @@ int perturbations_vector_init(
     class_test(ppr->l_max_g_ten < 4,
                ppt->error_message,
                "ppr->l_max_g_ten should be at least 4, i.e. we must integrate at least over photon density, velocity, shear, third momentum");
-
+    
     /* reject inconsistent values of the number of mutipoles in photon polarization hierarchy */
     class_test(ppr->l_max_pol_g_ten < 4,
                ppt->error_message,
                "ppr->l_max_pol_g_ten should be at least 4");
-
+    
     /* reject inconsistent values of the number of mutipoles in ur hierarchy */
     class_test(ppr->l_max_ur_ten < 4,
                ppt->error_message,
                "ppr->l_max_ur_ten should be at least 4, i.e. we must integrate at least over ur density, velocity, shear, third momentum");
-
+    
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
 	
@@ -4448,15 +4452,15 @@ int perturbations_vector_init(
         //Copy value from precision parameter:
         ppv->l_max_ncdm[n_ncdm] = ppr->l_max_ncdm;
         ppv->q_size_ncdm[n_ncdm] = pba->q_size_ncdm[n_ncdm];
-
+	
         index_pt += (ppv->l_max_ncdm[n_ncdm]+1)*ppv->q_size_ncdm[n_ncdm];
       }
     }
-
-
+    
+    
     /** - (b) metric perturbation h is a propagating degree of freedom, so h and hdot are included
         in the vector of ordinary perturbations, no in that of metric perturbations */
-
+    
     class_define_index(ppv->index_pt_gw,_TRUE_,index_pt,1);     /* tensor metric perturbation h (gravitational waves) */
     class_define_index(ppv->index_pt_gwdot,_TRUE_,index_pt,1);  /* its time-derivative */
     
@@ -4567,10 +4571,8 @@ int perturbations_vector_init(
         switch (ppt->hierarchy) {
 	  
         case optimal:
-	  /* optimal: we only need F_1, F_3, G_0, G_2, G_4 */
-          ppv->used_in_sources[ppv->index_pt_l0_g]=_FALSE_;
-          ppv->used_in_sources[ppv->index_pt_l0_g+2]=_FALSE_;
-          for (index_pt=ppv->index_pt_l0_g+4; index_pt <= ppv->index_pt_l0_g+ppv->l_max_g; index_pt++)
+	  /* optimal: we only need F_0 F_2 (for dipole transfer) F_1 F_3 (for collision quadrupole source), and G_0, G_2, G_4 */
+	  for (index_pt=ppv->index_pt_l0_g+4; index_pt <= ppv->index_pt_l0_g+ppv->l_max_g; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
           ppv->used_in_sources[ppv->index_pt_pol0_g+1]=_FALSE_;
           ppv->used_in_sources[ppv->index_pt_pol0_g+3]=_FALSE_;
@@ -4579,9 +4581,8 @@ int perturbations_vector_init(
           break;
 	  
         case tam:
-	  /* tam: we only need (maybe Theta_1?) Theta_2, E2 */
-	  ppv->used_in_sources[ppv->index_pt_l1_g]=_FALSE_;
-          for (index_pt=ppv->index_pt_l1_g+2; index_pt <= ppv->index_pt_l1_g-1+ppv->l_max_g; index_pt++)
+	  /* tam: we only need Theta_1 for transfer and Theta_2, E2 for collision source */
+	  for (index_pt=ppv->index_pt_l1_g+2; index_pt <= ppv->index_pt_l1_g-1+ppv->l_max_g; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
           for (index_pt=ppv->index_pt_E2+1; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
@@ -4590,29 +4591,45 @@ int perturbations_vector_init(
           break;
         }
       }
+      //We also do not need neutrino multipoles (which exist only when RSA is off), except for transfers of velocities, hence we keep l=0 and l=2 in optimal and l=1 in TAM.
+      if ((pba->has_ur == _TRUE_)&&(ppt->evolve_vector_ur == _TRUE_)) {
+        switch (ppt->hierarchy) {
+	case optimal:
+	  //We need only F0 and F_2
+	  ppv->used_in_sources[ppv->index_pt_l0_ur+1]=_FALSE_;
+	  for (index_pt=ppv->index_pt_l0_ur+3; index_pt <= ppv->index_pt_l0_ur+ppv->l_max_ur; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+	  break;
+	case tam:
+	  //We only need F1
+	  for (index_pt=ppv->index_pt_l1_ur+1; index_pt <= ppv->index_pt_l1_ur-1+ppv->l_max_ur; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+	  break;
+	}
+      }
     }
+
+    /** we don't need ncdm multipoles. Maybe we will output the dipole one day for output_tk which requires to keep l=0,1,2 in optimal hierarchy. For the moment we do not need it. */
     
     if ((pba->has_ncdm == _TRUE_)&&(ppt->evolve_vector_ncdm == _TRUE_)) {
-      
-      /** we don't need ncdm multipoles above l=3 in optimal hierarchy */
       
       index_pt = ppv->index_pt_psi0_ncdm1;
       for (n_ncdm = 0; n_ncdm < ppv-> N_ncdm; n_ncdm++){
         for (index_q=0; index_q < ppv->q_size_ncdm[n_ncdm]; index_q++){
           for (l=0; l<=ppv->l_max_ncdm[n_ncdm]; l++){
-            if (l>3) ppv->used_in_sources[index_pt]=_FALSE_;
+            if (l>=0) ppv->used_in_sources[index_pt]=_FALSE_;
             index_pt++;
           }
         }
       }
     }
-  
+    
     /* we do not need neutrinos in sources beyond quadrupole, but I like to output them in the _perturbation_t.dat file hence I keep them. */
     
   }
-
+  
   if (_tensors_) {
-
+    
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
 	
@@ -4641,8 +4658,39 @@ int perturbations_vector_init(
           break;
         }
       }
+      
+      //We also do not need neutrino multipoles (which exist only when RSA is off) unless we want transfer of velocities in output_tk
+      //Hence we keep only l0 and l2 in optimal and l1 in TAM.
+      if ((pba->has_ur == _TRUE_)&&(ppt->evolve_tensor_ur == _TRUE_)) {
+        switch (ppt->hierarchy) {
+	case optimal:
+	  for (index_pt=ppv->index_pt_l0_ur; index_pt <= ppv->index_pt_l0_ur+ppv->l_max_ur; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+	  break;
+	case tam:
+	  for (index_pt=ppv->index_pt_l2_ur; index_pt <= ppv->index_pt_l2_ur-2+ppv->l_max_ur; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+	  break;
+	}
+      }
+      
     }
     
+    if ((pba->has_ncdm == _TRUE_)&&(ppt->evolve_tensor_ncdm == _TRUE_)) {
+      
+      /** we don't need ncdm multipoles unless one day we decide to output their velocity on output_tk */
+      
+      index_pt = ppv->index_pt_psi0_ncdm1;
+      for (n_ncdm = 0; n_ncdm < ppv-> N_ncdm; n_ncdm++){
+        for (index_q=0; index_q < ppv->q_size_ncdm[n_ncdm]; index_q++){
+          for (l=0; l<=ppv->l_max_ncdm[n_ncdm]; l++){
+            if (l>=0) ppv->used_in_sources[index_pt]=_FALSE_;
+            index_pt++;
+          }
+        }
+      }
+    }
+      
     /* we need h' but not h */
     ppv->used_in_sources[ppv->index_pt_gw]=_FALSE_;
     
@@ -4654,9 +4702,9 @@ int perturbations_vector_init(
 
     if (ppt->perturbations_verbose>2)
       fprintf(stdout,"Mode k=%e: initializing vector at tau=%e\n",k,tau);
-
+    
     if (_scalars_) {
-
+      
       /** - --> (a) check that current approximation scheme is consistent
           with initial conditions */
 
@@ -5545,7 +5593,7 @@ int perturbations_vector_init(
     /** - --> (b) for the vector mode */
     
     if (_vectors_) {
-
+      
       //We shall need the R quantity, hence we need to call the background.
       class_call(background_at_tau(pba,
 				   tau,
@@ -5577,22 +5625,6 @@ int perturbations_vector_init(
       ppv->y[ppv->index_pt_V] =
 	ppw->pv->y[ppw->pv->index_pt_V];
 
-      if (ppt->evolve_vector_ur == _TRUE_) {
-	switch (ppt->hierarchy) {
-	case optimal:
-	  for (l=0; l <= ppv->l_max_ur; l++)
-	    ppv->y[ppv->index_pt_l0_ur+l] =
-	      ppw->pv->y[ppw->pv->index_pt_l0_ur+l];
-	  break;
-	  
-	case tam:
-	  /* tam hierachy does not use first temperature multipole for vectors */
-	  for (l=1; l <= ppv->l_max_ur; l++)
-	    ppv->y[ppv->index_pt_l1_ur+l-1] =
-	      ppw->pv->y[ppw->pv->index_pt_l1_ur+l-1];
-	  break;
-	}
-      }
       
       if (ppt->evolve_vector_ncdm == _TRUE_) {
 	index_pt = 0;
@@ -5607,20 +5639,20 @@ int perturbations_vector_init(
           }
         }
       }
-
+      
       /* -- case of switching off tight coupling
          approximation. Provide correct initial conditions to new set
          of variables */
       
       if ((pa_old[ppw->index_ap_tca] == (int)tca_on) && (ppw->approx[ppw->index_ap_tca] == (int)tca_off)) {
-
+	
         if (ppt->perturbations_verbose>2)
           fprintf(stdout,"Mode k=%e: switch off tight-coupling approximation at tau=%e for vector modes \n",(double)k,tau);
 	
 	//infer baryons from coupled fluid
 	ppv->y[ppv->index_pt_theta_b] =
 	  ppw->pv->y[ppw->pv->index_pt_theta_b] + 1./(1.+R)*ppw->tca_slip_vector;
-      
+	
 	switch (ppt->hierarchy) {
         case optimal://Needs a heavy and serious check
           ppv->y[ppv->index_pt_l0_g] = -2.*sqrt(2.)*(ppw->pv->y[ppw->pv->index_pt_theta_b]-R/(1.+R)*ppw->tca_slip_vector);
@@ -5635,11 +5667,32 @@ int perturbations_vector_init(
           break;
         }
       }
-
+      
+      if (ppt->evolve_vector_ur == _TRUE_) {//The condition might be ppt->has_ur == _TRUE_ but this is equivalent. Or both.
+	if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
+	  
+	  switch (ppt->hierarchy) {
+	  case optimal:
+	    for (l=0; l <= ppv->l_max_ur; l++)
+	      ppv->y[ppv->index_pt_l0_ur+l] =
+		ppw->pv->y[ppw->pv->index_pt_l0_ur+l];
+	    break;
+	    
+	  case tam:
+	    /* tam hierachy does not use first temperature multipole for vectors */
+	    for (l=1; l <= ppv->l_max_ur; l++)
+	      ppv->y[ppv->index_pt_l1_ur+l-1] =
+		ppw->pv->y[ppw->pv->index_pt_l1_ur+l-1];
+	    break;
+	  }
+	}
+      }
+      
+      
       /* -- case of switching on radiation streaming
          approximation. Provide correct initial conditions to new set
          of variables */
-
+      
       if ((pa_old[ppw->index_ap_rsa] == (int)rsa_off) && (ppw->approx[ppw->index_ap_rsa] == (int)rsa_on)) {
 	
         if (ppt->perturbations_verbose>2)
@@ -5659,7 +5712,7 @@ int perturbations_vector_init(
           sense (note: before calling this routine there is already a
           check that we wish to change only one approximation flag at
           a time) */
-
+      
       class_test((pa_old[ppw->index_ap_tca] == (int)tca_off) && (ppw->approx[ppw->index_ap_tca] == (int)tca_on),
                  ppt->error_message,
                  "at tau=%g: the tight-coupling approximation can be switched off, not on",tau);
@@ -5677,23 +5730,23 @@ int perturbations_vector_init(
         ppw->pv->y[ppw->pv->index_pt_gwdot];
 
       if (ppt->evolve_tensor_ur == _TRUE_){
-
+	
 	switch (ppt->hierarchy) {
 	case optimal:
-          for (l=0; l <= ppv->l_max_ur; l++)
-            ppv->y[ppv->index_pt_l0_ur+l] =
-              ppw->pv->y[ppw->pv->index_pt_l0_ur+l];
+	  for (l=0; l <= ppv->l_max_ur; l++)
+	    ppv->y[ppv->index_pt_l0_ur+l] =
+	      ppw->pv->y[ppw->pv->index_pt_l0_ur+l];
 	  
-          break;
+	  break;
 	  
-        case tam:
-          /* tam hierachy does not use first two temperature multipoles for tensors */
-          for (l=2; l <= ppv->l_max_ur; l++)
-            ppv->y[ppv->index_pt_l2_ur+l-2] =
-              ppw->pv->y[ppw->pv->index_pt_l2_ur+l-2];
+	case tam:
+	  /* tam hierachy does not use first two temperature multipoles for tensors */
+	  for (l=2; l <= ppv->l_max_ur; l++)
+	    ppv->y[ppv->index_pt_l2_ur+l-2] =
+	      ppw->pv->y[ppw->pv->index_pt_l2_ur+l-2];
 	  
-          break;
-        }
+	  break;
+	}
       }
       
       if (ppt->evolve_tensor_ncdm == _TRUE_){
@@ -8092,41 +8145,43 @@ int perturbations_total_stress_energy(
     }
     /** Contribution of neutrino or ultra relativistic particles. */
     if (ppt->evolve_vector_ur == _TRUE_){
-      
-      /* depending on approximation scheme, rho_fs (which is in fact 3*P) should
-	 include only massless relics, or also the fraction of ncdm
-	 that is relativistic */
-      rho_fs = 0.;
-      
-      if (ppt->vector_method == vm_exact)
-	rho_fs += ppw->pvecback[pba->index_bg_rho_ur];
-      
-      if (ppt->vector_method == vm_massless_approximation) {
+      if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
 	
-	if (pba->has_ur == _TRUE_)
+	/* depending on approximation scheme, rho_fs (which is in fact 3*P) should
+	   include only massless relics, or also the fraction of ncdm
+	   that is relativistic */
+	rho_fs = 0.;
+	
+	if (ppt->vector_method == vm_exact)
 	  rho_fs += ppw->pvecback[pba->index_bg_rho_ur];
 	
-	if (pba->has_ncdm == _TRUE_) {
-	  for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++) {
-	    /* 3*(p_ncdm1) is the "relativistic" contribution */
-	    rho_fs += 3.*ppw->pvecback[pba->index_bg_p_ncdm1+n_ncdm];
+	if (ppt->vector_method == vm_massless_approximation) {
+	  
+	  if (pba->has_ur == _TRUE_)
+	    rho_fs += ppw->pvecback[pba->index_bg_rho_ur];
+	  
+	  if (pba->has_ncdm == _TRUE_) {
+	    for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++) {
+	      /* 3*(p_ncdm1) is the "relativistic" contribution */
+	      rho_fs += 3.*ppw->pvecback[pba->index_bg_p_ncdm1+n_ncdm];
+	    }
 	  }
 	}
-      }
-      
-      switch (ppt->hierarchy) {
-      case optimal:
-	ppw->vector_source_pi += -1./3.*a2*rho_fs
-	  * (6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k))
-	  * (y[ppw->pv->index_pt_l0_ur+1]+y[ppw->pv->index_pt_l0_ur+3]);
-	//ppw->vector_source_v = 0.;//Not used anywhere. This constrain equation would also be the least efficient method to determine V
-	break;
-      case tam:
-	ppw->vector_source_pi += 1./3.*a2*rho_fs
-	  * (8.*sqrt(3.)/5./sqrt(1.-2.*pba->K/k/k))
-	  * (y[ppw->pv->index_pt_l1_ur+1]);
-	//ppw->vector_source_v = 0.;
-	break;
+	
+	switch (ppt->hierarchy) {
+	case optimal:
+	  ppw->vector_source_pi += -1./3.*a2*rho_fs
+	    * (6.*_SQRT2_/5./sqrt(1.-2.*pba->K/k/k))
+	    * (y[ppw->pv->index_pt_l0_ur+1]+y[ppw->pv->index_pt_l0_ur+3]);
+	  //ppw->vector_source_v = 0.;//Not used anywhere. This constrain equation would also be the least efficient method to determine V
+	  break;
+	case tam:
+	  ppw->vector_source_pi += 1./3.*a2*rho_fs
+	    * (8.*sqrt(3.)/5./sqrt(1.-2.*pba->K/k/k))
+	    * (y[ppw->pv->index_pt_l1_ur+1]);
+	  //ppw->vector_source_v = 0.;
+	  break;
+	}
       }
     }
     
@@ -11286,75 +11341,77 @@ int perturbations_derivs(double tau,
     
     //ur species
     if (ppt->evolve_vector_ur == _TRUE_) {
-      //In all cases we integrate neutrinos (even if RSA is on !)
-      switch (ppt->hierarchy) {
-      case optimal: 
-	if (ppt->gauge == synchronous) {
+      if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
+	//In all cases we integrate neutrinos (even if RSA is on !)
+	switch (ppt->hierarchy) {
+	case optimal: 
+	  if (ppt->gauge == synchronous) {
+	    
+	    dy[pv->index_pt_l0_ur] = -k*y[pv->index_pt_l0_ur+1];
+	    
+	    
+	    dy[pv->index_pt_l0_ur+1] = k/3.*(y[pv->index_pt_l0_ur]-2.*s_l[2]*y[pv->index_pt_l0_ur+2])
+	      +4.0/(3.0*_SQRT2_)*ssqrt3*(-k*y[pv->index_pt_V]); 
+	    
+	  }
 	  
-	  dy[pv->index_pt_l0_ur] = -k*y[pv->index_pt_l0_ur+1];
+	  else if (ppt->gauge == newtonian) {
+	    dy[pv->index_pt_l0_ur] = -k*y[pv->index_pt_l0_ur+1]
+	      -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime];
+	    
+	    dy[pv->index_pt_l0_ur+1] = k/3.*(y[pv->index_pt_l0_ur]-2.*s_l[2]*y[pv->index_pt_l0_ur+2]);
+	  }
 	  
+	  /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
+	  for (l=2; l < pv->l_max_ur; l++)
+	    dy[pv->index_pt_l0_ur+l] =
+	      k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_l0_ur+l-1]
+			   -(l+1.)*s_l[l+1]*y[pv->index_pt_l0_ur+l+1]);
 	  
-	  dy[pv->index_pt_l0_ur+1] = k/3.*(y[pv->index_pt_l0_ur]-2.*s_l[2]*y[pv->index_pt_l0_ur+2])
-	    +4.0/(3.0*_SQRT2_)*ssqrt3*(-k*y[pv->index_pt_V]); 
-
-	}
-	
-	else if (ppt->gauge == newtonian) {
-	  dy[pv->index_pt_l0_ur] = -k*y[pv->index_pt_l0_ur+1]
-	    -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime];
-	  
-	  dy[pv->index_pt_l0_ur+1] = k/3.*(y[pv->index_pt_l0_ur]-2.*s_l[2]*y[pv->index_pt_l0_ur+2]);
-	}
-	
-	/* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
-	for (l=2; l < pv->l_max_ur; l++)
+	  /* l=lmax */
+	  l = pv->l_max_ur;
 	  dy[pv->index_pt_l0_ur+l] =
-	    k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_l0_ur+l-1]
-			 -(l+1.)*s_l[l+1]*y[pv->index_pt_l0_ur+l+1]);
-	
-	/* l=lmax */
-	l = pv->l_max_ur;
-	dy[pv->index_pt_l0_ur+l] =
-	  k*(s_l[l]*y[pv->index_pt_l0_ur+l-1] -(1.+l)*cotKgen*y[pv->index_pt_l0_ur+l]);//Check this closure which I think is not correct.
-	
-	break;
-      case tam:
-	
-	if (ppt->gauge == synchronous) {
-	  dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1];
-	}
-	else if (ppt->gauge == newtonian) {
-	  dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1]
-	    + pvecmetric[ppw->index_mt_V_prime];
-	}
-	//l=2
-	if (ppt->gauge == synchronous) {
-	  dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
-	    + zerokappam[2] /3.*(y[pv->index_pt_l1_ur] + y[pv->index_pt_V]);
-	}
-	else if (ppt->gauge == newtonian) {
-	  dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
-	    + zerokappam[2] /3.*y[pv->index_pt_l1_ur];
-	}
-	
-	//l>=3
-	for (l=3; l < pv->l_max_ur; l++) {
+	    k*(s_l[l]*y[pv->index_pt_l0_ur+l-1] -(1.+l)*cotKgen*y[pv->index_pt_l0_ur+l]);//Check this closure which I think is not correct.
 	  
-	  dy[pv->index_pt_l1_ur+l-1] = -zerokappam[l+1] /(2.*l+3.)*y[pv->index_pt_l1_ur+l]
-	    + zerokappam[l] /(2.*l-1.)*y[pv->index_pt_l1_ur+l-2];
+	  break;
+	case tam:
+	  
+	  if (ppt->gauge == synchronous) {
+	    dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1];
+	  }
+	  else if (ppt->gauge == newtonian) {
+	    dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1]
+	      + pvecmetric[ppw->index_mt_V_prime];
+	  }
+	  //l=2
+	  if (ppt->gauge == synchronous) {
+	    dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
+	      + zerokappam[2] /3.*(y[pv->index_pt_l1_ur] + y[pv->index_pt_V]);
+	  }
+	  else if (ppt->gauge == newtonian) {
+	    dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
+	      + zerokappam[2] /3.*y[pv->index_pt_l1_ur];
+	  }
+	  
+	  //l>=3
+	  for (l=3; l < pv->l_max_ur; l++) {
+	    
+	    dy[pv->index_pt_l1_ur+l-1] = -zerokappam[l+1] /(2.*l+3.)*y[pv->index_pt_l1_ur+l]
+	      + zerokappam[l] /(2.*l-1.)*y[pv->index_pt_l1_ur+l-2];
+	  }
+	  /* l=lmax */
+	  l = pv->l_max_ur;
+	  dy[pv->index_pt_l1_ur+l-1] = zerokappam[l] * (2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_ur+l-2]
+	    -(l+2.)*k*cotKgen*y[pv->index_pt_l1_ur+l-1];
+	  
+	  break;
 	}
-	/* l=lmax */
-	l = pv->l_max_ur;
-	dy[pv->index_pt_l1_ur+l-1] = zerokappam[l] * (2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_ur+l-2]
-	  -(l+2.)*k*cotKgen*y[pv->index_pt_l1_ur+l-1];
-	
-	break;
       }
     }
     
     if (ppt->evolve_vector_ncdm == _TRUE_) {
       /** - --> non-cold dark matter (ncdm): massive neutrinos, WDM, etc. */
-
+      
       /* note that for ncdm we always use the optimal temperature
          hierarchy, not the tam temperature hierarchy. In principle
          this could lead to tiny differences for large |Omega_k| when
@@ -11656,7 +11713,6 @@ int perturbations_derivs(double tau,
     dy[pv->index_pt_gwdot] = pvecmetric[ppw->index_mt_gw_prime_prime];
 
   }
-
   return _SUCCESS_;
 }
 
