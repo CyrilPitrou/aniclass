@@ -173,6 +173,8 @@ struct perturbations
   short has_nc_lens;     /**< in dCl, do we want lensing terms ? */
   short has_nc_gr;       /**< in dCl, do we want gravity terms ? */
 
+  short has_vector_velocity_transfers;       /**< do we need to output individual vector velocity transfer functions? */
+
   int l_scalar_max; /**< maximum l value for CMB scalars \f$ C_l \f$'s */
   int l_vector_max; /**< maximum l value for CMB vectors \f$ C_l \f$'s */
   int l_tensor_max; /**< maximum l value for CMB tensors \f$ C_l \f$'s */
@@ -322,6 +324,9 @@ struct perturbations
   short has_source_H_T_Nb_prime; /**< do we need source for metric fluctuation H_T_Nb'? */
   short has_source_k2gamma_Nb; /**< do we need source for metric fluctuation gamma in Nbody gauge? */
 
+  short has_source_vector_theta_g;    /**< do we need source for theta of gammas for vector mode ? */
+  short has_source_vector_theta_b;    /**< do we need source for theta of baryons for vector modes ? */
+  short has_source_vector_theta_ur;   /**< do we need source for theta of ultra-relativistic neutrinos/relics for vector modes ? */
 
   /* remember that the temperature source function includes three
      terms that we call 0,1,2 (since the strategy in class v > 1.7 is
@@ -374,6 +379,11 @@ struct perturbations
   int index_tp_eta_prime;    /**< index value for metric fluctuation eta' */
   int index_tp_H_T_Nb_prime; /**< index value for metric fluctuation H_T_Nb' */
   int index_tp_k2gamma_Nb;   /**< index value for metric fluctuation gamma times k^2 in Nbody gauge */
+
+  int index_tp_vector_theta_g;     /**< index value for theta of gammas for vector modes */
+  int index_tp_vector_theta_b;     /**< index value for theta of baryons for vector modes */
+  int index_tp_vector_theta_ur;     /**< index value for theta of ur species for vector modes */
+  int index_tp_V;          /**< index value for metric fluctuation V (vector mode) */
 
   int * tp_size; /**< number of types tp_size[index_md] included in computation for each mode */
 
@@ -792,21 +802,11 @@ extern "C" {
                                  double * psource_at_z
                                  );
 
-   int perturbations_sources_at_k_and_z(
-                                        struct background * pba,
-                                        struct perturbations * ppt,
-                                        int index_md,
-                                        int index_ic,
-                                        int index_tp,
-                                        double k,
-                                        double z,
-                                        double * psource_at_k_and_z
-                                        );
-
   int perturbations_output_data_at_z(
                                      struct background * pba,
                                      struct perturbations * ppt,
                                      enum file_format output_format,
+				     int index_md,
                                      double z,
                                      int number_of_titles,
                                      double *data
@@ -816,7 +816,8 @@ extern "C" {
                                              struct background * pba,
                                              struct perturbations * ppt,
                                              enum file_format output_format,
-                                             int index_tau,
+					     int index_md,
+					     int index_tau,
                                              int number_of_titles,
                                              double *data
                                              );
@@ -825,6 +826,7 @@ extern "C" {
                                 struct background * pba,
                                 struct perturbations * ppt,
                                 enum file_format output_format,
+				int index_md,
                                 double * tkfull,
                                 int number_of_titles,
                                 double *data
@@ -834,11 +836,14 @@ extern "C" {
                                   struct background *pba,
                                   struct perturbations *ppt,
                                   enum file_format output_format,
+				  int index_md,
                                   char titles[_MAXTITLESTRINGLENGTH_]
                                   );
 
+  
   int perturbations_output_firstline_and_ic_suffix(
                                                    struct perturbations *ppt,
+						   int index_md,
                                                    int index_ic,
                                                    char first_line[_LINE_LENGTH_MAX_],
                                                    char ic_suffix[_SUFFIXNAMESIZE_]

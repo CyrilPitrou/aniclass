@@ -238,6 +238,7 @@ int perturbations_sources_at_k_and_z(
  * @param pba              Input: pointer to background structure
  * @param ppt              Input: pointer to perturbation structure
  * @param output_format    Input: choice of ordering and normalisation for the output quantities
+ * @param index_md         Input: index of requested mode (for scalars, just pass ppt->index_md_scalars)
  * @param z                Input: redshift
  * @param number_of_titles Input: number of requested source functions (found in perturbations_output_titles)
  * @param data             Output: vector of all source functions for all k values and initial conditions (previously allocated with the right size)
@@ -248,6 +249,7 @@ int perturbations_output_data_at_z(
                                    struct background * pba,
                                    struct perturbations * ppt,
                                    enum file_format output_format,
+				   int index_md,
                                    double z,
                                    int number_of_titles,
                                    double *data
@@ -259,41 +261,40 @@ int perturbations_output_data_at_z(
 
   double tau;
 
-  int index_md = ppt->index_md_scalars;
   int index_ic;
   int index_k;
   int index_tp;
 
   /** - allocate tkfull */
-
+  
   if (ppt->k_size[index_md]*ppt->ic_size[index_md]*ppt->tp_size[index_md] > 0) {
     class_alloc(tkfull,
-                ppt->k_size[index_md]*ppt->ic_size[index_md]*ppt->tp_size[index_md]*sizeof(double),
-                ppt->error_message);
+		ppt->k_size[index_md]*ppt->ic_size[index_md]*ppt->tp_size[index_md]*sizeof(double),
+		ppt->error_message);
   }
-
+  
   /** - compute \f$T_i(k)\f$ for each k (if several ic's, compute it
-        for each ic; if z_pk = 0, this is done by directly reading
-        inside the pre-computed table; if not, this is done by
-        interpolating the table at the correct value of tau. */
-
+      for each ic; if z_pk = 0, this is done by directly reading
+      inside the pre-computed table; if not, this is done by
+      interpolating the table at the correct value of tau. */
+  
   /* if z_pk = 0, no interpolation needed */
-
+  
   if (z == 0.) {
-
+    
     for (index_k=0; index_k<ppt->k_size[index_md]; index_k++) {
       for (index_tp=0; index_tp<ppt->tp_size[index_md]; index_tp++) {
-        for (index_ic=0; index_ic<ppt->ic_size[index_md]; index_ic++) {
-          tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp]
-            = ppt->sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp][(ppt->tau_size-1) * ppt->k_size[index_md] + index_k];
-        }
+	for (index_ic=0; index_ic<ppt->ic_size[index_md]; index_ic++) {
+	  tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp]
+	    = ppt->sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp][(ppt->tau_size-1) * ppt->k_size[index_md] + index_k];
+	}
       }
     }
   }
-
+  
   /* if 0 <= z_pk <= z_max_pk, interpolation needed, */
   else {
-
+    
     /* check the time corresponding to the highest redshift requested in output plus one */
     class_call(background_tau_of_z(pba,
                                    z,
@@ -309,7 +310,6 @@ int perturbations_output_data_at_z(
                 ppt->k_size[index_md]*sizeof(double),
                 ppt->error_message);
 
-
     for (index_tp=0; index_tp<ppt->tp_size[index_md]; index_tp++) {
       for (index_ic=0; index_ic<ppt->ic_size[index_md]; index_ic++) {
 	class_call(perturbations_sources_at_tau(ppt,
@@ -321,9 +321,7 @@ int perturbations_output_data_at_z(
 		   ppt->error_message,
 		   ppt->error_message);
 	for (index_k=0; index_k<ppt->k_size[index_md]; index_k++) {
-
-          tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp] =
-            pvecsources[index_k];
+          tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp] = pvecsources[index_k];
         }
       }
     }
@@ -331,8 +329,8 @@ int perturbations_output_data_at_z(
   }
 
   /** - store data */
-
-  class_call(perturbations_output_data(pba,ppt,output_format,tkfull,number_of_titles,data),
+  
+  class_call(perturbations_output_data(pba,ppt,output_format,index_md,tkfull,number_of_titles,data),
              ppt->error_message,
              ppt->error_message);
 
@@ -353,6 +351,7 @@ int perturbations_output_data_at_z(
  * @param pba              Input: pointer to background structure
  * @param ppt              Input: pointer to perturbation structure
  * @param output_format    Input: choice of ordering and normalisation for the output quantities
+ * @param index_md         Input: index of requested mode (for scalars, just pass ppt->index_md_scalars)
  * @param index_tau        Input: index pre-computed table ppt->ln_tau[index_tau]
  * @param number_of_titles Input: number of requested source functions (found in perturbations_output_titles)
  * @param data             Output: vector of all source functions for all k values and initial conditions (previously allocated with the right size)
@@ -363,6 +362,7 @@ int perturbations_output_data_at_index_tau(
                                            struct background * pba,
                                            struct perturbations * ppt,
                                            enum file_format output_format,
+					   int index_md,
                                            int index_tau,
                                            int number_of_titles,
                                            double *data
@@ -370,7 +370,7 @@ int perturbations_output_data_at_index_tau(
 
   double * tkfull=NULL;  /* array with argument tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp] */
 
-  int index_md = ppt->index_md_scalars;
+  //  int index_md = ppt->index_md_scalars;
   int index_ic;
   int index_k;
   int index_tp;
@@ -398,7 +398,7 @@ int perturbations_output_data_at_index_tau(
 
   /** - store data */
 
-  class_call(perturbations_output_data(pba,ppt,output_format,tkfull,number_of_titles,data),
+  class_call(perturbations_output_data(pba,ppt,output_format,index_md,tkfull,number_of_titles,data),
              ppt->error_message,
              ppt->error_message);
 
@@ -421,6 +421,7 @@ int perturbations_output_data_at_index_tau(
  * @param pba              Input: pointer to background structure
  * @param ppt              Input: pointer to perturbation structure
  * @param output_format    Input: choice of ordering and normalisation for the output quantities
+ * @param index_md         Input: index of requested mode (for scalars, just pass ppt->index_md_scalars)
  * @param tkfull           Input: vector of scalar sources at given time, tk[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp]
  * @param number_of_titles Input: number of requested source functions (found in perturbations_output_titles)
  * @param data             Output: vector of all source functions for all k values and initial conditions (previously allocated with the right size)
@@ -431,6 +432,7 @@ int perturbations_output_data(
                               struct background * pba,
                               struct perturbations * ppt,
                               enum file_format output_format,
+			      int index_md,
                               double * tkfull,
                               int number_of_titles,
                               double *data
@@ -440,7 +442,6 @@ int perturbations_output_data(
   double k, k_over_h, k2;
   double *tk;
   double *dataptr;
-  int index_md = ppt->index_md_scalars;
   int index_ic;
   int index_k;
   int storeidx;
@@ -450,7 +451,7 @@ int perturbations_output_data(
   for (index_ic = 0; index_ic < ppt->ic_size[index_md]; index_ic++) {
 
     for (index_k=0; index_k<ppt->k_size[index_md]; index_k++) {
-
+      
       storeidx = 0;
       dataptr = data+index_ic*(ppt->k_size[index_md]*number_of_titles)+index_k*number_of_titles;
       tk = &(tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md]]);
@@ -460,75 +461,89 @@ int perturbations_output_data(
 
       class_store_double(dataptr, k_over_h, _TRUE_,storeidx);
 
-      /* indices for species associated with a velocity transfer function in Fourier space */
-
-      if (output_format == class_format) {
-
-        if (ppt->has_density_transfers == _TRUE_) {
-          class_store_double(dataptr,tk[ppt->index_tp_delta_g],ppt->has_source_delta_g,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_b],ppt->has_source_delta_b,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_cdm],ppt->has_source_delta_cdm,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_idm],ppt->has_source_delta_idm,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_fld],ppt->has_source_delta_fld,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_ur],ppt->has_source_delta_ur,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_idr],ppt->has_source_delta_idr,storeidx);
-          if (pba->has_ncdm == _TRUE_){
-            for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++){
-              class_store_double(dataptr,tk[ppt->index_tp_delta_ncdm1+n_ncdm],ppt->has_source_delta_ncdm,storeidx);
-            }
-          }
-          class_store_double(dataptr,tk[ppt->index_tp_delta_dcdm],ppt->has_source_delta_dcdm,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_dr],ppt->has_source_delta_dr,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_scf],ppt->has_source_delta_scf,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_m],ppt->has_source_delta_m,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_tot],ppt->has_source_delta_tot,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_phi],ppt->has_source_phi,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_psi],ppt->has_source_psi,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_phi_prime],ppt->has_source_phi_prime,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_h],ppt->has_source_h,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_h_prime],ppt->has_source_h_prime,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_eta],ppt->has_source_eta,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_eta_prime],ppt->has_source_eta_prime,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_H_T_Nb_prime],ppt->has_source_H_T_Nb_prime,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_k2gamma_Nb],ppt->has_source_k2gamma_Nb,storeidx);
-        }
-        if (ppt->has_velocity_transfers == _TRUE_) {
-
-          class_store_double(dataptr,tk[ppt->index_tp_theta_g],ppt->has_source_theta_g,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_b],ppt->has_source_theta_b,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_cdm],ppt->has_source_theta_cdm,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_idm],ppt->has_source_theta_idm,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_fld],ppt->has_source_theta_fld,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_ur],ppt->has_source_theta_ur,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_idr],ppt->has_source_theta_idr,storeidx);
-          if (pba->has_ncdm == _TRUE_){
-            for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++){
-              class_store_double(dataptr,tk[ppt->index_tp_theta_ncdm1+n_ncdm],ppt->has_source_theta_ncdm,storeidx);
-            }
-          }
-          class_store_double(dataptr,tk[ppt->index_tp_theta_dcdm],ppt->has_source_theta_dcdm,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_dr],ppt->has_source_theta_dr,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_scf],ppt->has_source_theta_scf,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_theta_tot],ppt->has_source_theta_tot,storeidx);
-
-        }
-
+      if (_scalars_) {
+	
+	/* indices for species associated with a velocity transfer function in Fourier space */
+	
+	if (output_format == class_format) {
+	  
+	  if (ppt->has_density_transfers == _TRUE_) {
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_g],ppt->has_source_delta_g,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_b],ppt->has_source_delta_b,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_cdm],ppt->has_source_delta_cdm,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_idm],ppt->has_source_delta_idm,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_fld],ppt->has_source_delta_fld,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_ur],ppt->has_source_delta_ur,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_idr],ppt->has_source_delta_idr,storeidx);
+	    if (pba->has_ncdm == _TRUE_){
+	      for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++){
+		class_store_double(dataptr,tk[ppt->index_tp_delta_ncdm1+n_ncdm],ppt->has_source_delta_ncdm,storeidx);
+	      }
+	    }
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_dcdm],ppt->has_source_delta_dcdm,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_dr],ppt->has_source_delta_dr,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_scf],ppt->has_source_delta_scf,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_m],ppt->has_source_delta_m,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_delta_tot],ppt->has_source_delta_tot,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_phi],ppt->has_source_phi,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_psi],ppt->has_source_psi,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_phi_prime],ppt->has_source_phi_prime,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_h],ppt->has_source_h,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_h_prime],ppt->has_source_h_prime,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_eta],ppt->has_source_eta,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_eta_prime],ppt->has_source_eta_prime,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_H_T_Nb_prime],ppt->has_source_H_T_Nb_prime,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_k2gamma_Nb],ppt->has_source_k2gamma_Nb,storeidx);
+	  }
+	  if (ppt->has_velocity_transfers == _TRUE_) {
+	    
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_g],ppt->has_source_theta_g,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_b],ppt->has_source_theta_b,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_cdm],ppt->has_source_theta_cdm,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_idm],ppt->has_source_theta_idm,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_fld],ppt->has_source_theta_fld,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_ur],ppt->has_source_theta_ur,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_idr],ppt->has_source_theta_idr,storeidx);
+	    if (pba->has_ncdm == _TRUE_){
+	      for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++){
+		class_store_double(dataptr,tk[ppt->index_tp_theta_ncdm1+n_ncdm],ppt->has_source_theta_ncdm,storeidx);
+	      }
+	    }
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_dcdm],ppt->has_source_theta_dcdm,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_dr],ppt->has_source_theta_dr,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_scf],ppt->has_source_theta_scf,storeidx);
+	    class_store_double(dataptr,tk[ppt->index_tp_theta_tot],ppt->has_source_theta_tot,storeidx);
+	    
+	  }
+	  
+	}
+	else if (output_format == camb_format) {
+	  
+	  /* rescale and reorder the matter transfer functions following the CMBFAST/CAMB convention */
+	  class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_cdm]/k2,ppt->has_source_delta_cdm,storeidx,0.0);
+	  class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_b]/k2,ppt->has_source_delta_b,storeidx,0.0);
+	  class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_g]/k2,ppt->has_source_delta_g,storeidx,0.0);
+	  class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_ur]/k2,ppt->has_source_delta_ur,storeidx,0.0);
+	  class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_ncdm1]/k2,ppt->has_source_delta_ncdm,storeidx,0.0);
+	  class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_tot]/k2,_TRUE_,storeidx,0.0);
+	}
       }
-      else if (output_format == camb_format) {
 
-        /* rescale and reorder the matter transfer functions following the CMBFAST/CAMB convention */
-        class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_cdm]/k2,ppt->has_source_delta_cdm,storeidx,0.0);
-        class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_b]/k2,ppt->has_source_delta_b,storeidx,0.0);
-        class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_g]/k2,ppt->has_source_delta_g,storeidx,0.0);
-        class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_ur]/k2,ppt->has_source_delta_ur,storeidx,0.0);
-        class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_ncdm1]/k2,ppt->has_source_delta_ncdm,storeidx,0.0);
-        class_store_double_or_default(dataptr,-tk[ppt->index_tp_delta_tot]/k2,_TRUE_,storeidx,0.0);
+      if (_vectors_) {
+	if (ppt->has_vector_velocity_transfers == _TRUE_) {
+	  class_store_double(dataptr,tk[ppt->index_tp_V],_TRUE_,storeidx);
+	  class_store_double(dataptr,tk[ppt->index_tp_theta_g],ppt->has_source_vector_theta_g,storeidx);
+	  class_store_double(dataptr,tk[ppt->index_tp_theta_b],ppt->has_source_vector_theta_b,storeidx);
+	  class_store_double(dataptr,tk[ppt->index_tp_theta_ur],ppt->has_source_vector_theta_ur,storeidx);
+	}
       }
+
     }
   }
 
   return _SUCCESS_;
 }
+
 
 /**
  * Fill array of strings with the name of the requested 'mTk, vTk' functions
@@ -537,6 +552,7 @@ int perturbations_output_data(
  * @param pba           Input: pointer to the background structure
  * @param ppt           Input: pointer to the perturbation structure
  * @param output_format Input: flag for the format
+ * @param index_md      Input: index of requested mode (for scalars, just pass ppt->index_md_scalars)
  * @param titles        Output: name strings
  * @return the error status
  */
@@ -545,83 +561,97 @@ int perturbations_output_titles(
                                 struct background *pba,
                                 struct perturbations *ppt,
                                 enum file_format output_format,
+				int index_md,
                                 char titles[_MAXTITLESTRINGLENGTH_]
                                 ){
   int n_ncdm;
   char tmp[40];
-
-  if (output_format == class_format) {
-    class_store_columntitle(titles,"k (h/Mpc)",_TRUE_);
-    if (ppt->has_density_transfers == _TRUE_) {
-      class_store_columntitle(titles,"d_g",_TRUE_);
-      class_store_columntitle(titles,"d_b",_TRUE_);
-      class_store_columntitle(titles,"d_cdm",pba->has_cdm);
-      class_store_columntitle(titles,"d_idm",pba->has_idm);
-      class_store_columntitle(titles,"d_fld",pba->has_fld);
-      class_store_columntitle(titles,"d_ur",pba->has_ur);
-      class_store_columntitle(titles,"d_idr",pba->has_idr);
-      if (pba->has_ncdm == _TRUE_) {
-        for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
-          class_sprintf(tmp,"d_ncdm[%d]",n_ncdm);
-          class_store_columntitle(titles,tmp,_TRUE_);
-        }
+  
+  class_store_columntitle(titles,"k (h/Mpc)",_TRUE_);
+  
+  if (_scalars_) {
+    if (output_format == class_format) {
+      if (ppt->has_density_transfers == _TRUE_) {
+	class_store_columntitle(titles,"d_g",_TRUE_);
+	class_store_columntitle(titles,"d_b",_TRUE_);
+	class_store_columntitle(titles,"d_cdm",pba->has_cdm);
+	class_store_columntitle(titles,"d_idm",pba->has_idm);
+	class_store_columntitle(titles,"d_fld",pba->has_fld);
+	class_store_columntitle(titles,"d_ur",pba->has_ur);
+	class_store_columntitle(titles,"d_idr",pba->has_idr);
+	if (pba->has_ncdm == _TRUE_) {
+	  for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
+	    sprintf(tmp,"d_ncdm[%d]",n_ncdm);
+	    class_store_columntitle(titles,tmp,_TRUE_);
+	  }
+	}
+	class_store_columntitle(titles,"d_dcdm",pba->has_dcdm);
+	class_store_columntitle(titles,"d_dr",pba->has_dr);
+	class_store_columntitle(titles,"d_scf",pba->has_scf);
+	class_store_columntitle(titles,"d_m",ppt->has_source_delta_m);
+	class_store_columntitle(titles,"d_tot",ppt->has_source_delta_tot);
+	class_store_columntitle(titles,"phi",ppt->has_source_phi);
+	class_store_columntitle(titles,"psi",ppt->has_source_psi);
+	class_store_columntitle(titles,"phi_prime",ppt->has_source_phi_prime);
+	class_store_columntitle(titles,"h",ppt->has_source_h);
+	class_store_columntitle(titles,"h_prime",ppt->has_source_h_prime);
+	class_store_columntitle(titles,"eta",ppt->has_source_eta);
+	class_store_columntitle(titles,"eta_prime",ppt->has_source_eta_prime);
+	class_store_columntitle(titles,"H_T_Nb_prime",ppt->has_source_H_T_Nb_prime);
+	class_store_columntitle(titles,"k2gamma_Nb",ppt->has_source_k2gamma_Nb);
       }
-      class_store_columntitle(titles,"d_dcdm",pba->has_dcdm);
-      class_store_columntitle(titles,"d_dr",pba->has_dr);
-      class_store_columntitle(titles,"d_scf",pba->has_scf);
-      class_store_columntitle(titles,"d_m",ppt->has_source_delta_m);
-      class_store_columntitle(titles,"d_tot",ppt->has_source_delta_tot);
-      class_store_columntitle(titles,"phi",ppt->has_source_phi);
-      class_store_columntitle(titles,"psi",ppt->has_source_psi);
-      class_store_columntitle(titles,"phi_prime",ppt->has_source_phi_prime);
-      class_store_columntitle(titles,"h",ppt->has_source_h);
-      class_store_columntitle(titles,"h_prime",ppt->has_source_h_prime);
-      class_store_columntitle(titles,"eta",ppt->has_source_eta);
-      class_store_columntitle(titles,"eta_prime",ppt->has_source_eta_prime);
-      class_store_columntitle(titles,"H_T_Nb_prime",ppt->has_source_H_T_Nb_prime);
-      class_store_columntitle(titles,"k2gamma_Nb",ppt->has_source_k2gamma_Nb);
+      if (ppt->has_velocity_transfers == _TRUE_) {
+	class_store_columntitle(titles,"t_g",_TRUE_);
+	class_store_columntitle(titles,"t_b",_TRUE_);
+	class_store_columntitle(titles,"t_cdm",((pba->has_cdm == _TRUE_) && (ppt->gauge != synchronous)));
+	class_store_columntitle(titles,"t_idm",pba->has_idm);
+	class_store_columntitle(titles,"t_fld",pba->has_fld);
+	class_store_columntitle(titles,"t_ur",pba->has_ur);
+	class_store_columntitle(titles,"t_idr",pba->has_idr);
+	if (pba->has_ncdm == _TRUE_) {
+	  for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
+	    sprintf(tmp,"t_ncdm[%d]",n_ncdm);
+	    class_store_columntitle(titles,tmp,_TRUE_);
+	  }
+	}
+	class_store_columntitle(titles,"t_dcdm",pba->has_dcdm);
+	class_store_columntitle(titles,"t_dr",pba->has_dr);
+	class_store_columntitle(titles,"t_scf",pba->has_scf);
+	class_store_columntitle(titles,"t_tot",_TRUE_);
+      }
     }
-    if (ppt->has_velocity_transfers == _TRUE_) {
-      class_store_columntitle(titles,"t_g",_TRUE_);
-      class_store_columntitle(titles,"t_b",_TRUE_);
-      class_store_columntitle(titles,"t_cdm",((pba->has_cdm == _TRUE_) && (ppt->gauge != synchronous)));
-      class_store_columntitle(titles,"t_idm",pba->has_idm);
-      class_store_columntitle(titles,"t_fld",pba->has_fld);
-      class_store_columntitle(titles,"t_ur",pba->has_ur);
-      class_store_columntitle(titles,"t_idr",pba->has_idr);
-      if (pba->has_ncdm == _TRUE_) {
-        for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
-          class_sprintf(tmp,"t_ncdm[%d]",n_ncdm);
-          class_store_columntitle(titles,tmp,_TRUE_);
-        }
-      }
-      class_store_columntitle(titles,"t_dcdm",pba->has_dcdm);
-      class_store_columntitle(titles,"t_dr",pba->has_dr);
-      class_store_columntitle(titles,"t_scf",pba->has_scf);
-      class_store_columntitle(titles,"t_tot",_TRUE_);
+    else if (output_format == camb_format) {
+      
+      class_store_columntitle(titles,"k (h/Mpc)",_TRUE_);
+      class_store_columntitle(titles,"-T_cdm/k2",_TRUE_);
+      class_store_columntitle(titles,"-T_b/k2",_TRUE_);
+      class_store_columntitle(titles,"-T_g/k2",_TRUE_);
+      class_store_columntitle(titles,"-T_ur/k2",_TRUE_);
+      class_store_columntitle(titles,"-T_ncdm/k2",_TRUE_);
+      class_store_columntitle(titles,"-T_tot/k2",_TRUE_);
+      
     }
   }
 
-  else if (output_format == camb_format) {
-
-    class_store_columntitle(titles,"k (h/Mpc)",_TRUE_);
-    class_store_columntitle(titles,"-T_cdm/k2",_TRUE_);
-    class_store_columntitle(titles,"-T_b/k2",_TRUE_);
-    class_store_columntitle(titles,"-T_g/k2",_TRUE_);
-    class_store_columntitle(titles,"-T_ur/k2",_TRUE_);
-    class_store_columntitle(titles,"-T_ncdm/k2",_TRUE_);
-    class_store_columntitle(titles,"-T_tot/k2",_TRUE_);
-
+  if (_vectors_) {
+    if (ppt->has_vector_velocity_transfers == _TRUE_) {
+      class_store_columntitle(titles,"V (metric)",_TRUE_);
+      class_store_columntitle(titles,"t_g",ppt->has_source_vector_theta_g);
+      class_store_columntitle(titles,"t_b",ppt->has_source_vector_theta_b);
+      class_store_columntitle(titles,"t_ur",ppt->has_source_vector_theta_ur);
+    }
   }
 
   return _SUCCESS_;
 }
+
 
 /**
  * Fill strings that will be used when writing the transfer functions
  * and the spectra in files (in the file names and in the comment at the beginning of each file).
  *
  * @param ppt        Input: pointer to the perturbation structure
+ * @param index_md   Input: index of requested mode (for scalars, just pass ppt->index_md_scalars)
  * @param index_ic   Input: index of the initial condition
  * @param first_line Output: line of comment
  * @param ic_suffix  Output: suffix for the output file name
@@ -631,6 +661,7 @@ int perturbations_output_titles(
 
 int perturbations_output_firstline_and_ic_suffix(
                                                  struct perturbations *ppt,
+						 int index_md,
                                                  int index_ic,
                                                  char first_line[_LINE_LENGTH_MAX_],
                                                  char ic_suffix[_SUFFIXNAMESIZE_]
@@ -639,30 +670,45 @@ int perturbations_output_firstline_and_ic_suffix(
   first_line[0]='\0';
   ic_suffix[0]='\0';
 
-  if ((ppt->has_ad == _TRUE_) && (index_ic == ppt->index_ic_ad)) {
-    strcpy(ic_suffix,"ad");
-    strcpy(first_line,"for adiabatic (AD) mode (normalized to initial curvature=1) ");
+  if (_scalars_) {
+    
+    if ((ppt->has_ad == _TRUE_) && (index_ic == ppt->index_ic_ad)) {
+      strcpy(ic_suffix,"ad");
+      strcpy(first_line,"for adiabatic (AD) mode (normalized to initial curvature=1) ");
+    }
+    
+    if ((ppt->has_bi == _TRUE_) && (index_ic == ppt->index_ic_bi)) {
+      strcpy(ic_suffix,"bi");
+      strcpy(first_line,"for baryon isocurvature (BI) mode (normalized to initial entropy=1) ");
+    }
+    
+    if ((ppt->has_cdi == _TRUE_) && (index_ic == ppt->index_ic_cdi)) {
+      strcpy(ic_suffix,"cdi");
+      strcpy(first_line,"for CDM isocurvature (CDI) mode (normalized to initial entropy=1) ");
+    }
+    
+    if ((ppt->has_nid == _TRUE_) && (index_ic == ppt->index_ic_nid)) {
+      strcpy(ic_suffix,"nid");
+      strcpy(first_line,"for neutrino density isocurvature (NID) mode (normalized to initial entropy=1) ");
+    }
+    
+    if ((ppt->has_niv == _TRUE_) && (index_ic == ppt->index_ic_niv)) {
+      strcpy(ic_suffix,"niv");
+      strcpy(first_line,"for neutrino velocity isocurvature (NIV) mode (normalized to initial entropy=1) ");
+    }
   }
 
-  if ((ppt->has_bi == _TRUE_) && (index_ic == ppt->index_ic_bi)) {
-    strcpy(ic_suffix,"bi");
-    strcpy(first_line,"for baryon isocurvature (BI) mode (normalized to initial entropy=1)");
+  if (_vectors_) {
+    if ((ppt->has_iso_v == _TRUE_) && (index_ic == ppt->index_ic_iso_v)) {
+      strcpy(ic_suffix,"iso");
+      strcpy(first_line,"for neutrino vector velocity isocurvature (ISO_V)  (normalized such that metric vector mode is 1 initially) ");
+    }
+    if ((ppt->has_oct_v == _TRUE_) && (index_ic == ppt->index_ic_oct_v)) {
+      strcpy(ic_suffix,"oct");
+      strcpy(first_line,"for neutrino vector octupole (OCT_V)  (normalized such that metric vector mode is 1 initially) ");
+    }
   }
-
-  if ((ppt->has_cdi == _TRUE_) && (index_ic == ppt->index_ic_cdi)) {
-    strcpy(ic_suffix,"cdi");
-    strcpy(first_line,"for CDM isocurvature (CDI) mode (normalized to initial entropy=1)");
-  }
-
-  if ((ppt->has_nid == _TRUE_) && (index_ic == ppt->index_ic_nid)) {
-    strcpy(ic_suffix,"nid");
-    strcpy(first_line,"for neutrino density isocurvature (NID) mode (normalized to initial entropy=1)");
-  }
-
-  if ((ppt->has_niv == _TRUE_) && (index_ic == ppt->index_ic_niv)) {
-    strcpy(ic_suffix,"niv");
-    strcpy(first_line,"for neutrino velocity isocurvature (NIV) mode (normalized to initial entropy=1)");
-  }
+  
   return _SUCCESS_;
 }
 
@@ -1256,6 +1302,10 @@ int perturbations_indices(
   ppt->has_source_H_T_Nb_prime = _FALSE_;
   ppt->has_source_k2gamma_Nb = _FALSE_;
 
+  ppt->has_source_vector_theta_b = _FALSE_;
+  ppt->has_source_vector_theta_g = _FALSE_;
+  ppt->has_source_vector_theta_ur = _FALSE_;
+
   /** - source flags and indices, for sources that all modes have in
       common (temperature, polarization, ...). For temperature, the
       term t2 is always non-zero, while other terms are non-zero only
@@ -1494,10 +1544,22 @@ int perturbations_indices(
     if (_vectors_) {
 
       /** - --> source flags and indices, for sources that are specific to vectors */
+      if (ppt->has_vector_velocity_transfers == _TRUE_) {
+        if (pba->has_ur == _TRUE_) {
+	  ppt->has_source_vector_theta_ur = _TRUE_;
+	}
+	ppt->has_source_vector_theta_b = _TRUE_;
+	ppt->has_source_vector_theta_g = _TRUE_;
+      }
 
-      /** We do not use the same tp_t1 index as for scalars, hence we define tp_t1_v */
+      
       index_type = index_type_common;
-      class_define_index(ppt->index_tp_t1_v,ppt->has_source_t,index_type,1);
+      /** We do not use the same tp_t1 index as for scalars, hence we define tp_t1_v */
+      class_define_index(ppt->index_tp_t1_v,           ppt->has_source_t,index_type,1);
+      class_define_index(ppt->index_tp_vector_theta_g, ppt->has_source_vector_theta_g,index_type,1);
+      class_define_index(ppt->index_tp_vector_theta_b, ppt->has_source_vector_theta_b,index_type,1);
+      class_define_index(ppt->index_tp_vector_theta_ur,ppt->has_source_vector_theta_ur,index_type,1);
+      class_define_index(ppt->index_tp_V,              _TRUE_,index_type,1);
       ppt->tp_size[index_md] = index_type;
 
       /*
@@ -2351,7 +2413,7 @@ int perturbations_get_k_list(
     /** - --> find k_max (as well as k_max_cmb[ppt->index_md_vectors], k_max_cl[ppt->index_md_vectors]) */
 
     k_rec = 2. * _PI_ / pth->rs_rec; /* comoving scale corresponding to sound horizon at recombination */
-
+    
     k_max_cmb[ppt->index_md_vectors] = k_min;
     k_max_cl[ppt->index_md_vectors] = k_min;
     k_max = k_min;
@@ -2370,6 +2432,7 @@ int perturbations_get_k_list(
       k_max_cl[ppt->index_md_vectors]  = k_max_cmb[ppt->index_md_vectors];
       k_max     = k_max_cmb[ppt->index_md_vectors];
     }
+
 
     /** - --> test that result for k_min, k_max make sense */
 
@@ -2430,7 +2493,7 @@ int perturbations_get_k_list(
          gradually in the k-->0 limit, by up to a factor 10. The actual
          stepsize is still fixed by k_step_super, this is just a
          reduction factor. */
-
+      
       scale2 = pow(pba->H0,2)+fabs(pba->K);
 
       step *= (k*k/scale2+1.)/(k*k/scale2+1./ppr->k_step_super_reduction);
@@ -3594,7 +3657,7 @@ int perturbations_prepare_k_output(struct background * pba,
 	  class_store_columntitle(ppt->vector_titles,"B_2",_TRUE_);
 	  break;
       }
-      
+
       ppt->number_of_vector_titles =
         get_number_of_titles(ppt->vector_titles);
     }
@@ -4378,7 +4441,7 @@ int perturbations_vector_init(
     */
     
     class_define_index(ppv->index_pt_V,_TRUE_,index_pt,1);
-    
+
   }
   
   if (_tensors_) {
@@ -4623,8 +4686,6 @@ int perturbations_vector_init(
         }
       }
     }
-    
-    /* we do not need neutrinos in sources beyond quadrupole, but I like to output them in the _perturbation_t.dat file hence I keep them. */
     
   }
   
@@ -5624,7 +5685,6 @@ int perturbations_vector_init(
       
       ppv->y[ppv->index_pt_V] =
 	ppw->pv->y[ppw->pv->index_pt_V];
-
       
       if (ppt->evolve_vector_ncdm == _TRUE_) {
 	index_pt = 0;
@@ -6460,6 +6520,8 @@ int perturbations_initial_conditions(struct precision * ppr,
 	     ppt->error_message);
   
     a = ppw->pvecback[pba->index_bg_a];
+
+    a_prime_over_a = ppw->pvecback[pba->index_bg_H]*a;
     
     /* 8piG/3 rho_b(t_i) */
     rho_b = ppw->pvecback[pba->index_bg_rho_b];
@@ -6578,7 +6640,7 @@ int perturbations_initial_conditions(struct precision * ppr,
 	}
       }
     }
-    
+
   }
 
   
@@ -7095,7 +7157,7 @@ int perturbations_approximations(
         ppw->approx[ppw->index_ap_tca] = (int)tca_off;
       }
     }
-    
+
     if ((tau/tau_k > ppr->radiation_streaming_trigger_tau_over_tau_k) &&
         (tau > pth->tau_free_streaming) &&
         (ppr->radiation_streaming_approximation != rsa_none)) {
@@ -8394,12 +8456,12 @@ int perturbations_sources(
   double H_T_Nb_prime=0., rho_tot;
   double theta_over_k2,theta_shift;
 
-  double theta_b, theta_b_prime;
+  double theta_b, theta_b_prime, theta_g, theta_ur;
   double dkappa, ddkappa, exp_m_kappa, g, g_prime;
   double theta_idm = 0., theta_idm_prime = 0.;
   double dmu_idm_g = 0., ddmu_idm_g = 0., exp_mu_idm_g = 0.;
 
-  double ssqrt3;
+  double ssqrt3, R;
   /** - rename structure fields (just to avoid heavy notations) */
 
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
@@ -8745,15 +8807,15 @@ int perturbations_sources(
     }
 
     /* compute the corrections that have to be applied to each (delta_i, theta_i) in N-body gauge */
-	if (ppt->has_Nbody_gauge_transfers == _TRUE_){
+    if (ppt->has_Nbody_gauge_transfers == _TRUE_){
       theta_over_k2 = ppw->rho_plus_p_theta/ppw->rho_plus_p_tot/k/k;
       theta_shift = H_T_Nb_prime;
       if (ppt->gauge == synchronous) theta_shift += pvecmetric[ppw->index_mt_alpha]*k*k;
-	}
-	else{
-	  theta_over_k2 = 0.;
-	  theta_shift = 0.;
-	}
+    }
+    else{
+      theta_over_k2 = 0.;
+      theta_shift = 0.;
+    }
 
     /* delta_tot */
     if (ppt->has_source_delta_tot == _TRUE_)  {
@@ -8976,7 +9038,9 @@ int perturbations_sources(
   /** - for vectors */
   if (_vectors_) {
 
+    R = 3./4. * pvecback[pba->index_bg_rho_b]/pvecback[pba->index_bg_rho_g];
     ssqrt3 = sqrt(1.-2.*pba->K/k/k);
+    
     /* Function P^(1) appearing in polarisation source */
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
@@ -8990,12 +9054,15 @@ int perturbations_sources(
 			     +2.*y[ppw->pv->index_pt_pol0_g]
 			     +10./7.*y[ppw->pv->index_pt_pol0_g+2]
 			     -4./7.*y[ppw->pv->index_pt_pol0_g+4]);
+	  theta_g = -1/sqrt(8.)*(y[ppw->pv->index_pt_l0_g]+y[ppw->pv->index_pt_l0_g+2]); 
 	  break;
 	  
         case tam:
           P = (y[ppw->pv->index_pt_l1_g+1] - _SQRT6_*y[ppw->pv->index_pt_E2])/10.;
+	  theta_g = y[ppw->pv->index_pt_l1_g];      
           break;
         }
+	theta_b = y[ppw->pv->index_pt_theta_b];
       }
       //Tight-coupling
       else {
@@ -9005,35 +9072,80 @@ int perturbations_sources(
 	  P = -1./15. * k*sqrt(3.)*ssqrt3/3. /ppw->pvecthermo[pth->index_th_dkappa]
 	    * (y[ppw->pv->index_pt_theta_b] + y[ppw->pv->index_pt_V]);//Idem here theta_b as a proxy for tight-coupled fluid velocity.
 	}
-	  
+	theta_g = (y[ppw->pv->index_pt_theta_b] - R/(1.+R)*ppw->tca_slip_vector);
+	theta_b = (y[ppw->pv->index_pt_theta_b] +1./(1.+R)*ppw->tca_slip_vector);
       }
     }
-    else {
+    else {//RSA approximation
       P=0.;
+      if (ppt->gauge == synchronous) {
+	theta_g = -y[ppw->pv->index_pt_V];
+      }
+      else {
+	theta_g = 0.;
+      }
+      theta_b = y[ppw->pv->index_pt_theta_b];
     }
 
+    
+    
     if (ppt->has_source_t == _TRUE_) {
       if (ppt->gauge == synchronous) {
-
+	
 	_set_source_(ppt->index_tp_t1_v) =pvecthermo[pth->index_th_g]*y[ppw->pv->index_pt_theta_b];
-
+	
 	_set_source_(ppt->index_tp_t2) =k*sqrt(3.)*ssqrt3 /3. *y[ppw->pv->index_pt_V]*pvecthermo[pth->index_th_exp_m_kappa]
 	  +pvecthermo[pth->index_th_g] * P;
 	
       }
       else if (ppt->gauge == newtonian) {
-
+	
 	_set_source_(ppt->index_tp_t1_v) = ppw->pvecmetric[ppw->index_mt_V_prime]*pvecthermo[pth->index_th_exp_m_kappa]
 	  +pvecthermo[pth->index_th_g]*y[ppw->pv->index_pt_theta_b];
-
+	
 	_set_source_(ppt->index_tp_t2) = pvecthermo[pth->index_th_g] * P;
       }
       
     }
+    
     if (ppt->has_source_p == _TRUE_) {
       //Note that the correct source should have a minus sign, but we add this historical sign 'mistake' as for tensor modes.
       _set_source_(ppt->index_tp_p) = _SQRT6_ * pvecthermo[pth->index_th_g] * P;
     }
+    
+    if (ppt->has_vector_velocity_transfers == _TRUE_)
+      _set_source_(ppt->index_tp_V) = y[ppw->pv->index_pt_V];
+    
+    if (ppt->has_source_vector_theta_g == _TRUE_)
+      _set_source_(ppt->index_tp_vector_theta_g) = theta_g;
+    
+    if (ppt->has_source_vector_theta_b == _TRUE_)
+      _set_source_(ppt->index_tp_vector_theta_b) = theta_b;
+
+    
+    if (ppt->has_source_vector_theta_ur == _TRUE_) {
+      if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
+	switch (ppt->hierarchy) {
+	case optimal:
+	  theta_ur = -1/sqrt(8.)*(y[ppw->pv->index_pt_l0_ur]+y[ppw->pv->index_pt_l0_ur+2]); 
+	  break;
+	case tam:
+	  theta_ur = y[ppw->pv->index_pt_l1_ur];
+	  break;
+	}
+      }
+      else {//if RSA is on we set the newtonian velocity to 0.
+	if (ppt->gauge == synchronous) {
+	  theta_ur = -y[ppw->pv->index_pt_V];
+	}
+	else {
+	  theta_ur = 0.;
+	}
+      }
+      
+      _set_source_(ppt->index_tp_vector_theta_ur) = theta_ur;
+    }
+    
   }
   
   
@@ -9685,7 +9797,45 @@ int perturbations_print_variables(double tau,
         }
 	theta_b = y[ppw->pv->index_pt_theta_b] + 1./(1.+R)*ppw->tca_slip_vector;
       }
+    }
+    else {
+      
+      /* quantities in rsa approximation */
 
+      switch (ppt->hierarchy) {
+      case optimal:
+	if (ppt->gauge == synchronous) {
+	  /* This is the TAM hierarchy RSA condition (see hereafter) with the relation F_0^(1)= -sqrt(8) \Theta_1^(1). */
+	  l0_g = 2.*_SQRT2_*y[ppw->pv->index_pt_V];
+	}
+	else {
+	  l0_g = 0.;
+	}
+        l1_g = 0.;
+	l2_g = 0.;
+	l3_g = 0.;
+        pol0_g = 0.;
+        pol2_g = 0.;
+        break;
+      case tam:
+	/* In RSA we assume that Theta_1 = \tilde Theta_1 + V = 0 in average. */
+	/* where \tilde \Theta_1 is the dipole in synchronous gauge and \Theta_1 is the dipole in newtonian gauge. But this is never really used except here. */
+	if (ppt->gauge == synchronous) {
+	  l1_g = -y[ppw->pv->index_pt_V];
+	}
+	else {
+	  l1_g = 0.;
+	}
+        l2_g = 0.;
+        E2 = 0.;
+	B2 = 0.;
+        break;
+      }
+      
+      theta_b = y[ppw->pv->index_pt_theta_b];
+    }
+
+    if (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off) {
       //Neutrinos when RSA is off
       switch (ppt->hierarchy) {
       case optimal:
@@ -9700,55 +9850,37 @@ int perturbations_print_variables(double tau,
 	l3_ur = y[ppw->pv->index_pt_l1_ur+2];
 	break;
       }
-      
     }
     else {
-      
-      /* quantities in rsa approximation */
-
       switch (ppt->hierarchy) {
       case optimal:
-	if (ppt->gauge == newtonian) {
+	if (ppt->gauge == synchronous) {
 	  /* This is the TAM hierarchy RSA condition (see hereafter) with the relation F_0^(1)= -sqrt(8) \Theta_1^(1). */
-	  l0_g = -2.*_SQRT2_*y[ppw->pv->index_pt_V];
-	  l0_ur = -2.*_SQRT2_*y[ppw->pv->index_pt_V];
+	  l0_ur = 2.*_SQRT2_*y[ppw->pv->index_pt_V];
 	}
 	else {
-	  l0_g = 0.;
 	  l0_ur = 0.;
 	}
-        l1_g = 0.;
-	l2_g = 0.;
-	l3_g = 0.;
-        pol0_g = 0.;
-        pol2_g = 0.;
-	l1_ur = 0.;
+        l1_ur = 0.;
 	l2_ur = 0.;
 	l3_ur = 0.;
         break;
       case tam:
-	/* In RSA we assume that \tilde Theta_1 = Theta_1 - V = 0 in average. */
+	/* In RSA we assume that Theta_1 = \tilde Theta_1 + V = 0 in average. */
 	/* where \tilde \Theta_1 is the dipole in synchronous gauge and \Theta_1 is the dipole in newtonian gauge. But this is never really used except here. */
-	if (ppt->gauge == newtonian) {
-	  l1_g = y[ppw->pv->index_pt_V];
-	  l1_ur = y[ppw->pv->index_pt_V];
+	if (ppt->gauge == synchronous) {
+	  l1_ur = -y[ppw->pv->index_pt_V];
 	}
 	else {
-	  l1_g = 0.;
 	  l1_ur = 0.;
 	}
-        l2_g = 0.;
-        E2 = 0.;
-	B2 = 0.;
-	l2_ur = 0.;
-	l3_ur = 0.;
+        l2_ur = 0.;
+	l3_ur=0;
         break;
       }
-      
-      theta_b = y[ppw->pv->index_pt_theta_b];
     }
-    
 
+    
     /** - --> Handle (re-)allocation */
     if (ppt->vector_perturbations_data[ppw->index_ikout] == NULL){
       class_alloc(ppt->vector_perturbations_data[ppw->index_ikout],
@@ -9797,7 +9929,7 @@ int perturbations_print_variables(double tau,
       class_store_double(dataptr, B2, _TRUE_, storeidx);
       break;
     }
-    
+
   }  
   
   /** - for tensor modes: */
@@ -11179,6 +11311,8 @@ int perturbations_derivs(double tau,
 
 	  break;
 	case tam:
+	  theta_g = y[pv->index_pt_l1_g];
+	  
 	  if (ppt->gauge == synchronous) {
 	    
 	    dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
@@ -11266,7 +11400,6 @@ int perturbations_derivs(double tau,
 	  
 	  break;
 	}
-	
       }
       else {
 	// We recall that in TCA the baryons stand in fact for the tight-coupled fluid of baryons and photons 
@@ -11338,11 +11471,10 @@ int perturbations_derivs(double tau,
       }
     }
     
-    
     //ur species
     if (ppt->evolve_vector_ur == _TRUE_) {
       if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
-	//In all cases we integrate neutrinos (even if RSA is on !)
+	//Neutrinos are not integrated if RSA is on.
 	switch (ppt->hierarchy) {
 	case optimal: 
 	  if (ppt->gauge == synchronous) {
@@ -11477,7 +11609,7 @@ int perturbations_derivs(double tau,
     
     //In all cases we integrate the metric
     dy[pv->index_pt_V] = pvecmetric[ppw->index_mt_V_prime];
-    
+
   }  
 
   /** - tensor modes: */

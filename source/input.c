@@ -1751,9 +1751,10 @@ int input_read_parameters_general(struct file_content * pfc,
   int flag1,flag2;
   double param1,param2;
   char string1[_ARGUMENT_LENGTH_MAX_];
-  char * options_output[33] =  {"tCl","pCl","lCl","nCl","dCl","sCl","mPk","mTk","dTk","vTk","sd",
+  char * options_output[38] =  {"tCl","pCl","lCl","nCl","dCl","sCl","mPk","mTk","dTk","vTk","sd",
                                 "TCl","PCl","LCl","NCl","DCl","SCl","MPk","MTk","DTk","VTk","Sd",
-                                "TCL","PCL","LCL","NCL","DCL","SCL","MPK","MTK","DTK","VTK","SD"};
+                                "TCL","PCL","LCL","NCL","DCL","SCL","MPK","MTK","DTK","VTK","SD",
+				"BTk","BTK","wTk","WTk","WTK"};
   char * options_temp_contributions[10] = {"tsw","eisw","lisw","dop","pol","TSW","EISW","LISW","Dop","Pol"};
   char * options_number_count[8] = {"density","dens","rsd","RSD","lensing","lens","gr","GR"};
   char * options_modes[6] = {"s","v","t","S","V","T"};
@@ -1816,13 +1817,18 @@ int input_read_parameters_general(struct file_content * pfc,
       psd->has_distortions=_TRUE_;
       pth->compute_damping_scale=_TRUE_;
     }
+    if ((strstr(string1,"wTk") != NULL) || (strstr(string1,"WTk") != NULL) || (strstr(string1,"WTK") != NULL)) {
+      ppt->has_vector_velocity_transfers=_TRUE_;
+      ppt->has_perturbations = _TRUE_;
+    }
+
 
     /* Test */
-    class_call(parser_check_options(string1, options_output, 33, &flag1),
+    class_call(parser_check_options(string1, options_output, 38, &flag1),
                errmsg,
                errmsg);
     class_test(flag1==_FALSE_,
-               errmsg, "The options for output are {'tCl','pCl','lCl','nCl','dCl','sCl','mPk','mTk','dTk','vTk','Sd'}, you entered '%s'",string1);
+               errmsg, "The options for output are {'tCl','pCl','lCl','nCl','dCl','sCl','mPk','mTk','dTk','vTk','Sd','BTk','wTk'}, you entered '%s'",string1);
   }
 
   /** 1.a) Terms contributing to the temperature spectrum */
@@ -1877,7 +1883,7 @@ int input_read_parameters_general(struct file_content * pfc,
     }
   }
 
-  /** 1.b) Obsevable number count fluctuation spectrum */
+  /** 1.b) Observable number count fluctuation spectrum */
   if (ppt->has_cl_number_count == _TRUE_){
     /* Read */
     class_call(parser_read_string(pfc,"number_count_contributions",&string1,&flag1,errmsg),
@@ -2029,8 +2035,15 @@ int input_read_parameters_general(struct file_content * pfc,
                  "Inconsistency: you want density transfer functions, but no scalar modes\n");
       class_test(ppt->has_velocity_transfers == _TRUE_,
                  errmsg,
-                 "Inconsistency: you want density transfer functions, but no scalar modes\n");
+                 "Inconsistency: you want velocity transfer functions, but no scalar modes\n");
     }
+    
+    if (ppt->has_vectors == _FALSE_) {
+      class_test( (ppt->has_vector_velocity_transfers == _TRUE_),
+		  errmsg,
+		  "Inconsistency: you want vector velocity transfers, but no vector modes\n");
+    }
+    
 
     /** 3.b) List of methods for tensors */
     if (ppt->has_tensors == _TRUE_) {
@@ -4918,7 +4931,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
 
 
   /** 3) Power spectrum P(k) */
-  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_)){
+  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)){
 
     /** 3.a) Maximum k in P(k) */
     /* Read */
@@ -4976,6 +4989,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
       /* Complete set of parameters */
       pop->z_pk_num = int1;
       for (i=0; i<int1; i++) {
+	printf("DEBUG I read a z=%e\n",pointer1[i]);
         pop->z_pk[i] = pointer1[i];
       }
       free(pointer1);
@@ -4984,7 +4998,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
   }
 
   /** 3.c) Maximum redshift */
-  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_cl_number_count == _TRUE_) || (ppt->has_cl_lensing_potential == _TRUE_)) {
+  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_cl_number_count == _TRUE_) || (ppt->has_cl_lensing_potential == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)) {
     /* Read */
     class_call(parser_read_double(pfc,"z_max_pk",&param1,&flag1,errmsg),
                errmsg,
@@ -5002,7 +5016,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
     else {
       ppt->z_max_pk = 0.;
       /* For the z_pk related quantities, test here the z_pk requirements */
-      if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_)) {
+      if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)) {
         for (i=0; i<pop->z_pk_num; i++) {
           ppt->z_max_pk = MAX(ppt->z_max_pk,pop->z_pk[i]);
         }
@@ -5723,6 +5737,7 @@ int input_default_params(struct background *pba,
   ppt->has_pk_matter = _FALSE_;
   ppt->has_density_transfers = _FALSE_;
   ppt->has_velocity_transfers = _FALSE_;
+  ppt->has_vector_velocity_transfers = _FALSE_;
   /** 1.a) 'tCl' case */
   ppt->switch_sw = 1;
   ppt->switch_eisw = 1;
