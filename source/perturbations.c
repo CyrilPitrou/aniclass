@@ -4403,7 +4403,7 @@ int perturbations_vector_init(
 	  /* optimal: we only need F_0, F_2, F_4, G_0, G_2, G_4 */
           ppv->used_in_sources[ppv->index_pt_l0_g+1]=_FALSE_;
           ppv->used_in_sources[ppv->index_pt_l0_g+3]=_FALSE_;
-          for (index_pt=ppv->index_pt_l0_g+5; index_pt <= ppv->index_pt_delta_g+ppv->l_max_g; index_pt++)
+          for (index_pt=ppv->index_pt_l0_g+5; index_pt <= ppv->index_pt_l0_g+ppv->l_max_g; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
           ppv->used_in_sources[ppv->index_pt_pol0_g+1]=_FALSE_;
           ppv->used_in_sources[ppv->index_pt_pol0_g+3]=_FALSE_;
@@ -7606,6 +7606,9 @@ int perturbations_total_stress_energy(
           ppw->gw_source += 8./5.*a2*ppw->pvecback[pba->index_bg_rho_g]*y[ppw->pv->index_pt_l2_g];
           break;
         }
+      }
+      else { //If TCA is on, we can be more precise by considering the anisotropic stress of photons as well. It yields better (more precise) results.                                        
+        ppw->gw_source += 8./5.*a2*ppw->pvecback[pba->index_bg_rho_g]*(-4./3.)*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
       }
     }
 

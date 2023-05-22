@@ -265,9 +265,9 @@ cdef class Class:
             if "primordial" not in level:
                 level.append("primordial")
         if "primordial" in level:
-            if "perturb" not in level:
-                level.append("perturb")
-        if "perturb" in level:
+            if "perturbations" not in level:
+                level.append("perturbations")
+        if "perturbations" in level:
             if "thermodynamics" not in level:
                 level.append("thermodynamics")
         if "thermodynamics" in level:
@@ -393,12 +393,12 @@ cdef class Class:
                 raise CosmoComputationError(self.th.error_message)
             self.ncp.add("thermodynamics")
 
-        if "perturb" in level:
+        if "perturbations" in level:
             if perturbations_init(&(self.pr), &(self.ba),
                             &(self.th), &(self.pt)) == _FAILURE_:
                 self.struct_cleanup()
                 raise CosmoComputationError(self.pt.error_message)
-            self.ncp.add("perturb")
+            self.ncp.add("perturbations")
 
         if "primordial" in level:
             if primordial_init(&(self.pr), &(self.pt),
