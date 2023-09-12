@@ -9092,7 +9092,7 @@ int perturbations_sources(
     if (ppt->has_source_t == _TRUE_) {
       if (ppt->gauge == synchronous) {
 	
-	_set_source_(ppt->index_tp_t1_v) =pvecthermo[pth->index_th_g]*y[ppw->pv->index_pt_theta_b];
+	_set_source_(ppt->index_tp_t1_v) =pvecthermo[pth->index_th_g]*theta_b;
 	
 	_set_source_(ppt->index_tp_t2) =k*sqrt(3.)*ssqrt3 /3. *y[ppw->pv->index_pt_V]*pvecthermo[pth->index_th_exp_m_kappa]
 	  +pvecthermo[pth->index_th_g] * P;
@@ -9101,7 +9101,7 @@ int perturbations_sources(
       else if (ppt->gauge == newtonian) {
 	
 	_set_source_(ppt->index_tp_t1_v) = ppw->pvecmetric[ppw->index_mt_V_prime]*pvecthermo[pth->index_th_exp_m_kappa]
-	  +pvecthermo[pth->index_th_g]*y[ppw->pv->index_pt_theta_b];
+	  +pvecthermo[pth->index_th_g]*theta_b;
 	
 	_set_source_(ppt->index_tp_t2) = pvecthermo[pth->index_th_g] * P;
       }
