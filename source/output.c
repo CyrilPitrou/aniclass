@@ -986,26 +986,26 @@ int output_tk(
              pop->error_message);
   number_of_titles = get_number_of_titles(titles);
   size_data = number_of_titles*ppt->k_size[index_md];
-
+  
   class_alloc(data, sizeof(double)*ppt->ic_size[index_md]*size_data, pop->error_message);
-
+  
   for (index_z = 0; index_z < pop->z_pk_num; index_z++) {
-
+    
     z = pop->z_pk[index_z];
-
+    
     /** - first, check that requested redshift z_pk is consistent */
-
+    
     class_test((pop->z_pk[index_z] > ppt->z_max_pk),
                pop->error_message,
                "T_i(k,z) computed up to z=%f but requested at z=%f. Must increase z_max_pk in precision file.",ppt->z_max_pk,pop->z_pk[index_z]);
-
+    
     if (pop->z_pk_num == 1)
       redshift_suffix[0]='\0';
     else
       class_sprintf(redshift_suffix,"z%d_",index_z+1);
-
+    
     /** - second, open only the relevant files, and write a heading in each of them */
-
+    
     class_call(perturbations_output_data_at_z(pba,
                                               ppt,
                                               pop->output_format,
@@ -1015,9 +1015,9 @@ int output_tk(
                                               data
                                               ),
                ppt->error_message,pop->error_message);
-
+    
     for (index_ic = 0; index_ic < ppt->ic_size[index_md]; index_ic++) {
-
+      
       class_call(perturbations_output_firstline_and_ic_suffix(ppt, index_md, index_ic, first_line, ic_suffix),
                  ppt->error_message, pop->error_message);
       
@@ -1063,43 +1063,6 @@ int output_tk(
 	}
       }
 
-      if ((ppt->has_ad == _TRUE_) && (ppt->ic_size[index_md] == 1) )
-        class_sprintf(file_name,"%s%s%s",pop->root,redshift_suffix,"tk.dat");
-      else
-        class_sprintf(file_name,"%s%s%s%s%s",pop->root,redshift_suffix,"tk_",ic_suffix,".dat");
-
-      class_open(tkfile, file_name, "w", pop->error_message);
-
-      if (pop->write_header == _TRUE_) {
-        if (pop->output_format == class_format) {
-          fprintf(tkfile,"# Transfer functions T_i(k) %sat redshift z=%g\n",first_line,z);
-          fprintf(tkfile,"# for k=%g to %g h/Mpc,\n",ppt->k[index_md][0]/pba->h,ppt->k[index_md][ppt->k_size[index_md]-1]/pba->h);
-          fprintf(tkfile,"# number of wavenumbers equal to %d\n",ppt->k_size[index_md]);
-          if (ppt->has_density_transfers == _TRUE_) {
-            fprintf(tkfile,"# d_i   stands for (delta rho_i/rho_i)(k,z) with above normalization \n");
-            fprintf(tkfile,"# d_tot stands for (delta rho_tot/rho_tot)(k,z) with rho_Lambda NOT included in rho_tot\n");
-            fprintf(tkfile,"# (note that this differs from the transfer function output from CAMB/CMBFAST, which gives the same\n");
-            fprintf(tkfile,"#  quantities divided by -k^2 with k in Mpc^-1; use format=camb to match CAMB)\n");
-          }
-          if (ppt->has_velocity_transfers == _TRUE_) {
-            fprintf(tkfile,"# t_i   stands for theta_i(k,z) with above normalization \n");
-            fprintf(tkfile,"# t_tot stands for (sum_i [rho_i+p_i] theta_i)/(sum_i [rho_i+p_i]))(k,z)\n");
-          }
-          fprintf(tkfile,"#\n");
-        }
-        else if (pop->output_format == camb_format) {
-
-          fprintf(tkfile,"# Rescaled matter transfer functions [-T_i(k)/k^2] %sat redshift z=%g\n",first_line,z);
-          fprintf(tkfile,"# for k=%g to %g h/Mpc,\n",ppt->k[index_md][0]/pba->h,ppt->k[index_md][ppt->k_size[index_md]-1]/pba->h);
-          fprintf(tkfile,"# number of wavenumbers equal to %d\n",ppt->k_size[index_md]);
-          fprintf(tkfile,"# T_i   stands for (delta rho_i/rho_i)(k,z) with above normalization \n");
-          fprintf(tkfile,"# The rescaling factor [-1/k^2] with k in 1/Mpc is here to match the CMBFAST/CAMB output convention\n");
-          fprintf(tkfile,"#\n");
-          fprintf(tkfile,"#");
-          fprintf(tkfile,"\n");
-
-        }
-
       if (_vectors_) {
 	
 	if (ppt->ic_size[index_md] == 1)
@@ -1118,18 +1081,18 @@ int output_tk(
 	  fprintf(tkfile,"#\n");
 	}
       }
-
+      
       output_print_data(tkfile,
-                        titles,
-                        data+index_ic*size_data,
-                        size_data);
+			titles,
+			data+index_ic*size_data,
+			size_data);
       
       /** - free memory and close files */
       fclose(tkfile);
       
     }
   }
-
+  
   free(data);
 
   return _SUCCESS_;

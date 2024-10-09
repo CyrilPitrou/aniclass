@@ -581,7 +581,7 @@ int perturbations_output_titles(
 	class_store_columntitle(titles,"d_idr",pba->has_idr);
 	if (pba->has_ncdm == _TRUE_) {
 	  for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
-	    sprintf(tmp,"d_ncdm[%d]",n_ncdm);
+	    class_sprintf(tmp,"d_ncdm[%d]",n_ncdm);
 	    class_store_columntitle(titles,tmp,_TRUE_);
 	  }
 	}
@@ -610,7 +610,7 @@ int perturbations_output_titles(
 	class_store_columntitle(titles,"t_idr",pba->has_idr);
 	if (pba->has_ncdm == _TRUE_) {
 	  for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
-	    sprintf(tmp,"t_ncdm[%d]",n_ncdm);
+	    class_sprintf(tmp,"t_ncdm[%d]",n_ncdm);
 	    class_store_columntitle(titles,tmp,_TRUE_);
 	  }
 	}
@@ -6570,36 +6570,36 @@ int perturbations_initial_conditions(struct precision * ppr,
     //Initial conditions in the isocurvature case
     if ((ppt->has_iso_v == _TRUE_) && (index_ic == ppt->index_ic_iso_v)) {
       Phi0 = 1.;
-      V_init = -1.* (Phi0 *(1.- cH*tau) );
-      l1_ur = Phi0*((5.*rho_r + 4.*rho_nu) / (4.*rho_nu) + cH*tau);
-      theta_b = -Phi0/(1.+R)* (5.*rho_r + 4.*rho_nu) / (4.*rho_g);
+      V_init = Phi0 *(1.- cH*tau);
+      l1_ur = -Phi0*((5.*rho_r + 4.*rho_nu) / (4.*rho_nu) + cH*tau);
+      theta_b = Phi0/(1.+R)* (5.*rho_r + 4.*rho_nu) / (4.*rho_g);
       //If not synchronous gauge we must add V to the velocities
       if (ppt->gauge == newtonian) { 
 	l1_ur += V_init;
 	theta_b += V_init;
       }
-      l2_ur = Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
+      l2_ur = -Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
       if ( !((pba->K>0)&&(k*k -7.*pba->K<=0)) )//l=3 is not excited for small k corresponding to q/sqrt(K) = 3, since in that case l_max = 2.
-	l3_ur = Phi0 /(2.*sqrt(6.)) * sqrt((k*k -2.*pba->K) * (k*k -7.*pba->K)) *rho_r/rho_nu *tau*tau;
+	l3_ur = -Phi0 /(2.*sqrt(6.)) * sqrt((k*k -2.*pba->K) * (k*k -7.*pba->K)) *rho_r/rho_nu *tau*tau;
       l4_ur =0.;
     }
     //Initial conditions in the octupole case
     if ((ppt->has_oct_v == _TRUE_) && (index_ic == ppt->index_ic_oct_v)) {
       Phi0 = 1.;
-      V_init = -1.* (Phi0 *(1.- cH*tau) );
-      l1_ur = -Phi0/8.*(k*k -2.*pba->K)*rho_r/rho_nu*tau*tau;
+      V_init = Phi0 *(1.- cH*tau) ;
+      l1_ur = Phi0/8.*(k*k -2.*pba->K)*rho_r/rho_nu*tau*tau;
       theta_b = 0.;
       //If not synchronous gauge we must add V to the velocities
       if (ppt->gauge == newtonian) { 
 	l1_ur += V_init;
 	theta_b += V_init;
       }
-      l2_ur = Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
+      l2_ur = -Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
       if ( !((pba->K>0)&&(k*k -7.*pba->K<=0)) )//l=3 is not excited for small k corresponding to q/sqrt(K) = 3, since in that case l_max = 2.
-	l3_ur = -7./3. * sqrt(3./8.) *sqrt((k*k -2.*pba->K) / (k*k -7.*pba->K))
-	  * (5.*rho_r + 4.*rho_nu) / (4.*rho_nu) * Phi0 ;
+	l3_ur = Phi0 * 7./3. * sqrt(3./8.) *sqrt((k*k -2.*pba->K) / (k*k -7.*pba->K))
+	  * (5.*rho_r + 4.*rho_nu) / (4.*rho_nu);
       if ( !((pba->K>0)&&(k*k -14.*pba->K<=0)) )//l=4 is not excited for small k corresponding to q/sqrt(K) = 4, since in that case l_max = 3.
-	l4_ur = -Phi0*(5.*rho_r+4.*rho_nu)/rho_nu /8.*sqrt(5./2.)*sqrt((k*k -2.*pba->K) * (k*k -14.*pba->K) / (k*k -7.*pba->K))*tau;
+	l4_ur = Phi0*(5.*rho_r+4.*rho_nu)/rho_nu /8.*sqrt(5./2.)*sqrt((k*k -2.*pba->K) * (k*k -14.*pba->K) / (k*k -7.*pba->K))*tau;
     }
 
     ppw->pv->y[ppw->pv->index_pt_V] = V_init;
@@ -6828,7 +6828,6 @@ int perturbations_initial_conditions(struct precision * ppr,
 	}
       }
     }
-  }
 
     /** - --> ncdm contribution to 3*P_fs */
     if (pba->has_ncdm == _TRUE_) {
@@ -7126,7 +7125,7 @@ int perturbations_approximations(
     class_call(thermodynamics_at_z(pba,
                                    pth,
                                    1./ppw->pvecback[pba->index_bg_a]-1.,  /* redshift z=1/a-1 */
-                                   ppw->inter_mode,
+                                   (interpolation_method)ppw->inter_mode,
                                    &(ppw->last_index_thermo),
                                    ppw->pvecback,
                                    ppw->pvecthermo),
@@ -9889,9 +9888,8 @@ int perturbations_print_variables(double tau,
       ppt->size_vector_perturbation_data[ppw->index_ikout] = 0;
     }
     else{
-      ppt->vector_perturbations_data[ppw->index_ikout] =
-        realloc(ppt->vector_perturbations_data[ppw->index_ikout],
-                sizeof(double)*(ppt->size_vector_perturbation_data[ppw->index_ikout]+ppt->number_of_vector_titles));
+      class_realloc(ppt->vector_perturbations_data[ppw->index_ikout],
+		      sizeof(double)*(ppt->size_vector_perturbation_data[ppw->index_ikout]+ppt->number_of_vector_titles),ppt->error_message);
     }
     storeidx = 0;
     dataptr = ppt->vector_perturbations_data[ppw->index_ikout]+

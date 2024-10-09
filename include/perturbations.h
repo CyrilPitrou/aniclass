@@ -237,15 +237,7 @@ struct perturbations
 
   //@{
 
-  enum hierarchies hierarchy; /**< wich version of the polarization Boltzmann hierarchy */
-
-  //@}
-
-  /** @name - version of the Boltzmann equation */
-
-  //@{
-
-  enum hierarchies hierarchy; /**< wich version of the polarization Boltzmann hierarchy */
+  enum hierarchies hierarchy; /**< which version of the polarization Boltzmann hierarchy */
 
   //@}
 
