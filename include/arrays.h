@@ -9,7 +9,7 @@
 
 //#if __COMPLEX_CLASS_BOOL__
 #include "tgmath.h"
-#include "complex.h"
+//#include "complex.h"
 //#endif
 
 #define _SPLINE_NATURAL_ 0 /**< natural spline: ddy0=ddyn=0 */
@@ -435,18 +435,6 @@ int array_integrate_all_trapzd_or_spline(
 				    double * result,
 				    ErrorMsg errmsg);
 
-  int array_interpolate_parabola(double x1,
-				 double x2,
-				 double x3,
-				 double x,
-				 __DOUBLE_OR_COMPLEX__ y1,
-				 __DOUBLE_OR_COMPLEX__ y2,
-				 __DOUBLE_OR_COMPLEX__ y3,
-				 __DOUBLE_OR_COMPLEX__ * y,
-				 __DOUBLE_OR_COMPLEX__ * dy,
-				 __DOUBLE_OR_COMPLEX__ * ddy,
-				 ErrorMsg errmsg);
-
   int array_smooth(double * array,
 		   int n_columns,
 		   int n_lines,
@@ -508,7 +496,19 @@ int array_integrate_all_trapzd_or_spline(
 
   /**
    Functions which are used with complex arguments. Needed only when CLASS is compiled with complex types (-D__COMPLEX_CLASS__ flag for compiler).
-   */
+  */
+  int array_interpolate_parabola(double x1,
+				 double x2,
+				 double x3,
+				 double x,
+				 __DOUBLE_OR_COMPLEX__ y1,
+				 __DOUBLE_OR_COMPLEX__ y2,
+				 __DOUBLE_OR_COMPLEX__ y3,
+				 __DOUBLE_OR_COMPLEX__ * y,
+				 __DOUBLE_OR_COMPLEX__ * dy,
+				 __DOUBLE_OR_COMPLEX__ * ddy,
+				 ErrorMsg errmsg);
+
   
   int array_spline_table_columns2_complex(
 		       double * x,

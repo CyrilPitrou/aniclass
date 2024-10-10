@@ -551,6 +551,170 @@ int array_spline_table_line_to_line(
   return _SUCCESS_;
  }
 
+int array_spline_table_lines_complex(
+			     double * x, /* vector of size x_size */
+			     int x_size,
+			     __DOUBLE_OR_COMPLEX__ * y_array, /* array of size x_size*y_size with elements
+						  y_array[index_x*y_size+index_y] */
+			     int y_size,
+			     __DOUBLE_OR_COMPLEX__ * ddy_array, /* array of size x_size*y_size */
+			     short spline_mode,
+			     ErrorMsg errmsg
+			     ) {
+
+  __DOUBLE_OR_COMPLEX__ * p;
+  __DOUBLE_OR_COMPLEX__ * qn;
+  __DOUBLE_OR_COMPLEX__ * un;
+  __DOUBLE_OR_COMPLEX__ * u;
+  double sig;
+  int index_x;
+  int index_y;
+  __DOUBLE_OR_COMPLEX__ dy_first;
+  __DOUBLE_OR_COMPLEX__ dy_last;
+
+  u = (__DOUBLE_OR_COMPLEX__*)malloc((x_size-1) * y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  p = (__DOUBLE_OR_COMPLEX__*)malloc(y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  qn = (__DOUBLE_OR_COMPLEX__*)malloc(y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  un = (__DOUBLE_OR_COMPLEX__*)malloc(y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+
+  if (u == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate u",__func__,__LINE__);
+    return _FAILURE_;
+  }
+  if (p == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate p",__func__,__LINE__);
+    return _FAILURE_;
+  }
+  if (qn == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate qn",__func__,__LINE__);
+    return _FAILURE_;
+  }
+  if (un == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate un",__func__,__LINE__);
+    return _FAILURE_;
+  }
+
+  if (x_size==2) spline_mode = _SPLINE_NATURAL_; // in the case of only 2 x-values, only the natural spline method is appropriate, for _SPLINE_EST_DERIV_ at least 3 x-values are needed.
+
+  index_x=0;
+
+  if (spline_mode == _SPLINE_NATURAL_) {
+    for (index_y=0; index_y < y_size; index_y++) {
+      ddy_array[index_x*y_size+index_y] = u[index_x*y_size+index_y] = 0.0;
+    }
+  }
+  else {
+    if (spline_mode == _SPLINE_EST_DERIV_) {
+
+      for (index_y=0; index_y < y_size; index_y++) {
+
+	dy_first =
+	  ((x[2]-x[0])*(x[2]-x[0])*
+	   (y_array[1*y_size+index_y]-y_array[0*y_size+index_y])-
+	   (x[1]-x[0])*(x[1]-x[0])*
+	   (y_array[2*y_size+index_y]-y_array[0*y_size+index_y]))/
+	  ((x[2]-x[0])*(x[1]-x[0])*(x[2]-x[1]));
+
+	ddy_array[index_x*y_size+index_y] = -0.5;
+
+	u[index_x*y_size+index_y] =
+	  (3./(x[1] -  x[0]))*
+	  ((y_array[1*y_size+index_y]-y_array[0*y_size+index_y])/
+	   (x[1] - x[0])-dy_first);
+
+      }
+    }
+    else {
+      class_sprintf(errmsg,"%s(L:%d) Spline mode not identified: %d",__func__,__LINE__,spline_mode);
+      return _FAILURE_;
+    }
+  }
+
+
+  for (index_x=1; index_x < x_size-1; index_x++) {
+
+    sig = (x[index_x] - x[index_x-1])/(x[index_x+1] - x[index_x-1]);
+
+    for (index_y=0; index_y < y_size; index_y++) {
+
+      p[index_y] = sig * ddy_array[(index_x-1)*y_size+index_y] + 2.0;
+
+      ddy_array[index_x*y_size+index_y] = (sig-1.0)/p[index_y];
+
+      u[index_x*y_size+index_y] =
+	(y_array[(index_x+1)*y_size+index_y] - y_array[index_x*y_size+index_y])
+	/ (x[index_x+1] - x[index_x])
+	- (y_array[index_x*y_size+index_y] - y_array[(index_x-1)*y_size+index_y])
+	/ (x[index_x] - x[index_x-1]);
+
+      u[index_x*y_size+index_y] = (6.0 * u[index_x*y_size+index_y] /
+				   (x[index_x+1] - x[index_x-1])
+				   - sig * u[(index_x-1)*y_size+index_y]) / p[index_y];
+    }
+
+  }
+
+  if (spline_mode == _SPLINE_NATURAL_) {
+
+    for (index_y=0; index_y < y_size; index_y++) {
+      qn[index_y]=un[index_y]=0.0;
+    }
+
+  }
+  else {
+    if (spline_mode == _SPLINE_EST_DERIV_) {
+
+      for (index_y=0; index_y < y_size; index_y++) {
+
+	dy_last =
+	  ((x[x_size-3]-x[x_size-1])*(x[x_size-3]-x[x_size-1])*
+	   (y_array[(x_size-2)*y_size+index_y]-y_array[(x_size-1)*y_size+index_y])-
+	   (x[x_size-2]-x[x_size-1])*(x[x_size-2]-x[x_size-1])*
+	   (y_array[(x_size-3)*y_size+index_y]-y_array[(x_size-1)*y_size+index_y]))/
+	  ((x[x_size-3]-x[x_size-1])*(x[x_size-2]-x[x_size-1])*(x[x_size-3]-x[x_size-2]));
+
+	qn[index_y]=0.5;
+
+	un[index_y]=
+	  (3./(x[x_size-1] - x[x_size-2]))*
+	  (dy_last-(y_array[(x_size-1)*y_size+index_y] - y_array[(x_size-2)*y_size+index_y])/
+	   (x[x_size-1] - x[x_size-2]));
+
+      }
+    }
+    else {
+      class_sprintf(errmsg,"%s(L:%d) Spline mode not identified: %d",__func__,__LINE__,spline_mode);
+      return _FAILURE_;
+    }
+  }
+
+  index_x=x_size-1;
+
+  for (index_y=0; index_y < y_size; index_y++) {
+    ddy_array[index_x*y_size+index_y] =
+      (un[index_y] - qn[index_y] * u[(index_x-1)*y_size+index_y]) /
+      (qn[index_y] * ddy_array[(index_x-1)*y_size+index_y] + 1.0);
+  }
+
+  for (index_x=x_size-2; index_x >= 0; index_x--) {
+    for (index_y=0; index_y < y_size; index_y++) {
+
+      ddy_array[index_x*y_size+index_y] = ddy_array[index_x*y_size+index_y] *
+	ddy_array[(index_x+1)*y_size+index_y] + u[index_x*y_size+index_y];
+
+    }
+  }
+
+  free(qn);
+  free(un);
+  free(p);
+  free(u);
+
+  return _SUCCESS_;
+ }
+
+
+
 int array_spline_table_lines(
 			     double * x, /* vector of size x_size */
 			     int x_size,
@@ -1187,6 +1351,148 @@ int array_spline_table_columns2(
   return _SUCCESS_;
  }
 
+
+int array_spline_table_columns2_complex(
+		       double * x, /* vector of size x_size */
+		       int x_size,
+		       __DOUBLE_OR_COMPLEX__ * y_array, /* array of size x_size*y_size with elements
+					  y_array[index_y*x_size+index_x] */
+		       int y_size,
+		       __DOUBLE_OR_COMPLEX__ * ddy_array, /* array of size x_size*y_size */
+		       short spline_mode,
+		       ErrorMsg errmsg
+		       ) {
+
+  __DOUBLE_OR_COMPLEX__ * p;
+  __DOUBLE_OR_COMPLEX__ * qn;
+  __DOUBLE_OR_COMPLEX__ * un;
+  __DOUBLE_OR_COMPLEX__ * u;
+  double sig;
+  int index_x;
+  int index_y;
+  __DOUBLE_OR_COMPLEX__ dy_first;
+  __DOUBLE_OR_COMPLEX__ dy_last;
+
+  u = (__DOUBLE_OR_COMPLEX__*)malloc((x_size-1) * y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  p = (__DOUBLE_OR_COMPLEX__*)malloc(y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  qn = (__DOUBLE_OR_COMPLEX__*)malloc(y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  un = (__DOUBLE_OR_COMPLEX__*)malloc(y_size * sizeof(__DOUBLE_OR_COMPLEX__));
+  if (u == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate u",__func__,__LINE__);
+    return _FAILURE_;
+  }
+  if (p == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate p",__func__,__LINE__);
+    return _FAILURE_;
+  }
+  if (qn == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate qn",__func__,__LINE__);
+    return _FAILURE_;
+  }
+  if (un == NULL) {
+    class_sprintf(errmsg,"%s(L:%d) Cannot allocate un",__func__,__LINE__);
+    return _FAILURE_;
+  }
+
+  if (x_size==2) spline_mode = _SPLINE_NATURAL_; // in the case of only 2 x-values, only the natural spline method is appropriate, for _SPLINE_EST_DERIV_ 3 x-values are needed.
+
+#pragma omp parallel                                                \
+  shared(x,x_size,y_array,y_size,ddy_array,spline_mode,p,qn,un,u)   \
+  private(index_y,index_x,sig,dy_first,dy_last)
+  {
+
+#pragma omp for schedule (dynamic)
+
+    for (index_y=0; index_y < y_size; index_y++) {
+
+      if (spline_mode == _SPLINE_NATURAL_) {
+        ddy_array[index_y*x_size+0] = 0.0;
+        u[0*y_size+index_y] = 0.0;
+      }
+      else {
+        dy_first =
+          ((x[2]-x[0])*(x[2]-x[0])*
+           (y_array[index_y*x_size+1]-y_array[index_y*x_size+0])-
+           (x[1]-x[0])*(x[1]-x[0])*
+           (y_array[index_y*x_size+2]-y_array[index_y*x_size+0]))/
+          ((x[2]-x[0])*(x[1]-x[0])*(x[2]-x[1]));
+
+        ddy_array[index_y*x_size+0] = -0.5;
+
+        u[0*y_size+index_y] =
+          (3./(x[1] -  x[0]))*
+          ((y_array[index_y*x_size+1]-y_array[index_y*x_size+0])/
+           (x[1] - x[0])-dy_first);
+
+      }
+
+      for (index_x=1; index_x < x_size-1; index_x++) {
+
+        sig = (x[index_x] - x[index_x-1])/(x[index_x+1] - x[index_x-1]);
+
+        p[index_y] = sig * ddy_array[index_y*x_size+(index_x-1)] + 2.0;
+
+        ddy_array[index_y*x_size+index_x] = (sig-1.0)/p[index_y];
+
+        u[index_x*y_size+index_y] =
+          (y_array[index_y*x_size+(index_x+1)] - y_array[index_y*x_size+index_x])
+          / (x[index_x+1] - x[index_x])
+          - (y_array[index_y*x_size+index_x] - y_array[index_y*x_size+(index_x-1)])
+          / (x[index_x] - x[index_x-1]);
+
+        u[index_x*y_size+index_y] = (6.0 * u[index_x*y_size+index_y] /
+                                     (x[index_x+1] - x[index_x-1])
+                                     - sig * u[(index_x-1)*y_size+index_y]) / p[index_y];
+
+      }
+
+      if (spline_mode == _SPLINE_NATURAL_) {
+
+        qn[index_y]=un[index_y]=0.0;
+
+      }
+      else {
+
+        dy_last =
+          ((x[x_size-3]-x[x_size-1])*(x[x_size-3]-x[x_size-1])*
+           (y_array[index_y*x_size+(x_size-2)]-y_array[index_y*x_size+(x_size-1)])-
+           (x[x_size-2]-x[x_size-1])*(x[x_size-2]-x[x_size-1])*
+           (y_array[index_y*x_size+(x_size-3)]-y_array[index_y*x_size+(x_size-1)]))/
+          ((x[x_size-3]-x[x_size-1])*(x[x_size-2]-x[x_size-1])*(x[x_size-3]-x[x_size-2]));
+
+        qn[index_y]=0.5;
+
+        un[index_y]=
+          (3./(x[x_size-1] - x[x_size-2]))*
+          (dy_last-(y_array[index_y*x_size+(x_size-1)] - y_array[index_y*x_size+(x_size-2)])/
+           (x[x_size-1] - x[x_size-2]));
+
+      }
+
+      index_x=x_size-1;
+
+      ddy_array[index_y*x_size+index_x] =
+        (un[index_y] - qn[index_y] * u[(index_x-1)*y_size+index_y]) /
+        (qn[index_y] * ddy_array[index_y*x_size+(index_x-1)] + 1.0);
+
+      for (index_x=x_size-2; index_x >= 0; index_x--) {
+
+        ddy_array[index_y*x_size+index_x] = ddy_array[index_y*x_size+index_x] *
+          ddy_array[index_y*x_size+(index_x+1)] + u[index_x*y_size+index_y];
+
+      }
+    }
+  }
+  free(qn);
+  free(p);
+  free(u);
+  free(un);
+
+  return _SUCCESS_;
+ }
+
+
+
 int array_spline_table_one_column(
 		       double * x, /* vector of size x_size */
 		       int x_size,
@@ -1790,6 +2096,92 @@ int array_interpolate_spline_transposed(double * array,
 
   return _SUCCESS_;
 }
+
+
+ /**
+  * interpolate to get y_i(x), when x and y_i are in different arrays
+  *
+  * Called by background_at_eta(); background_eta_of_z(); background_solve(); thermodynamics_at_z().
+  */
+int array_interpolate_spline_complex(
+                             double * __restrict__ x_array,
+                             int n_lines,
+                             __DOUBLE_OR_COMPLEX__ * __restrict__ array,
+                             __DOUBLE_OR_COMPLEX__ * __restrict__ array_splined,
+                             int n_columns,
+                             double x,
+                             int * __restrict__ last_index,
+                             __DOUBLE_OR_COMPLEX__ * __restrict__ result,
+                             int result_size, /** from 1 to n_columns */
+                             ErrorMsg errmsg) {
+
+  int inf,sup,mid,i;
+  double h,a,b;
+
+  inf=0;
+  sup=n_lines-1;
+
+  if (x_array[inf] < x_array[sup]){
+
+    if (x < x_array[inf]) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e < x_min=%e",__func__,__LINE__,x,x_array[inf]);
+      return _FAILURE_;
+    }
+
+    if (x > x_array[sup]) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e > x_max=%e",__func__,__LINE__,x,x_array[sup]);
+      return _FAILURE_;
+    }
+
+    while (sup-inf > 1) {
+
+      mid=(int)(0.5*(inf+sup));
+      if (x < x_array[mid]) {sup=mid;}
+      else {inf=mid;}
+
+    }
+
+  }
+
+  else {
+
+    if (x < x_array[sup]) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e < x_min=%e",__func__,__LINE__,x,x_array[sup]);
+      return _FAILURE_;
+    }
+
+    if (x > x_array[inf]) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e > x_max=%e",__func__,__LINE__,x,x_array[inf]);
+      return _FAILURE_;
+    }
+
+    while (sup-inf > 1) {
+
+      mid=(int)(0.5*(inf+sup));
+      if (x > x_array[mid]) {sup=mid;}
+      else {inf=mid;}
+
+    }
+
+  }
+
+  *last_index = inf;
+
+  h = x_array[sup] - x_array[inf];
+  b = (x-x_array[inf])/h;
+  a = 1-b;
+
+  for (i=0; i<result_size; i++)
+    *(result+i) =
+      a * *(array+inf*n_columns+i) +
+      b * *(array+sup*n_columns+i) +
+      ((a*a*a-a)* *(array_splined+inf*n_columns+i) +
+       (b*b*b-b)* *(array_splined+sup*n_columns+i))*h*h/6.;
+
+  return _SUCCESS_;
+}
+
+
 
  /**
   * interpolate to get y_i(x), when x and y_i are in different arrays
@@ -2828,6 +3220,81 @@ int array_interpolate_two(
   return _SUCCESS_;
 }
 
+
+int array_interpolate_two_complex(
+		   double * array_x,
+		   int n_columns_x,
+		   int index_x,   /** from 0 to (n_columns_x-1) */
+		   __DOUBLE_OR_COMPLEX__ * array_y,
+		   int n_columns_y,
+		   int n_lines,  /** must be the same for array_x and array_y */
+		   double x,
+		   __DOUBLE_OR_COMPLEX__ * result,
+		   int result_size, /** from 1 to n_columns_y */
+		   ErrorMsg errmsg) {
+
+  int inf,sup,mid,i;
+  double weight;
+
+  inf=0;
+  sup=n_lines-1;
+
+  if (array_x[inf*n_columns_x+index_x] < array_x[sup*n_columns_x+index_x]){
+
+    if (x < array_x[inf*n_columns_x+index_x]) {
+
+      class_sprintf(errmsg,"%s(L:%d) : x=%e < x_min=%e",__func__,__LINE__,x,array_x[inf*n_columns_x+index_x]);
+      return _FAILURE_;
+    }
+
+    if (x > array_x[sup*n_columns_x+index_x]) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e > x_max=%e",__func__,__LINE__,x,array_x[sup*n_columns_x+index_x]);
+      return _FAILURE_;
+    }
+
+    while (sup-inf > 1) {
+
+      mid=(int)(0.5*(inf+sup));
+      if (x < array_x[mid*n_columns_x+index_x]) {sup=mid;}
+      else {inf=mid;}
+
+    }
+
+  }
+
+  else {
+
+    if (x < *(array_x+sup*n_columns_x+index_x)) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e < x_min=%e",__func__,__LINE__,x,*(array_x+sup*n_columns_x+index_x));
+      return _FAILURE_;
+    }
+
+    if (x > *(array_x+inf*n_columns_x+index_x)) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e > x_max=%e",__func__,__LINE__,x,*(array_x+inf*n_columns_x+index_x));
+      return _FAILURE_;
+    }
+
+    while (sup-inf > 1) {
+
+      mid=(int)(0.5*(inf+sup));
+      if (x > *(array_x+mid*n_columns_x+index_x)) {sup=mid;}
+      else {inf=mid;}
+
+    }
+
+  }
+
+  weight=(x-*(array_x+inf*n_columns_x+index_x))/(*(array_x+sup*n_columns_x+index_x)-*(array_x+inf*n_columns_x+index_x));
+
+  for (i=0; i<result_size; i++)
+    *(result+i) = *(array_y+i*n_lines+inf) * (1.-weight)
+      + weight * *(array_y+i*n_lines+sup) ;
+
+  return _SUCCESS_;
+}
+
+
+
 /**
  * Same as array_interpolate_two, but with order of indices exchanged in array_y
  */
@@ -3051,19 +3518,20 @@ int array_interpolate_cubic_equal(
   return _SUCCESS_;
 }
 
+
 int array_interpolate_parabola(double x1,
 			       double x2,
 			       double x3,
 			       double x,
-			       double y1,
-			       double y2,
-			       double y3,
-			       double * y,
-			       double * dy,
-			       double * ddy,
+			       __DOUBLE_OR_COMPLEX__ y1,
+			       __DOUBLE_OR_COMPLEX__ y2,
+			       __DOUBLE_OR_COMPLEX__ y3,
+			       __DOUBLE_OR_COMPLEX__ * y,
+			       __DOUBLE_OR_COMPLEX__ * dy,
+			       __DOUBLE_OR_COMPLEX__ * ddy,
 			       ErrorMsg errmsg) {
 
-  double a,b,c;
+  __DOUBLE_OR_COMPLEX__ a,b,c;
 
   /*
     a x_i**2 + b x_i + c = y_i
@@ -3410,6 +3878,27 @@ int array_trapezoidal_convolution(
   *I = res;
   return _SUCCESS_;
 }
+
+
+int array_trapezoidal_convolution_complex(
+                                     __DOUBLE_OR_COMPLEX__ * __restrict__ integrand1,
+                                     __DOUBLE_OR_COMPLEX__ * __restrict__ integrand2,//complex eventually since this is the Bessel function
+                                     int n,
+                                     double * __restrict__ w_trapz,
+                                     __DOUBLE_OR_COMPLEX__ * __restrict__ In,
+                                     ErrorMsg errmsg
+                                     ) {
+  int i;
+  __DOUBLE_OR_COMPLEX__ res=0.0;//complex eventually
+  for (i=0; i<n; i++){
+    //printf("DEBUG res integrale %f %+fi \n",creal(res),cimag(res));
+    res += integrand1[i]*integrand2[i]*w_trapz[i];
+  }
+  *In = res;
+  //printf("DEBUG *In %f %+fi \n",creal(*In),cimag(*In));
+  return _SUCCESS_;
+}
+
 
 /**
  * In general, to obtain a least-squared fit to N data points,

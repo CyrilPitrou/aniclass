@@ -22,7 +22,8 @@ __DOUBLE_OR_COMPLEX__ d4ym=0, d4yp=0;
 #if defined (HERMITE_DO_DPHI) || defined (HERMITE_DO_D2PHI)
 __DOUBLE_OR_COMPLEX__ d3ym = 0, d3yp=0;
 #endif
-double beta, beta2, *xvec, *sinK, *cotK;
+__DOUBLE_OR_COMPLEX__ beta, beta2;
+double *xvec, *sinK, *cotK;
 double xmin, xmax, deltax, deltax2, lxlp1;
 double left_border, right_border, next_border;
 int K, l, j, nx, current_border_idx=0;

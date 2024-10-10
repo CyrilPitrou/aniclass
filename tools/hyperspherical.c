@@ -51,8 +51,8 @@ int hyperspherical_HIS_create(int K,
   class_alloc(pHIS->x,sizeof(double)*nx,error_message);
   class_alloc(pHIS->sinK,sizeof(double)*nx,error_message);
   class_alloc(pHIS->cotK,sizeof(double)*nx,error_message);
-  class_alloc(pHIS->phi,sizeof(double)*nx*nl,error_message);
-  class_alloc(pHIS->dphi,sizeof(double)*nx*nl,error_message);
+  class_alloc(pHIS->phi,sizeof(__DOUBLE_OR_COMPLEX__)*nx*nl,error_message);
+  class_alloc(pHIS->dphi,sizeof(__DOUBLE_OR_COMPLEX__)*nx*nl,error_message);
 
   //Order needed for trig interpolation: (We are using Taylor's remainder theorem)
   if (0.5*deltax*deltax < _TRIG_PRECISSION_)
@@ -245,6 +245,7 @@ int hyperspherical_HIS_create(int K,
   free(one_over_sqrtK);
 
   for (k=0; k<nl; k++){
+    //pHIS->chi_at_phimin[k] = xmin;//WARNING THIS HAS CHANGED
     hyperspherical_get_xmin_from_approx(K,lvec[k],beta,0.,phiminabs,pHIS->chi_at_phimin+k,NULL);
   }
 
@@ -253,15 +254,15 @@ int hyperspherical_HIS_create(int K,
   return _SUCCESS_;
 }
 
-size_t hyperspherical_HIS_size(int nl, int nx){
+/*size_t hyperspherical_HIS_size(int nl, int nx){
   return(sizeof(int)*nl+sizeof(double)*nl+3*sizeof(double)*nx+2*sizeof(double)*nx*nl);
-}
+  }*/
 
-int hyperspherical_update_pointers(HyperInterpStruct *pHIS_local,
+/*int hyperspherical_update_pointers(HyperInterpStruct *pHIS_local,
                                    void * HIS_storage_shared){
-  /** Assign pointers in pHIS: (Remember that pointer incrementation moves
-      the number of bytes taken up by 1 variable of the type that the
-      pointer points to. */
+  // Assign pointers in pHIS: (Remember that pointer incrementation moves
+  //    the number of bytes taken up by 1 variable of the type that the
+  //    pointer points to. 
   int nx=pHIS_local->x_size;
   int nl=pHIS_local->l_size;
   pHIS_local->l = (int *) (HIS_storage_shared);
@@ -273,7 +274,7 @@ int hyperspherical_update_pointers(HyperInterpStruct *pHIS_local,
   pHIS_local->dphi = pHIS_local->phi+nx*nl;
 
   return _SUCCESS_;
-}
+  }*/
 
 int hyperspherical_HIS_free(HyperInterpStruct *pHIS,
                             ErrorMsg error_message){
@@ -293,9 +294,9 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
                                                 int nxi,
                                                 int lnum,
                                                 double *xinterp,
-                                                double *Phi,
-                                                double *dPhi,
-                                                double *d2Phi) {
+                                                __DOUBLE_OR_COMPLEX__ *Phi,
+                                                __DOUBLE_OR_COMPLEX__ *dPhi,
+                                                __DOUBLE_OR_COMPLEX__ *d2Phi) {
 
   /** Hermite interpolation of order 6 for Phi, dPhi, and d2Phi. When xinterp
       is sorted (increasing), computations can be reused. On the other hand,
@@ -308,17 +309,18 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
 
   int do_function=_TRUE_, do_first_derivative=_TRUE_;
   int do_second_derivative=_TRUE_, do_first_or_second_derivative=_TRUE_;
-  double ym=0, yp=0, dym=0, dyp=0, d2ym=0, d2yp=0, x, z, z2, z3, z4, z5;
-  double cotKm=0,cotKp=0,sinKm=0,sinKp=0, sinKm2, sinKp2;
-  double d3ym = 0, d3yp=0, d4ym=0, d4yp=0;
-  double a1=0, a2=0, a3=0, a4=0, a5=0;
-  double b1=0, b2=0, b3=0, b4=0, b5=0;
-  double c1=0, c2=0, c3=0, c4=0, c5=0;
-  double beta, beta2, *xvec, *sinK, *cotK;
+  __DOUBLE_OR_COMPLEX__ ym=0, yp=0, dym=0, dyp=0, d2ym=0, d2yp=0, z, z2, z3, z4, z5;
+  double x, cotKm=0,cotKp=0,sinKm=0,sinKp=0, sinKm2, sinKp2;
+  __DOUBLE_OR_COMPLEX__ d3ym = 0, d3yp=0, d4ym=0, d4yp=0;
+  __DOUBLE_OR_COMPLEX__ a1=0, a2=0, a3=0, a4=0, a5=0;
+  __DOUBLE_OR_COMPLEX__ b1=0, b2=0, b3=0, b4=0, b5=0;
+  __DOUBLE_OR_COMPLEX__ c1=0, c2=0, c3=0, c4=0, c5=0;
+  __DOUBLE_OR_COMPLEX__ beta, beta2;
+  double *xvec, *sinK, *cotK;
   double xmin, xmax, deltax, deltax2, lxlp1;
   double left_border, right_border, next_border;
   int K, l, j, nx, current_border_idx=0;
-  double *Phi_l, *dPhi_l;
+  __DOUBLE_OR_COMPLEX__ *Phi_l, *dPhi_l;
   int phisign = 1, dphisign = 1;
 
   /** Set logical flags. The compiler should probably generate 2^3-1=7
@@ -1072,13 +1074,13 @@ int hyperspherical_get_xmin(HyperInterpStruct *pHIS,
   int REFINE=10;
   double x[REFINE];
   double Phi[REFINE];
-  double *phivec = pHIS->phi;
+  __DOUBLE_OR_COMPLEX__ *phivec = pHIS->phi;
   double *xvec = pHIS->x;
   double xleft, xright;
 
   for (index_l=0; index_l<nl; index_l++){
     for (right_index = 0; right_index<nx; right_index++){
-      if (fabs(phivec[index_l*nx+right_index])>phiminabs)
+      if (fabs( (double)(phivec[index_l*nx+right_index]) )>phiminabs )//WARNING I have to cast the type in such a ugly fashion here because I cannot use the abs function....
         break;
     }
     if (right_index==0){
@@ -1473,7 +1475,7 @@ int hyperspherical_Hermite3_interpolation_vector_Phi(HyperInterpStruct *pHIS,
                                                      int nxi,
                                                      int lnum,
                                                      double * xinterp,
-                                                     double * Phi,
+                                                     __DOUBLE_OR_COMPLEX__ * Phi,
                                                      ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1486,7 +1488,7 @@ int hyperspherical_Hermite3_interpolation_vector_dPhi(HyperInterpStruct *pHIS,
                                                       int nxi,
                                                       int lnum,
                                                       double * xinterp,
-                                                      double * dPhi,
+                                                      __DOUBLE_OR_COMPLEX__ * dPhi,
                                                       ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1499,7 +1501,7 @@ int hyperspherical_Hermite3_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,
                                                        int nxi,
                                                        int lnum,
                                                        double * xinterp,
-                                                       double * d2Phi,
+                                                       __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                        ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1512,8 +1514,8 @@ int hyperspherical_Hermite3_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS
                                                          int nxi,
                                                          int lnum,
                                                          double * xinterp,
-                                                         double * Phi,
-                                                         double * dPhi,
+                                                         __DOUBLE_OR_COMPLEX__ * Phi,
+                                                         __DOUBLE_OR_COMPLEX__ * dPhi,
                                                          ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1527,8 +1529,8 @@ int hyperspherical_Hermite3_interpolation_vector_Phid2Phi(HyperInterpStruct *pHI
                                                           int nxi,
                                                           int lnum,
                                                           double * xinterp,
-                                                          double * Phi,
-                                                          double * d2Phi,
+                                                          __DOUBLE_OR_COMPLEX__ * Phi,
+                                                          __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                           ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1542,8 +1544,8 @@ int hyperspherical_Hermite3_interpolation_vector_dPhid2Phi(HyperInterpStruct *pH
                                                            int nxi,
                                                            int lnum,
                                                            double * xinterp,
-                                                           double * dPhi,
-                                                           double * d2Phi,
+                                                           __DOUBLE_OR_COMPLEX__ * dPhi,
+                                                           __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                            ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1558,9 +1560,9 @@ int hyperspherical_Hermite3_interpolation_vector_PhidPhid2Phi(HyperInterpStruct 
                                                               int nxi,
                                                               int lnum,
                                                               double * xinterp,
-                                                              double *Phi,
-                                                              double * dPhi,
-                                                              double * d2Phi,
+                                                              __DOUBLE_OR_COMPLEX__ *Phi,
+                                                              __DOUBLE_OR_COMPLEX__ * dPhi,
+                                                              __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                               ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1575,7 +1577,7 @@ int hyperspherical_Hermite4_interpolation_vector_Phi(HyperInterpStruct *pHIS,
                                                      int nxi,
                                                      int lnum,
                                                      double * xinterp,
-                                                     double * Phi,
+                                                     __DOUBLE_OR_COMPLEX__ * Phi,
                                                      ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1588,7 +1590,7 @@ int hyperspherical_Hermite4_interpolation_vector_dPhi(HyperInterpStruct *pHIS,
                                                       int nxi,
                                                       int lnum,
                                                       double * xinterp,
-                                                      double * dPhi,
+                                                      __DOUBLE_OR_COMPLEX__ * dPhi,
                                                       ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1601,7 +1603,7 @@ int hyperspherical_Hermite4_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,
                                                        int nxi,
                                                        int lnum,
                                                        double * xinterp,
-                                                       double * d2Phi,
+                                                       __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                        ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1614,8 +1616,8 @@ int hyperspherical_Hermite4_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS
                                                          int nxi,
                                                          int lnum,
                                                          double * xinterp,
-                                                         double * Phi,
-                                                         double * dPhi,
+                                                         __DOUBLE_OR_COMPLEX__ * Phi,
+                                                         __DOUBLE_OR_COMPLEX__ * dPhi,
                                                          ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1629,8 +1631,8 @@ int hyperspherical_Hermite4_interpolation_vector_Phid2Phi(HyperInterpStruct *pHI
                                                           int nxi,
                                                           int lnum,
                                                           double * xinterp,
-                                                          double * Phi,
-                                                          double * d2Phi,
+                                                          __DOUBLE_OR_COMPLEX__ * Phi,
+                                                          __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                           ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1644,8 +1646,8 @@ int hyperspherical_Hermite4_interpolation_vector_dPhid2Phi(HyperInterpStruct *pH
                                                            int nxi,
                                                            int lnum,
                                                            double * xinterp,
-                                                           double * dPhi,
-                                                           double * d2Phi,
+                                                           __DOUBLE_OR_COMPLEX__ * dPhi,
+                                                           __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                            ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1660,9 +1662,9 @@ int hyperspherical_Hermite4_interpolation_vector_PhidPhid2Phi(HyperInterpStruct 
                                                               int nxi,
                                                               int lnum,
                                                               double * xinterp,
-                                                              double *Phi,
-                                                              double * dPhi,
-                                                              double * d2Phi,
+                                                              __DOUBLE_OR_COMPLEX__ *Phi,
+                                                              __DOUBLE_OR_COMPLEX__ * dPhi,
+                                                              __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                               ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1677,7 +1679,7 @@ int hyperspherical_Hermite6_interpolation_vector_Phi(HyperInterpStruct *pHIS,
                                                      int nxi,
                                                      int lnum,
                                                      double * xinterp,
-                                                     double * Phi,
+                                                     __DOUBLE_OR_COMPLEX__ * Phi,
                                                      ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1690,7 +1692,7 @@ int hyperspherical_Hermite6_interpolation_vector_dPhi(HyperInterpStruct *pHIS,
                                                       int nxi,
                                                       int lnum,
                                                       double * xinterp,
-                                                      double * dPhi,
+                                                      __DOUBLE_OR_COMPLEX__ * dPhi,
                                                       ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1703,7 +1705,7 @@ int hyperspherical_Hermite6_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,
                                                        int nxi,
                                                        int lnum,
                                                        double * xinterp,
-                                                       double * d2Phi,
+                                                       __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                        ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1716,8 +1718,8 @@ int hyperspherical_Hermite6_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS
                                                          int nxi,
                                                          int lnum,
                                                          double * xinterp,
-                                                         double * Phi,
-                                                         double * dPhi,
+                                                         __DOUBLE_OR_COMPLEX__ * Phi,
+                                                         __DOUBLE_OR_COMPLEX__ * dPhi,
                                                          ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1731,8 +1733,8 @@ int hyperspherical_Hermite6_interpolation_vector_Phid2Phi(HyperInterpStruct *pHI
                                                           int nxi,
                                                           int lnum,
                                                           double * xinterp,
-                                                          double * Phi,
-                                                          double * d2Phi,
+                                                          __DOUBLE_OR_COMPLEX__ * Phi,
+                                                          __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                           ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1746,8 +1748,8 @@ int hyperspherical_Hermite6_interpolation_vector_dPhid2Phi(HyperInterpStruct *pH
                                                            int nxi,
                                                            int lnum,
                                                            double * xinterp,
-                                                           double * dPhi,
-                                                           double * d2Phi,
+                                                           __DOUBLE_OR_COMPLEX__ * dPhi,
+                                                           __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                            ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI
@@ -1762,9 +1764,9 @@ int hyperspherical_Hermite6_interpolation_vector_PhidPhid2Phi(HyperInterpStruct 
                                                               int nxi,
                                                               int lnum,
                                                               double * xinterp,
-                                                              double *Phi,
-                                                              double * dPhi,
-                                                              double * d2Phi,
+                                                              __DOUBLE_OR_COMPLEX__ *Phi,
+                                                              __DOUBLE_OR_COMPLEX__ * dPhi,
+                                                              __DOUBLE_OR_COMPLEX__ * d2Phi,
                                                               ErrorMsg error_message) {
 #undef HERMITE_DO_PHI
 #undef HERMITE_DO_DPHI

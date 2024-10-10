@@ -9,7 +9,7 @@
 
 //#if __COMPLEX_CLASS_BOOL__
 #include "tgmath.h"
-#include "complex.h"
+//#include "complex.h"
 //#endif
 
 #define _HYPER_OVERFLOW_ 1e200
@@ -23,7 +23,7 @@
 
 typedef struct HypersphericalInterpolationStructure{
   int K;                 //Sign of the curvature, (0,-1,1)
-  double beta;
+  __DOUBLE_OR_COMPLEX__ beta;
   double delta_x;         //x-spacing. (xvec is uniformly spaced)
   int trig_order;        //Order of the interpolation formula for SinK and CosK.
   int l_size;                //Number of l values
@@ -33,8 +33,8 @@ typedef struct HypersphericalInterpolationStructure{
   double *x;          //Pointer to x-values
   double *sinK;          //Vector of sin_K(xvec)
   double *cotK;          //Vector of cot_K(xvec)
-  double *phi;        //array of size nl*nx. [y_{l1}(x1) t_{l1}(x2)...]
-  double *dphi;       //Same as phivec, but containing derivatives.
+  __DOUBLE_OR_COMPLEX__ *phi;        //array of size nl*nx. [y_{l1}(x1) t_{l1}(x2)...]
+  __DOUBLE_OR_COMPLEX__ *dphi;       //Same as phivec, but containing derivatives.
 } HyperInterpStruct;
 
 struct WKB_parameters{
