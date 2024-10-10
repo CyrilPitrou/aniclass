@@ -7,26 +7,26 @@
     if sinK and cosK are not NULL, we will also interpolate them.
 */
 
-double ym=0, yp=0, dym=0, dyp=0, d2ym=0, d2yp=0, x, z, z2, z3, z4, z5;
-double cotKm=0,cotKp=0,sinKm=0,sinKp=0, sinKm2, sinKp2;
+__DOUBLE_OR_COMPLEX__ ym=0, yp=0, dym=0, dyp=0, d2ym=0, d2yp=0, z, z2, z3, z4, z5;
+double x, cotKm=0,cotKp=0,sinKm=0,sinKp=0, sinKm2, sinKp2;
 #ifdef HERMITE_DO_PHI
-double a1=0, a2=0, a3=0, a4=0, a5=0;
+__DOUBLE_OR_COMPLEX__ a1=0, a2=0, a3=0, a4=0, a5=0;
 #endif
 #ifdef HERMITE_DO_DPHI
-double b1=0, b2=0, b3=0, b4=0, b5=0;
+__DOUBLE_OR_COMPLEX__ b1=0, b2=0, b3=0, b4=0, b5=0;
 #endif
 #ifdef HERMITE_DO_D2PHI
-double c1=0, c2=0, c3=0, c4=0, c5=0;
-double d4ym=0, d4yp=0;
+__DOUBLE_OR_COMPLEX__ c1=0, c2=0, c3=0, c4=0, c5=0;
+__DOUBLE_OR_COMPLEX__ d4ym=0, d4yp=0;
 #endif
 #if defined (HERMITE_DO_DPHI) || defined (HERMITE_DO_D2PHI)
-double d3ym = 0, d3yp=0;
+__DOUBLE_OR_COMPLEX__ d3ym = 0, d3yp=0;
 #endif
 double beta, beta2, *xvec, *sinK, *cotK;
 double xmin, xmax, deltax, deltax2, lxlp1;
 double left_border, right_border, next_border;
 int K, l, j, nx, current_border_idx=0;
-double *Phi_l, *dPhi_l;
+__DOUBLE_OR_COMPLEX__ *Phi_l, *dPhi_l;
 int phisign = 1, dphisign = 1;
 
 /** Set logical flags. The compiler should probably generate 2^3-1=7

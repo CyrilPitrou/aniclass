@@ -6,6 +6,12 @@
 #define __HYPERSPHERICAL__
 
 #include "common.h"
+
+//#if __COMPLEX_CLASS_BOOL__
+#include "tgmath.h"
+#include "complex.h"
+//#endif
+
 #define _HYPER_OVERFLOW_ 1e200
 #define _ONE_OVER_HYPER_OVERFLOW_ 1e-200
 #define _HYPER_SAFETY_ 1e-5

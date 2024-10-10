@@ -9,39 +9,40 @@
 
 int l = pHIS->l[lnum];
 #if defined (HERMITE_DO_PHI)|| defined (HERMITE_DO_D2PHI)
-double ym=0;
+__DOUBLE_OR_COMPLEX__ ym=0;
 #endif
-double yp=0, dyp=0, x;
-double z[2]={0.,0.};
+__DOUBLE_OR_COMPLEX__ yp=0, dyp=0;
+double x;
+__DOUBLE_OR_COMPLEX__ z[2]={0.,0.};
 #ifdef HERMITE_DO_PHI
-double a[3]={0.,0.};
+__DOUBLE_OR_COMPLEX__ a[3]={0.,0.};
 #endif
 #ifdef HERMITE_DO_DPHI
-double b[3]={0.,0.};
+__DOUBLE_OR_COMPLEX__ b[3]={0.,0.};
 #endif
 #ifdef HERMITE_DO_D2PHI
-double c[3]={0.,0.};
-double d2ym = 0, d3yp=0;
+__DOUBLE_OR_COMPLEX__ c[3]={0.,0.};
+__DOUBLE_OR_COMPLEX__ d2ym = 0, d3yp=0;
 double cotKm=0,sinKm=0;
 double sinKm2;
 #endif
 #if defined (HERMITE_DO_DPHI) || defined (HERMITE_DO_D2PHI)
-double dym=0;
-double d2yp=0;
+__DOUBLE_OR_COMPLEX__ dym=0;
+__DOUBLE_OR_COMPLEX__ d2yp=0;
 double cotKp=0,sinKp=0;
 double sinKp2;
 double *sinK = pHIS->sinK;
 double *cotK = pHIS->cotK;
 int K = pHIS->K;
 double lxlp1 = l*(l+1.0);
-double beta = pHIS->beta;
-double beta2 = beta*beta;
+__DOUBLE_OR_COMPLEX__ beta = pHIS->beta;
+__DOUBLE_OR_COMPLEX__ beta2 = beta*beta;
 #endif
 double *xvec;
 double xmin, xmax, deltax;
 double left_border, right_border, next_border;
 int j, nx, current_border_idx=0;
-double *Phi_l, *dPhi_l;
+__DOUBLE_OR_COMPLEX__ *Phi_l, *dPhi_l;
 int phisign = 1, dphisign = 1;
 
 /** Set logical flags. The compiler should probably generate 2^3-1=7
