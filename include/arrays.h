@@ -7,6 +7,11 @@
 
 #include "common.h"
 
+//#if __COMPLEX_CLASS_BOOL__
+#include "tgmath.h"
+#include "complex.h"
+//#endif
+
 #define _SPLINE_NATURAL_ 0 /**< natural spline: ddy0=ddyn=0 */
 #define _SPLINE_EST_DERIV_ 1 /**< spline with estimation of first derivative on both edges */
 #define array_spline_eval(y,ddy,inf,sup,h,a,b) ((a)*(y)[inf]+(b)*(y)[sup] + (((a)*(a)*(a)-(a))* (ddy)[inf] + ((b)*(b)*(b)-(b))* (ddy)[sup])*(h)*(h)/6.)
@@ -434,12 +439,12 @@ int array_integrate_all_trapzd_or_spline(
 				 double x2,
 				 double x3,
 				 double x,
-				 double y1,
-				 double y2,
-				 double y3,
-				 double * y,
-				 double * dy,
-				 double * ddy,
+				 __DOUBLE_OR_COMPLEX__ y1,
+				 __DOUBLE_OR_COMPLEX__ y2,
+				 __DOUBLE_OR_COMPLEX__ y3,
+				 __DOUBLE_OR_COMPLEX__ * y,
+				 __DOUBLE_OR_COMPLEX__ * dy,
+				 __DOUBLE_OR_COMPLEX__ * ddy,
 				 ErrorMsg errmsg);
 
   int array_smooth(double * array,
@@ -462,14 +467,14 @@ int array_integrate_all_trapzd_or_spline(
   int array_trapezoidal_integral(double * __restrict__ integrand,
                                  int n,
                                  double * __restrict__ w_trapz,
-                                 double * __restrict__ I,
+                                 double * __restrict__ In,
                                  ErrorMsg errmsg);
 
   int array_trapezoidal_convolution(double * __restrict__ integrand1,
                                     double * __restrict__ integrand2,
                                     int n,
                                     double * __restrict__ w_trapz,
-                                    double * __restrict__ I,
+                                    double * __restrict__ In,
                                     ErrorMsg errmsg);
 
   int array_extrapolate_quadratic(double* x,
@@ -501,6 +506,76 @@ int array_integrate_all_trapzd_or_spline(
                            int * index,
                            ErrorMsg errmsg);
 
+  /**
+   Functions which are used with complex arguments. Needed only when CLASS is compiled with complex types (-D__COMPLEX_CLASS__ flag for compiler).
+   */
+  
+  int array_spline_table_columns2_complex(
+		       double * x,
+		       int x_size,
+		       __DOUBLE_OR_COMPLEX__ * y_array,
+		       int y_size,
+		       __DOUBLE_OR_COMPLEX__ * ddy_array,
+		       short spline_mode,
+		       ErrorMsg errmsg);
+
+
+  int array_spline_table_lines_complex(
+				       double * x,
+				       int x_size,
+				       __DOUBLE_OR_COMPLEX__ * y_array,
+				       int y_size,
+				       __DOUBLE_OR_COMPLEX__ * ddy_array,
+				       short spline_mode,
+				       ErrorMsg errmsg
+				       );
+
+
+  int array_interpolate_spline_complex(
+				       double * __restrict__ x_array,
+				       int n_lines,
+				       __DOUBLE_OR_COMPLEX__ * __restrict__ array,
+				       __DOUBLE_OR_COMPLEX__ * __restrict__ array_splined,
+				       int n_columns,
+				       double x,
+				       int * __restrict__ last_index,
+				       __DOUBLE_OR_COMPLEX__ * __restrict__ result,
+				       int result_size, /** from 1 to n_columns */
+				       ErrorMsg errmsg);
+
+
+  int array_interpolate_two_complex(
+				    double * array_x,
+				    int n_columns_x,
+				    int index_x,   /** from 0 to (n_columns_x-1) */
+				    __DOUBLE_OR_COMPLEX__ * array_y,
+				    int n_columns_y,
+				    int n_lines,  /** must be the same for array_x and array_y */
+				    double x,
+				    __DOUBLE_OR_COMPLEX__ * result,
+				    int result_size, /** from 1 to n_columns_y */
+				    ErrorMsg errmsg);
+  
+  int array_interpolate_two_bis_complex(
+					double * array_x,
+					int n_columns_x,
+					int index_x,   /** from 0 to (n_columns_x-1) */
+					__DOUBLE_OR_COMPLEX__ * array_y,
+					int n_columns_y,
+					int n_lines,  /** must be the same for array_x and array_y */
+					double x,
+					__DOUBLE_OR_COMPLEX__ * result,
+					int result_size, /** from 1 to n_columns_y */
+					ErrorMsg errmsg);
+
+  int array_trapezoidal_convolution_complex(__DOUBLE_OR_COMPLEX__ * __restrict__ integrand1,
+                                    __DOUBLE_OR_COMPLEX__ * __restrict__ integrand2,
+                                    int n,
+                                    double * __restrict__ w_trapz,
+                                    __DOUBLE_OR_COMPLEX__ * __restrict__ In,
+                                    ErrorMsg errmsg);
+
+  
 #ifdef __cplusplus
 }
 #endif

@@ -8,6 +8,22 @@
 #include "svnversion.h"
 #include <stdarg.h>
 
+//To choose a complex valued CLASS code. comment to switch to usual real valued CLASS code.
+//#define __COMPLEX_CLASS__
+
+//Define a type which can be double for usual class and double complex. This is for Bianchi use.
+#ifdef __COMPLEX_CLASS__
+#define __DOUBLE_OR_COMPLEX__ double complex
+#define __COMPLEX_CLASS_BOOL__ _TRUE_
+#else
+#define __DOUBLE_OR_COMPLEX__ double
+#define __COMPLEX_CLASS_BOOL__ _FALSE_
+#endif
+
+//#define __DEBUG__ _TRUE_
+#define __DEBUG__ _FALSE_
+
+
 #ifdef _OPENMP
 #include "omp.h"
 #endif

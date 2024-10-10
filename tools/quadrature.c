@@ -81,7 +81,7 @@ int get_qsampling(double *x,
 
   int i, NL=2,NR,level,Nadapt=0,NLag,NLag_max,Nold=NL;
   int adapt_converging=_FALSE_,Laguerre_converging=_FALSE_,combined_converging=_FALSE_;
-  double y,y1,y2,I,Igk,err,ILag,*b,*c;
+  double y,y1,y2,In,Igk,err,ILag,*b,*c;
   qss_node *root,*root_comb;
   double I_comb,I_atzero,I_atinf,I_comb2;
   int N_comb=0,N_comb_lag=16,N_comb_leg=4;
@@ -123,14 +123,14 @@ int get_qsampling(double *x,
   /* Do a leaf count: */
   leaf_count(root);
   /* I can get the integral now: */
-  I = get_integral(root, 1);
+  In = get_integral(root, 1);
   //printf("I = %le |%le, used points: %d\n",I,I-1.0,15*root->leaf_childs);
-  Itot += I;
+  Itot += In;
 
   /* Starting from the top, move down in levels until tolerance is met: */
   for(level=root->leaf_childs; level>=1; level--){
     Igk = get_integral(root,level);
-    err = I-Igk;
+    err = In-Igk;
     if (fabs(err/Itot)<rtol) break;
   }
   if (level>0){
@@ -191,7 +191,7 @@ int get_qsampling(double *x,
       //printf("%le + %le + %le = %le | %le\n",
       //     I_atzero,I_atinf,I_comb,I_comb+I_atinf+I_atzero,I_comb+I_atinf+I_atzero-1.0);
       I_comb +=(I_atinf+I_atzero);
-      err = I-I_comb;
+      err = In-I_comb;
       if (fabs(err/Itot)<rtol) break;
     }
     /* Reduce tree to the found level:*/
@@ -223,7 +223,7 @@ int get_qsampling(double *x,
       I_comb2 +=wcomb2[i]*y;
     }
     I_comb2 +=(I_atzero+I_atinf);
-    err = I - I_comb2;
+    err = In - I_comb2;
     //    if(fabs(err/Itot)<rtol) combined2_converging= _TRUE_;
     //printf("I_comb2 = %e, rerr = %e\n",I_comb2,fabs(err/I));
   }
@@ -241,9 +241,9 @@ int get_qsampling(double *x,
       w[i] *= y2;
       ILag += y*w[i];
     }
-    err = I-ILag;
+    err = In-ILag;
     //fprintf(stderr,"\n Computing Laguerre, N=%d, I=%g and err=%g.\n",NLag,ILag,err);
-    if (fabs(err/I)<rtol){
+    if (fabs(err/In)<rtol){
       Laguerre_converging = _TRUE_;
       break;
     }
@@ -266,7 +266,7 @@ int get_qsampling(double *x,
 	w[i] *= y2;
 	ILag += y*w[i];
       }
-      err = I-ILag;
+      err = In-ILag;
       //fprintf(stderr,"\n NLag=%d, rerr=%g.\n",NLag,fabs(err/I));
       if (fabs(err/Itot)<rtol){
 	NR = NLag;
@@ -478,7 +478,7 @@ double get_integral(qss_node *node, int level){
   double IL,IR;
   /* An updated leaf_count is assumed. */
   if (node->leaf_childs<=level){
-    return node->I;
+    return node->In;
   }
   else{
     IL = get_integral(node->left, level);
@@ -518,8 +518,8 @@ int gk_adapt(
   (*node)->left = NULL; (*node)->right = NULL;
 
   gk_quad((*test), (*function), params_for_function, *node, a, b, isindefinite);
-  if ((fabs((*node)->err/(*node)->I) < tol)||(tol>=1.0)){
-    /* Stop recursion and return. tol>=1.0 in case of I=0 infinite recursion */
+  if ((fabs((*node)->err/(*node)->In) < tol)||(tol>=1.0)){
+    /* Stop recursion and return. tol>=1.0 in case of In=0 infinite recursion */
     return _SUCCESS_;
   }
   else{
@@ -534,7 +534,7 @@ int gk_adapt(
     /* Update integral and error in this node and return: */
     /* Actually, it is more convenient just to keep the nodes own estimate of the
        integral for our purposes.
-       (*node)->I = (*node)->left->I + (*node)->right->I;
+       (*node)->In = (*node)->left->In + (*node)->right->In;
        (*node)->err = sqrt(pow(node->left->err,2)+pow(node->right->err,2));
     */
     return _SUCCESS_;
@@ -726,7 +726,7 @@ int gk_quad(int (*test)(void * params_for_function, double q, double *psi),
     }
   }
   node->err = pow(200*fabs(Ik-Ig),1.5);
-  node->I = Ik;
+  node->In = Ik;
   return _SUCCESS_;
 }
 
