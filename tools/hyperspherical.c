@@ -317,9 +317,9 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
   __DOUBLE_OR_COMPLEX__ c1=0, c2=0, c3=0, c4=0, c5=0;
   __DOUBLE_OR_COMPLEX__ beta, beta2;
   double *xvec, *sinK, *cotK;
-  double xmin, xmax, deltax, deltax2, lxlp1;
+  double xmin, xmax, deltax, deltax2, lxlp1, K;
   double left_border, right_border, next_border;
-  int K, l, j, nx, current_border_idx=0;
+  int l, j, nx, current_border_idx=0;
   __DOUBLE_OR_COMPLEX__ *Phi_l, *dPhi_l;
   int phisign = 1, dphisign = 1;
 
@@ -353,7 +353,7 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
   beta2 = beta*beta;
   deltax = pHIS->delta_x;
   deltax2 = deltax*deltax;
-  K = pHIS->K;
+  K = (double)pHIS->K;
   nx = pHIS->x_size;
   Phi_l = pHIS->phi+lnum*nx;
   dPhi_l = pHIS->dphi+lnum*nx;
@@ -370,7 +370,8 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
     x = xinterp[j];
     //take advantage of periodicity of functions in closed case
     if (pHIS->K==1)
-      ClosedModY(pHIS->l[lnum], (int)(pHIS->beta+0.2), &x, &phisign, &dphisign);
+      ClosedModY(pHIS->l[lnum], (int)std::abs(pHIS->beta+0.2), &x, &phisign, &dphisign);
+      
     //Loop over output values
     if ((x<xmin)||(x>xmax)){
       //Outside interpolation region, set to zero.
@@ -396,16 +397,16 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
         sinKm2 = sinKm*sinKm;
         ym = Phi_l[current_border_idx-1];
         dym = dPhi_l[current_border_idx-1];
-        d2ym = -2*dym*cotKm+ym*(lxlp1/sinKm2-beta2+K);
+        d2ym = -2.*dym*cotKm+ym*(lxlp1/sinKm2-beta2+K);
         //printf("%g %g %g %g %g\n",cotKm,sinKm,ym,dym,d2ym);
         if (do_first_or_second_derivative==_TRUE_){
-          d3ym = -2*cotKm*d2ym-2*ym*lxlp1*cotKm/sinKm2+
+          d3ym = -2.*cotKm*d2ym-2.*ym*lxlp1*cotKm/sinKm2+
             dym*(K-beta2+(2+lxlp1)/sinKm2);
         }
         if (do_second_derivative==_TRUE_){
-          d4ym = -2*cotKm*d3ym + d2ym*(K-beta2+(4+lxlp1)/sinKm2)+
-            dym*(-4*(1+lxlp1)*cotKm/sinKm2)+
-            ym*(2*lxlp1/sinKm2*(2*cotKm*cotKm+1/sinKm2));
+          d4ym = -2.*cotKm*d3ym + d2ym*(K-beta2+(4.+lxlp1)/sinKm2)+
+            dym*(-4.*(1+lxlp1)*cotKm/sinKm2)+
+            ym*(2.*lxlp1/sinKm2*(2.*cotKm*cotKm+1./sinKm2));
         }
       }
       else{
@@ -430,36 +431,36 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
       sinKp2 = sinKp*sinKp;
       yp = Phi_l[current_border_idx];
       dyp = dPhi_l[current_border_idx];
-      d2yp = -2*dyp*cotKp+yp*(lxlp1/sinKp2-beta2+K);
+      d2yp = -2.*dyp*cotKp+yp*(lxlp1/sinKp2-beta2+K);
       if (do_first_or_second_derivative == _TRUE_){
-        d3yp = -2*cotKp*d2yp-2*yp*lxlp1*cotKp/sinKp2+
-          dyp*(K-beta2+(2+lxlp1)/sinKp2);
+        d3yp = -2.*cotKp*d2yp-2.*yp*lxlp1*cotKp/sinKp2+
+          dyp*(K-beta2+(2.+lxlp1)/sinKp2);
       }
       if (do_second_derivative == _TRUE_){
-        d4yp = -2*cotKp*d3yp + d2yp*(K-beta2+(4+lxlp1)/sinKp2)+
-          dyp*(-4*(1+lxlp1)*cotKp/sinKp2)+
-          yp*(2*lxlp1/sinKp2*(2*cotKp*cotKp+1/sinKp2));
+        d4yp = -2.*cotKp*d3yp + d2yp*(K-beta2+(4.+lxlp1)/sinKp2)+
+          dyp*(-4.*(1+lxlp1)*cotKp/sinKp2)+
+          yp*(2.*lxlp1/sinKp2*(2.*cotKp*cotKp+1./sinKp2));
       }
       if (do_function == _TRUE_){
         a1 = dym*deltax;
         a2 = 0.5*d2ym*deltax2;
-        a3 = (-1.5*d2ym+0.5*d2yp)*deltax2-(6*dym+4*dyp)*deltax-10*(ym-yp);
-        a4 = (1.5*d2ym-d2yp)*deltax2+(8*dym+7*dyp)*deltax+15*(ym-yp);
-        a5 = (-0.5*d2ym+0.5*d2yp)*deltax2-3*(dym+dyp)*deltax-6*(ym-yp);
+        a3 = (-1.5*d2ym+0.5*d2yp)*deltax2-(6.*dym+4.*dyp)*deltax-10.*(ym-yp);
+        a4 = (1.5*d2ym-d2yp)*deltax2+(8.*dym+7.*dyp)*deltax+15.*(ym-yp);
+        a5 = (-0.5*d2ym+0.5*d2yp)*deltax2-3.*(dym+dyp)*deltax-6.*(ym-yp);
       }
       if (do_first_derivative==_TRUE_){
         b1 = d2ym*deltax;
         b2 = 0.5*d3ym*deltax2;
-        b3 = (-1.5*d3ym+0.5*d3yp)*deltax2-(6*d2ym+4*d2yp)*deltax-10*(dym-dyp);
-        b4 = (1.5*d3ym-d3yp)*deltax2+(8*d2ym+7*d2yp)*deltax+15*(dym-dyp);
-        b5 = (-0.5*d3ym+0.5*d3yp)*deltax2-3*(d2ym+d2yp)*deltax-6*(dym-dyp);
+        b3 = (-1.5*d3ym+0.5*d3yp)*deltax2-(6.*d2ym+4.*d2yp)*deltax-10.*(dym-dyp);
+        b4 = (1.5*d3ym-d3yp)*deltax2+(8.*d2ym+7.*d2yp)*deltax+15.*(dym-dyp);
+        b5 = (-0.5*d3ym+0.5*d3yp)*deltax2-3.*(d2ym+d2yp)*deltax-6.*(dym-dyp);
       }
       if (do_second_derivative==_TRUE_){
         c1 = d3ym*deltax;
         c2 = 0.5*d4ym*deltax2;
-        c3 = (-1.5*d4ym+0.5*d4yp)*deltax2-(6*d3ym+4*d3yp)*deltax-10*(d2ym-d2yp);
-        c4 = (1.5*d4ym-d4yp)*deltax2+(8*d3ym+7*d3yp)*deltax+15*(d2ym-d2yp);
-        c5 = (-0.5*d4ym+0.5*d4yp)*deltax2-3*(d3ym+d3yp)*deltax-6*(d2ym-d2yp);
+        c3 = (-1.5*d4ym+0.5*d4yp)*deltax2-(6.*d3ym+4.*d3yp)*deltax-10.*(d2ym-d2yp);
+        c4 = (1.5*d4ym-d4yp)*deltax2+(8.*d3ym+7.*d3yp)*deltax+15.*(d2ym-d2yp);
+        c5 = (-0.5*d4ym+0.5*d4yp)*deltax2-3.*(d3ym+d3yp)*deltax-6.*(d2ym-d2yp);
       }
     }
     //Evaluate polynomial:
@@ -469,11 +470,11 @@ int hyperspherical_Hermite_interpolation_vector(HyperInterpStruct *pHIS,
     z4 = z2*z2;
     z5 = z2*z3;
     if (do_function == _TRUE_)
-      Phi[j] = (ym+a1*z+a2*z2+a3*z3+a4*z4+a5*z5)*phisign;
+      Phi[j] = (ym+a1*z+a2*z2+a3*z3+a4*z4+a5*z5)*(double)phisign;
     if (do_first_derivative == _TRUE_)
-      dPhi[j] = (dym+b1*z+b2*z2+b3*z3+b4*z4+b5*z5)*dphisign;
+      dPhi[j] = (dym+b1*z+b2*z2+b3*z3+b4*z4+b5*z5)*(double)dphisign;
     if (do_second_derivative == _TRUE_)
-      d2Phi[j] = (d2ym+c1*z+c2*z2+c3*z3+c4*z4+c5*z5)*phisign;
+      d2Phi[j] = (d2ym+c1*z+c2*z2+c3*z3+c4*z4+c5*z5)*(double)phisign;
     //printf("x = %g, [%g, %g, %g]\n",x,Phi[j],dPhi[j],d2Phi[j]);
   }
   return _SUCCESS_;
@@ -1080,7 +1081,7 @@ int hyperspherical_get_xmin(HyperInterpStruct *pHIS,
 
   for (index_l=0; index_l<nl; index_l++){
     for (right_index = 0; right_index<nx; right_index++){
-      if (fabs( (double)(phivec[index_l*nx+right_index]) )>phiminabs )//WARNING I have to cast the type in such a ugly fashion here because I cannot use the abs function....
+      if (std::abs(phivec[index_l*nx+right_index])>phiminabs )//WARNING I have to cast the type in such a ugly fashion here because I cannot use the abs function....
         break;
     }
     if (right_index==0){

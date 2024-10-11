@@ -7,6 +7,10 @@
 # Class.  If, for whatever reason, you need an other, existing
 # parameter from Class, remember to add it inside this cdef.
 
+#ctypedef std::complex<double> __DOUBLE_OR_COMPLEX__
+##ctypedef double complex __DOUBLE_OR_COMPLEX__
+ctypedef double __DOUBLE_OR_COMPLEX__
+
 cdef extern from "class.h":
 
     cdef char[10] _VERSION_

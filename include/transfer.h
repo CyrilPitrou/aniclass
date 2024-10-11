@@ -194,9 +194,9 @@ struct transfer {
 
   //@{
 
-  double ** transfer; /**< table of transfer functions for each mode, initial condition, type, multipole and wavenumber, with argument transfer[index_md][((index_ic * ptr->tt_size[index_md] + index_tt) * ptr->l_size[index_md] + index_l) * ptr->q_size + index_q] */
+  __DOUBLE_OR_COMPLEX__ ** transfer; /**< table of transfer functions for each mode, initial condition, type, multipole and wavenumber, with argument transfer[index_md][((index_ic * ptr->tt_size[index_md] + index_tt) * ptr->l_size[index_md] + index_l) * ptr->q_size + index_q] */
 
-  double ** transfer_limber; /**< table of transfer functions used in full limber scheme */
+  __DOUBLE_OR_COMPLEX__ ** transfer_limber; /**< table of transfer functions used in full limber scheme */
 
   //@}
 
@@ -242,11 +242,11 @@ struct transfer_workspace {
 
   int tau_size;                  /**< number of discrete time values for a given type */
   int tau_size_max;              /**< maximum number of discrete time values for all types */
-  double * interpolated_sources; /**< interpolated_sources[index_tau]:
+  __DOUBLE_OR_COMPLEX__ * interpolated_sources; /**< interpolated_sources[index_tau]:
                                     sources interpolated from the
                                     perturbation module at the right
                                     value of k */
-  double * sources;              /**< sources[index_tau]: sources
+  __DOUBLE_OR_COMPLEX__ * sources;              /**< sources[index_tau]: sources
                                     used in transfer module, possibly
                                     differing from those in the
                                     perturbation module by some
@@ -257,8 +257,8 @@ struct transfer_workspace {
                                     function: k(tau0-tau) (flat case)
                                     or sqrt(|K|)(tau0-tau) (non-flat
                                     case) */
-  double * cscKgen;              /**< cscKgen[index_tau]: useful trigonometric function */
-  double * cotKgen;              /**< cotKgen[index_tau]: useful trigonometric function */
+  __DOUBLE_OR_COMPLEX__ * cscKgen;              /**< cscKgen[index_tau]: useful trigonometric function */
+  __DOUBLE_OR_COMPLEX__ * cotKgen;              /**< cotKgen[index_tau]: useful trigonometric function */
 
   //@}
 
@@ -313,7 +313,7 @@ extern "C" {
                               int index_type,
                               int index_l,
                               double q,
-                              double * ptransfer_local
+                              __DOUBLE_OR_COMPLEX__ * ptransfer_local
                               );
 
   int transfer_init(
@@ -342,27 +342,27 @@ extern "C" {
                                                             struct perturbations * ppt,
                                                             struct fourier * pfo,
                                                             struct transfer * ptr,
-                                                            double *** sources
+                                                            __DOUBLE_OR_COMPLEX__ *** sources
                                                             );
 
   int transfer_perturbation_source_spline(
                                           struct perturbations * ppt,
                                           struct transfer * ptr,
-                                          double *** sources,
-                                          double *** sources_spline
+                                          __DOUBLE_OR_COMPLEX__ *** sources,
+                                          __DOUBLE_OR_COMPLEX__ *** sources_spline
                                           );
 
   int transfer_perturbation_sources_free(
                                          struct perturbations * ppt,
                                          struct fourier * pfo,
                                          struct transfer * ptr,
-                                         double *** sources
+                                         __DOUBLE_OR_COMPLEX__ *** sources
                                          );
 
   int transfer_perturbation_sources_spline_free(
                                                 struct perturbations * ppt,
                                                 struct transfer * ptr,
-                                                double *** sources_spline
+                                                __DOUBLE_OR_COMPLEX__ *** sources_spline
                                                 );
 
   int transfer_get_l_list(
@@ -436,8 +436,8 @@ extern "C" {
                                   int index_q,
                                   int tau_size_max,
                                   double tau_rec,
-                                  double *** sources,
-                                  double *** sources_spline,
+                                  __DOUBLE_OR_COMPLEX__ *** sources,
+                                  __DOUBLE_OR_COMPLEX__ *** sources_spline,
                                   double * window,
                                   struct transfer_workspace * ptw,
                                   short use_full_limber
@@ -457,9 +457,9 @@ extern "C" {
                                    int index_md,
                                    int index_ic,
                                    int index_type,
-                                   double * sources,
-                                   double * source_spline,
-                                   double * interpolated_sources
+                                   __DOUBLE_OR_COMPLEX__ * sources,
+                                   __DOUBLE_OR_COMPLEX__ * source_spline,
+                                   __DOUBLE_OR_COMPLEX__ * interpolated_sources
                                    );
 
   int transfer_sources(
@@ -467,12 +467,12 @@ extern "C" {
                        struct background * pba,
                        struct perturbations * ppt,
                        struct transfer * ptr,
-                       double * interpolated_sources,
+                       __DOUBLE_OR_COMPLEX__ * interpolated_sources,
                        double tau_rec,
                        double k,
                        int index_md,
                        int index_tt,
-                       double * sources,
+                       __DOUBLE_OR_COMPLEX__ * sources,
                        double * window,
                        int tau_size_max,
                        double * tau0_minus_tau,
@@ -523,8 +523,8 @@ extern "C" {
                                int tau_size,
                                int index_md,
                                double tau0,
-                               double * interpolated_sources,
-                               double * sources);
+                               __DOUBLE_OR_COMPLEX__ * interpolated_sources,
+                               __DOUBLE_OR_COMPLEX__ * sources);
 
   int transfer_selection_times(
                                struct precision * ppr,
@@ -588,7 +588,7 @@ extern "C" {
                          int index_l,
                          double q,
                          radial_function_type radial_type,
-                         double * trsf
+                         __DOUBLE_OR_COMPLEX__ * trsf
                          );
 
   int transfer_limber(
@@ -599,16 +599,16 @@ extern "C" {
                       double l,
                       double q,
                       radial_function_type radial_type,
-                      double * trsf
+                      __DOUBLE_OR_COMPLEX__ * trsf
                       );
 
   int transfer_limber_interpolate(
                                   struct transfer * ptr,
                                   double * tau0_minus_tau,
-                                  double * sources,
+                                  __DOUBLE_OR_COMPLEX__ * sources,
                                   int tau_size,
                                   double tau0_minus_tau_limber,
-                                  double * S
+                                  __DOUBLE_OR_COMPLEX__ * S
                                   );
 
   int transfer_limber2(
@@ -619,9 +619,9 @@ extern "C" {
                        double l,
                        double q,
                        double * tau0_minus_tau,
-                       double * sources,
+                       __DOUBLE_OR_COMPLEX__ * sources,
                        radial_function_type radial_type,
-                       double * trsf
+                       __DOUBLE_OR_COMPLEX__ * trsf
                        );
 
   int transfer_can_be_neglected(
@@ -658,11 +658,11 @@ extern "C" {
                                struct transfer_workspace * ptw,
                                struct perturbations * ppt,
                                struct transfer * ptr,
-                               double k,
+                               __DOUBLE_OR_COMPLEX__ k,
                                int index_q,
                                int index_l,
                                int x_size,
-                               double * radial_function,
+                               __DOUBLE_OR_COMPLEX__ * radial_function,
                                radial_function_type radial_type
                                );
 

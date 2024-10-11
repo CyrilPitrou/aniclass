@@ -66,12 +66,12 @@ int transfer_functions_at_q(
                             int index_tt,
                             int index_l,
                             double q,
-                            double * transfer_function
+                            __DOUBLE_OR_COMPLEX__ * transfer_function
                             ) {
   /** Summary: */
 
   /** - interpolate in pre-computed table using array_interpolate_two() */
-  class_call(array_interpolate_two(
+  class_call(array_interpolate_two_complex(
                                    ptr->q,
                                    1,
                                    0,
@@ -143,14 +143,14 @@ int transfer_init(
      or transformed if non-linear corrections are needed
      sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp][index_tau * ppt->k_size[index_md] + index_k]
   */
-  double *** sources;
+  __DOUBLE_OR_COMPLEX__ *** sources;
 
   /* array of source derivatives S''(k,tau)
      (second derivative with respect to k, not tau!),
      used to interpolate sources at the right values of k,
      sources_spline[index_md][index_ic * ppt->tp_size[index_md] + index_tp][index_tau * ppt->k_size[index_md] + index_k]
   */
-  double *** sources_spline;
+  __DOUBLE_OR_COMPLEX__ *** sources_spline;
 
 
   /** - array with the correspondence between the index of sources in
@@ -218,7 +218,7 @@ int transfer_init(
   /** - copy sources to a local array sources (in fact, only the pointers are copied, not the data), and eventually apply non-linear corrections to the sources */
 
   class_alloc(sources,
-              ptr->md_size*sizeof(double**),
+              ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__**),
               ptr->error_message);
 
   class_call(transfer_perturbation_copy_sources_and_nl_corrections(ppt,pfo,ptr,sources),
@@ -228,7 +228,7 @@ int transfer_init(
   /** - spline all the sources passed by the perturbation module with respect to k (in order to interpolate later at a given value of k) */
 
   class_alloc(sources_spline,
-              ptr->md_size*sizeof(double**),
+              ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__**),
               ptr->error_message);
 
   class_call(transfer_perturbation_source_spline(ppt,ptr,sources,sources_spline),
@@ -577,9 +577,9 @@ int transfer_indices(
 
   /* array (of array) of transfer functions for each mode, transfer[index_md] */
 
-  class_alloc(ptr->transfer,ptr->md_size * sizeof(double *),ptr->error_message);
+  class_alloc(ptr->transfer,ptr->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
   if (ptr->do_lcmb_full_limber == _TRUE_) {
-    class_alloc(ptr->transfer_limber,ptr->md_size * sizeof(double *),ptr->error_message);
+    class_alloc(ptr->transfer_limber,ptr->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
   }
 
   /** - get q values using transfer_get_q_list() */
@@ -655,7 +655,7 @@ int transfer_perturbation_copy_sources_and_nl_corrections(
                                                           struct perturbations * ppt,
                                                           struct fourier * pfo,
                                                           struct transfer * ptr,
-                                                          double *** sources
+                                                          __DOUBLE_OR_COMPLEX__ *** sources
                                                           ) {
   int index_md;
   int index_ic;
@@ -666,7 +666,7 @@ int transfer_perturbation_copy_sources_and_nl_corrections(
   for (index_md = 0; index_md < ptr->md_size; index_md++) {
 
     class_alloc(sources[index_md],
-                ppt->ic_size[index_md]*ppt->tp_size[index_md]*sizeof(double*),
+                ppt->ic_size[index_md]*ppt->tp_size[index_md]*sizeof(__DOUBLE_OR_COMPLEX__*),
                 ptr->error_message);
 
     for (index_ic = 0; index_ic < ppt->ic_size[index_md]; index_ic++) {
@@ -684,7 +684,7 @@ int transfer_perturbation_copy_sources_and_nl_corrections(
              ((ppt->has_source_psi == _TRUE_) && (index_tp == ppt->index_tp_psi)))) {
 
           class_alloc(sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp],
-                      ppt->k_size[index_md]*ppt->tau_size*sizeof(double),
+                      ppt->k_size[index_md]*ppt->tau_size*sizeof(__DOUBLE_OR_COMPLEX__),
                       ptr->error_message);
 
           for (index_tau=0; index_tau<ppt->tau_size; index_tau++) {
@@ -727,8 +727,8 @@ int transfer_perturbation_copy_sources_and_nl_corrections(
 int transfer_perturbation_source_spline(
                                         struct perturbations * ppt,
                                         struct transfer * ptr,
-                                        double *** sources,
-                                        double *** sources_spline
+                                        __DOUBLE_OR_COMPLEX__ *** sources,
+                                        __DOUBLE_OR_COMPLEX__ *** sources_spline
                                         ) {
   int index_md;
   int index_ic;
@@ -737,7 +737,7 @@ int transfer_perturbation_source_spline(
   for (index_md = 0; index_md < ptr->md_size; index_md++) {
 
     class_alloc(sources_spline[index_md],
-                ppt->ic_size[index_md]*ppt->tp_size[index_md]*sizeof(double*),
+                ppt->ic_size[index_md]*ppt->tp_size[index_md]*sizeof(__DOUBLE_OR_COMPLEX__*),
                 ptr->error_message);
 
     for (index_ic = 0; index_ic < ppt->ic_size[index_md]; index_ic++) {
@@ -745,10 +745,10 @@ int transfer_perturbation_source_spline(
       for (index_tp = 0; index_tp < ppt->tp_size[index_md]; index_tp++) {
 
         class_alloc(sources_spline[index_md][index_ic * ppt->tp_size[index_md] + index_tp],
-                    ppt->k_size[index_md]*ppt->tau_size*sizeof(double),
+                    ppt->k_size[index_md]*ppt->tau_size*sizeof(__DOUBLE_OR_COMPLEX__),
                     ptr->error_message);
 
-        class_call(array_spline_table_columns2(ppt->k[index_md],
+        class_call(array_spline_table_columns2_complex(ppt->k[index_md],
                                                ppt->k_size[index_md],
                                                sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp],
                                                ppt->tau_size,
@@ -770,7 +770,7 @@ int transfer_perturbation_sources_free(
                                        struct perturbations * ppt,
                                        struct fourier * pfo,
                                        struct transfer * ptr,
-                                       double *** sources
+                                       __DOUBLE_OR_COMPLEX__ *** sources
                                        ) {
   int index_md;
   int index_ic;
@@ -803,7 +803,7 @@ int transfer_perturbation_sources_free(
 int transfer_perturbation_sources_spline_free(
                                               struct perturbations * ppt,
                                               struct transfer * ptr,
-                                              double *** sources_spline
+                                              __DOUBLE_OR_COMPLEX__ *** sources_spline
                                               ) {
   int index_md;
   int index_ic;
@@ -1832,8 +1832,8 @@ int transfer_compute_for_each_q(
                                 int index_q,
                                 int tau_size_max,
                                 double tau_rec,
-                                double *** pert_sources,
-                                double *** pert_sources_spline,
+                                __DOUBLE_OR_COMPLEX__ *** pert_sources,
+                                __DOUBLE_OR_COMPLEX__ *** pert_sources_spline,
                                 double * window,
                                 struct transfer_workspace * ptw,
                                 short use_full_limber
@@ -1857,7 +1857,7 @@ int transfer_compute_for_each_q(
       routine */
 
   /* - first workspace field: perturbation source interpolated from perturbation structure */
-  double * interpolated_sources;
+  __DOUBLE_OR_COMPLEX__ * interpolated_sources;
 
   /* - second workspace field: list of tau0-tau values, tau0_minus_tau[index_tau] */
   double * tau0_minus_tau;
@@ -1870,7 +1870,7 @@ int transfer_compute_for_each_q(
 
   /* - fifth workspace field, identical to above interpolated sources:
      sources[index_tau] */
-  double * sources;
+  __DOUBLE_OR_COMPLEX__ * sources;
 
   /** - for a given l, maximum value of k such that we can convolve
       the source with Bessel functions j_l(x) without reaching x_max */
@@ -2211,9 +2211,9 @@ int transfer_interpolate_sources(
                                  int index_md,
                                  int index_ic,
                                  int index_type,
-                                 double * pert_source,       /* array with argument pert_source[index_tau*ppt->k_size[index_md]+index_k] (must be allocated) */
-                                 double * pert_source_spline, /* array with argument pert_source_spline[index_tau*ppt->k_size[index_md]+index_k] (must be allocated) */
-                                 double * interpolated_sources /* array with argument interpolated_sources[index_tau] (must be allocated) */
+                                 __DOUBLE_OR_COMPLEX__ * pert_source,       /* array with argument pert_source[index_tau*ppt->k_size[index_md]+index_k] (must be allocated) */
+                                 __DOUBLE_OR_COMPLEX__ * pert_source_spline, /* array with argument pert_source_spline[index_tau*ppt->k_size[index_md]+index_k] (must be allocated) */
+                                 __DOUBLE_OR_COMPLEX__ * interpolated_sources /* array with argument interpolated_sources[index_tau] (must be allocated) */
                                  ) {
 
   /** Summary: */
@@ -2294,12 +2294,12 @@ int transfer_sources(
                      struct background * pba,
                      struct perturbations * ppt,
                      struct transfer * ptr,
-                     double * interpolated_sources,
+                     __DOUBLE_OR_COMPLEX__ * interpolated_sources,
                      double tau_rec,
                      double k,
                      int index_md,
                      int index_tt,
-                     double * sources,
+                     __DOUBLE_OR_COMPLEX__ * sources,
                      double * window,
                      int tau_size_max,
                      double * tau0_minus_tau,
@@ -2944,24 +2944,24 @@ int transfer_source_resample(
                              int tau_size,
                              int index_md,
                              double tau0,
-                             double * interpolated_sources,
-                             double * sources) {
+                             __DOUBLE_OR_COMPLEX__ * interpolated_sources,
+                             __DOUBLE_OR_COMPLEX__ * sources) {
 
   /* running index on time */
   int index_tau;
 
   /* array of values of source */
-  double * source_at_tau;
+  __DOUBLE_OR_COMPLEX__ * source_at_tau;
 
   /* array of source values for a given time and for all k's */
   class_alloc(source_at_tau,
-              sizeof(double),
+              sizeof(__DOUBLE_OR_COMPLEX__),
               ptr->error_message);
 
   /* interpolate the sources linearly at the new time values */
   for (index_tau=0; index_tau<tau_size; index_tau++) {
 
-    class_call(array_interpolate_two(ppt->tau_sampling,
+    class_call(array_interpolate_two_complex(ppt->tau_sampling,
                                      1,
                                      0,
                                      interpolated_sources,
@@ -3226,7 +3226,7 @@ int transfer_compute_for_each_l(
   double q,k;
 
   /* value of transfer function */
-  double transfer_function;
+  __DOUBLE_OR_COMPLEX__ transfer_function;
 
   /* whether to use the Limber approximation */
   short use_limber;
@@ -3414,7 +3414,7 @@ int transfer_integrate(
                        int index_l,
                        double k,
                        radial_function_type radial_type,
-                       double * trsf
+                       __DOUBLE_OR_COMPLEX__ * trsf
                        ) {
 
   /** Summary: */
@@ -3423,7 +3423,7 @@ int transfer_integrate(
 
   double * tau0_minus_tau = ptw->tau0_minus_tau;
   double * w_trapz = ptw->w_trapz;
-  double * sources = ptw->sources;
+  __DOUBLE_OR_COMPLEX__ * sources = ptw->sources;
 
   /* minimum value of \f$ (\tau0-\tau) \f$ at which \f$ j_l(k[\tau_0-\tau]) \f$ is known, given that \f$ j_l(x) \f$ is sampled above some finite value \f$ x_{\min} \f$ (below which it can be approximated by zero) */
   double tau0_minus_tau_min_bessel;
@@ -3431,7 +3431,7 @@ int transfer_integrate(
   /* index in the source's tau list corresponding to the last point in the overlapping region between sources and bessels. Also the index of possible Bessel truncation. */
   int index_tau_max, index_tau_max_Bessel;
 
-  double bessel, *radial_function;
+  __DOUBLE_OR_COMPLEX__ bessel, *radial_function;
 
   double x_turning_point;
 
@@ -3522,7 +3522,7 @@ int transfer_integrate(
   }
 
   /** - Compute the radial function: */
-  class_alloc(radial_function,sizeof(double)*(index_tau_max+1),ptr->error_message);
+  class_alloc(radial_function,sizeof(__DOUBLE_OR_COMPLEX__)*(index_tau_max+1),ptr->error_message);
 
   class_call(transfer_radial_function(
                                       ptw,
@@ -3539,7 +3539,7 @@ int transfer_integrate(
              ptr->error_message);
 
   /** - Now we do most of the convolution integral: */
-  class_call(array_trapezoidal_convolution(sources,
+  class_call(array_trapezoidal_convolution_complex(sources,
                                            radial_function,
                                            index_tau_max+1,
                                            w_trapz,
@@ -3547,6 +3547,8 @@ int transfer_integrate(
                                            ptr->error_message),
              ptr->error_message,
              ptr->error_message);
+
+  //Note to self. I think that what is computed is note the Theta_l^m but Theta_l^m/(2*l+1). Just a convention, but worth pointing.
 
   /** - This integral is correct for the case where no truncation has
       occurred. If it has been truncated at some index_tau_max because
@@ -3592,7 +3594,7 @@ int transfer_limber(
                     double l,
                     double q,
                     radial_function_type radial_type,
-                    double * trsf
+                    __DOUBLE_OR_COMPLEX__ * trsf
                     ){
 
   /** Summary: */
@@ -3600,7 +3602,7 @@ int transfer_limber(
   /** - define local variables */
 
   /* interpolated source and its derivatives at this value */
-  double S, Sp, Sm;
+  __DOUBLE_OR_COMPLEX__ S, Sp, Sm;
 
   double x_limber=0.;
   double tau0_minus_tau_limber=0.;
@@ -3744,14 +3746,14 @@ int transfer_limber(
 int transfer_limber_interpolate(
                                 struct transfer * ptr,
                                 double * tau0_minus_tau,
-                                double * sources,
+                                __DOUBLE_OR_COMPLEX__ * sources,
                                 int tau_size,
                                 double tau0_minus_tau_limber,
-                                double * S
+                                __DOUBLE_OR_COMPLEX__ * S
                                 ){
 
   int index_tau;
-  double dS,ddS;
+  __DOUBLE_OR_COMPLEX__ dS,ddS;
 
   /** - find  bracketing indices.
       index_tau must be at least 1 (so that index_tau-1 is at least 0)
@@ -3836,9 +3838,9 @@ int transfer_limber2(
                      double l,
                      double k,
                      double * tau0_minus_tau,
-                     double * sources,
+                     __DOUBLE_OR_COMPLEX__ * sources,
                      radial_function_type radial_type,
-                     double * trsf
+                     __DOUBLE_OR_COMPLEX__ * trsf
                      ){
 
   /** Summary: */
@@ -3850,7 +3852,7 @@ int transfer_limber2(
   int index_tau;
 
   /* interpolated source and its derivatives */
-  double S, dS, ddS;
+  __DOUBLE_OR_COMPLEX__ S, dS, ddS;
 
   /** - get k, l and infer tau such that k(tau0-tau)=l+1/2;
       check that tau is in appropriate range */
@@ -4001,34 +4003,36 @@ int transfer_radial_function(
                              struct transfer_workspace * ptw,
                              struct perturbations * ppt,
                              struct transfer * ptr,
-                             double k,
+                             __DOUBLE_OR_COMPLEX__ k,
                              int index_q,
                              int index_l,
                              int x_size,
-                             double * radial_function,
+                             __DOUBLE_OR_COMPLEX__ * radial_function,
                              radial_function_type radial_type
                              ){
 
   HyperInterpStruct * pHIS;
   double *chi = ptw->chi;
-  double *cscKgen = ptw->cscKgen;
-  double *cotKgen = ptw->cotKgen;
+  __DOUBLE_OR_COMPLEX__ *cscKgen = ptw->cscKgen;
+  __DOUBLE_OR_COMPLEX__ *cotKgen = ptw->cotKgen;
   int j;
-  double *Phi, *dPhi, *d2Phi, *chireverse;
-  double K=0.,k2=1.0;
-  double sqrt_absK_over_k;
-  double absK_over_k2;
+  __DOUBLE_OR_COMPLEX__ *Phi, *dPhi, *d2Phi;
+  double *chireverse;
+  double K=0.; 
+  __DOUBLE_OR_COMPLEX__ sqrt_absK_over_k;
+  __DOUBLE_OR_COMPLEX__ absK_over_k2;
+  __DOUBLE_OR_COMPLEX__ k2;
   double nu=0., chi_tp=0.;
-  double factor, s0, s2, ssqrt3, si, ssqrt2, ssqrt2i;
+  __DOUBLE_OR_COMPLEX__ factor, s0, s2, ssqrt3, si, ssqrt2, ssqrt2i;
   double l = (double)ptr->l[index_l];
   double rescale_argument;
   double rescale_amplitude;
   double* rescale_function;
-  int (*interpolate_Phi)(HyperInterpStruct*, int, int, double*, double*, char*);
-  int (*interpolate_dPhi)(HyperInterpStruct*, int, int, double*, double*, char*);
-  int (*interpolate_Phid2Phi)(HyperInterpStruct*, int, int, double*, double*, double*, char*);
-  int (*interpolate_PhidPhi)(HyperInterpStruct*, int, int, double*, double*, double*, char*);
-  int (*interpolate_PhidPhid2Phi)(HyperInterpStruct*, int, int, double*, double*, double*, double*, char*);
+  int (*interpolate_Phi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_dPhi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_Phid2Phi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_PhidPhi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_PhidPhid2Phi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, char*);
   enum Hermite_Interpolation_Order HIorder;
 
   K = ptw->K;
@@ -4044,9 +4048,9 @@ int transfer_radial_function(
   }
   absK_over_k2 =sqrt_absK_over_k*sqrt_absK_over_k;
 
-  class_alloc(Phi,sizeof(double)*x_size,ptr->error_message);
-  class_alloc(dPhi,sizeof(double)*x_size,ptr->error_message);
-  class_alloc(d2Phi,sizeof(double)*x_size,ptr->error_message);
+  class_alloc(Phi,sizeof(__DOUBLE_OR_COMPLEX__)*x_size,ptr->error_message);
+  class_alloc(dPhi,sizeof(__DOUBLE_OR_COMPLEX__)*x_size,ptr->error_message);
+  class_alloc(d2Phi,sizeof(__DOUBLE_OR_COMPLEX__)*x_size,ptr->error_message);
   class_alloc(chireverse,sizeof(double)*x_size,ptr->error_message);
   class_alloc(rescale_function,sizeof(double)*x_size,ptr->error_message);
 
@@ -4165,10 +4169,10 @@ int transfer_radial_function(
     class_call(interpolate_Phid2Phi(pHIS, x_size, index_l, chireverse, Phi, d2Phi, ptr->error_message),
                ptr->error_message, ptr->error_message);
     //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, d2Phi);
-    s2 = sqrt(1.0-3.0*K/k2);
+    s2 = std::sqrt(1.0-3.0*K/k2);
     factor = 1.0/(2.0*s2);
     for (j=0; j<x_size; j++)
-      radial_function[x_size-1-j] = factor*(3*absK_over_k2*d2Phi[j]*rescale_argument*rescale_argument+Phi[j])*rescale_function[j];
+      radial_function[x_size-1-j] = factor*(3.*absK_over_k2*d2Phi[j]*rescale_argument*rescale_argument+Phi[j])*rescale_function[j];
     break;
   case SCALAR_POLARISATION_E:
     class_call(interpolate_Phi(pHIS, x_size, index_l, chireverse, Phi, ptr->error_message),
@@ -4503,13 +4507,13 @@ int transfer_workspace_init(
   ptw->tau0_minus_tau_cut = tau0_minus_tau_cut;
   ptw->neglect_late_source = _FALSE_;
 
-  class_alloc(ptw->interpolated_sources,perturbations_tau_size*sizeof(double),ptr->error_message);
-  class_alloc(ptw->sources,tau_size_max*sizeof(double),ptr->error_message);
+  class_alloc(ptw->interpolated_sources,perturbations_tau_size*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
+  class_alloc(ptw->sources,tau_size_max*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
   class_alloc(ptw->tau0_minus_tau,tau_size_max*sizeof(double),ptr->error_message);
   class_alloc(ptw->w_trapz,tau_size_max*sizeof(double),ptr->error_message);
   class_alloc(ptw->chi,tau_size_max*sizeof(double),ptr->error_message);
-  class_alloc(ptw->cscKgen,tau_size_max*sizeof(double),ptr->error_message);
-  class_alloc(ptw->cotKgen,tau_size_max*sizeof(double),ptr->error_message);
+  class_alloc(ptw->cscKgen,tau_size_max*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
+  class_alloc(ptw->cotKgen,tau_size_max*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
 
   return _SUCCESS_;
 }

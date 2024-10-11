@@ -3,7 +3,6 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
-#include "math.h"
 #include "float.h"
 #include "svnversion.h"
 #include <stdarg.h>
@@ -11,14 +10,16 @@
 //To choose a complex valued CLASS code. comment to switch to usual real valued CLASS code.
 //#define __COMPLEX_CLASS__
 
-
 //Define a type which can be double for usual class and double complex. This is for Bianchi use.
 #ifdef __cplusplus
 
-//#include <cmath>
+
+#include <cmath>
 #ifdef __COMPLEX_CLASS__
 #include <complex>
-#define __DOUBLE_OR_COMPLEX__ _Complex double
+// Does not work to use C. We must siwtch to full C++
+#define __DOUBLE_OR_COMPLEX__ std::complex<double>
+//#define __DOUBLE_OR_COMPLEX__ _Complex double
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
 #else
 #define __DOUBLE_OR_COMPLEX__ double
@@ -27,10 +28,10 @@
 
 #else
 
-//#include "math.h"
+#include "math.h"
 #ifdef __COMPLEX_CLASS__
 #include "complex.h"
-#define __DOUBLE_OR_COMPLEX__ double complex
+#define __DOUBLE_OR_COMPLEX__ _Complex double
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
 #else
 #define __DOUBLE_OR_COMPLEX__ double

@@ -27,7 +27,7 @@ double *cotK = pHIS->cotK;
 double cotKm=0,cotKp=0,sinKm=0,sinKp=0;
 double sinKm2, sinKp2;
 __DOUBLE_OR_COMPLEX__ d2ym = 0, d2yp=0;
-int K = pHIS->K;
+double K = (double)pHIS->K;
 double lxlp1 = l*(l+1.0);
 __DOUBLE_OR_COMPLEX__ beta = pHIS->beta;
 __DOUBLE_OR_COMPLEX__ beta2 = beta*beta;
@@ -61,7 +61,7 @@ for (j=0; j<nxi; j++){
   x = xinterp[j];
   //take advantage of periodicity of functions in closed case
   if (pHIS->K==1)
-    ClosedModY(l, (int)(pHIS->beta+0.2), &x, &phisign, &dphisign);
+    ClosedModY(l, (int)std::abs(pHIS->beta+0.2), &x, &phisign, &dphisign);
   //Loop over output values
   if ((x<xmin)||(x>xmax)){
     //Outside interpolation region, set to zero.
@@ -91,11 +91,11 @@ for (j=0; j<nxi; j++){
       cotKm = cotK[current_border_idx-1];
       sinKm = sinK[current_border_idx-1];
       sinKm2 = sinKm*sinKm;
-      d2ym = -2*dym*cotKm+ym*(lxlp1/sinKm2-beta2+K);
+      d2ym = -2.*dym*cotKm+ym*(lxlp1/sinKm2-beta2+K);
 #endif
 #ifdef HERMITE_DO_D2PHI
-      d3ym = -2*cotKm*d2ym-2*ym*lxlp1*cotKm/sinKm2+
-        dym*(K-beta2+(2+lxlp1)/sinKm2);
+      d3ym = -2.*cotKm*d2ym-2.*ym*lxlp1*cotKm/sinKm2+
+        dym*(K-beta2+(2.+lxlp1)/sinKm2);
 #endif
     }
     else{
@@ -124,27 +124,27 @@ for (j=0; j<nxi; j++){
     cotKp = cotK[current_border_idx];
     sinKp = sinK[current_border_idx];
     sinKp2 = sinKp*sinKp;
-    d2yp = -2*dyp*cotKp+yp*(lxlp1/sinKp2-beta2+K);
+    d2yp = -2.*dyp*cotKp+yp*(lxlp1/sinKp2-beta2+K);
 #endif
 #ifdef HERMITE_DO_D2PHI
-    d3yp = -2*cotKp*d2yp-2*yp*lxlp1*cotKp/sinKp2+
-      dyp*(K-beta2+(2+lxlp1)/sinKp2);
+    d3yp = -2.*cotKp*d2yp-2.*yp*lxlp1*cotKp/sinKp2+
+      dyp*(K-beta2+(2.+lxlp1)/sinKp2);
 #endif
 
 #ifdef HERMITE_DO_PHI
     a[0] = dym*deltax;
-    a[1] = -2*dym*deltax-dyp*deltax-3*ym+3*yp;
-    a[2] = dym*deltax+dyp*deltax+2*ym-2*yp;
+    a[1] = -2.*dym*deltax-dyp*deltax-3.*ym+3.*yp;
+    a[2] = dym*deltax+dyp*deltax+2.*ym-2.*yp;
 #endif
 #ifdef HERMITE_DO_DPHI
     b[0] = d2ym*deltax;
-    b[1] = -2*d2ym*deltax-d2yp*deltax-3*dym+3*dyp;
-    b[2] = d2ym*deltax+d2yp*deltax+2*dym-2*dyp;
+    b[1] = -2.*d2ym*deltax-d2yp*deltax-3.*dym+3.*dyp;
+    b[2] = d2ym*deltax+d2yp*deltax+2.*dym-2.*dyp;
 #endif
 #ifdef HERMITE_DO_D2PHI
     c[0] = d3ym*deltax;
-    c[1] = -2*d3ym*deltax-d3yp*deltax-3*d2ym+3*d2yp;
-    c[2] = d3ym*deltax+d3yp*deltax+2*d2ym-2*d2yp;
+    c[1] = -2.*d3ym*deltax-d3yp*deltax-3.*d2ym+3.*d2yp;
+    c[2] = d3ym*deltax+d3yp*deltax+2.*d2ym-2.*d2yp;
 #endif
   }
   //Evaluate polynomial:
@@ -152,13 +152,13 @@ for (j=0; j<nxi; j++){
   z[1] = z[0]*z[0];
   z[2] = z[1]*z[0];
 #ifdef HERMITE_DO_PHI
-  Phi[j] = (ym+a[0]*z[0]+a[1]*z[1]+a[2]*z[2])*phisign;
+  Phi[j] = (ym+a[0]*z[0]+a[1]*z[1]+a[2]*z[2])*(double)phisign;
 #endif
 #ifdef HERMITE_DO_DPHI
-  dPhi[j] = (dym+b[0]*z[0]+b[1]*z[1]+b[2]*z[2])*dphisign;
+  dPhi[j] = (dym+b[0]*z[0]+b[1]*z[1]+b[2]*z[2])*(double)dphisign;
 #endif
 #ifdef HERMITE_DO_D2PHI
-  d2Phi[j] = (d2ym+c[0]*z[0]+c[1]*z[1]+c[2]*z[2])*phisign;
+  d2Phi[j] = (d2ym+c[0]*z[0]+c[1]*z[1]+c[2]*z[2])*(double)phisign;
 #endif
  }
 

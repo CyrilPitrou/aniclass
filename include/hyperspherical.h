@@ -8,7 +8,7 @@
 #include "common.h"
 
 //#if __COMPLEX_CLASS_BOOL__
-#include "tgmath.h"
+//#include "tgmath.h"
 //#include "complex.h"
 //#endif
 
@@ -168,28 +168,27 @@ int hyperspherical_forwards_recurrence_chunk(int K,
                                                   double *dPhi,
                                                   double *d2Phi);
 
-  int hyperspherical_Hermite3_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite3_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *dPhi, ErrorMsg error_message);
-  int hyperspherical_Hermite3_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite3_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *dPhi, ErrorMsg error_message);
-  int hyperspherical_Hermite3_interpolation_vector_Phid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite3_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *dPhi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite3_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *dPhi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *dPhi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *dPhi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_Phid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *dPhi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite4_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *dPhi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *dPhi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *dPhi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_Phid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *dPhi,double *d2Phi, ErrorMsg error_message);
-  int hyperspherical_Hermite6_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,double *Phi,double *dPhi,double *d2Phi, ErrorMsg error_message);
-
+  int hyperspherical_Hermite3_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite3_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
+  int hyperspherical_Hermite3_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite3_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
+  int hyperspherical_Hermite3_interpolation_vector_Phid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite3_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite3_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_Phid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite4_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_d2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_PhidPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_Phid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
+  int hyperspherical_Hermite6_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
 
 #ifdef __cplusplus
 }
