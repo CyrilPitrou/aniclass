@@ -636,12 +636,12 @@ int transfer_indices(
 
     /** - allocate arrays of transfer functions, (ptr->transfer[index_md])[index_ic][index_tt][index_l][index_k] */
     class_alloc(ptr->transfer[index_md],
-                ppt->ic_size[index_md] * ptr->tt_size[index_md] * ptr->l_size[index_md] * ptr->q_size * sizeof(double),
+                ppt->ic_size[index_md] * ptr->tt_size[index_md] * ptr->l_size[index_md] * ptr->q_size * sizeof(__DOUBLE_OR_COMPLEX__),
                 ptr->error_message);
 
     if (ptr->do_lcmb_full_limber == _TRUE_) {
       class_alloc(ptr->transfer_limber[index_md],
-                  ppt->ic_size[index_md] * ptr->tt_size[index_md] * ptr->l_size[index_md] * ptr->q_size_limber * sizeof(double),
+                  ppt->ic_size[index_md] * ptr->tt_size[index_md] * ptr->l_size[index_md] * ptr->q_size_limber * sizeof(__DOUBLE_OR_COMPLEX__),
                   ptr->error_message);
     }
 
@@ -2427,6 +2427,7 @@ int transfer_sources(
             * ptr->lcmb_rescale
             * pow(k/ptr->lcmb_pivot,ptr->lcmb_tilt);
 
+	  //printf("DEBUG sources = %e +I %e\n",std::real(sources[index_tau-index_tau_min]),std::imag(sources[index_tau-index_tau_min]));
           /* store value of (tau0-tau) */
           tau0_minus_tau[index_tau-index_tau_min] = tau0 - tau;
 
@@ -2585,7 +2586,7 @@ int transfer_sources(
     /* plain copy from input array to output array */
     memcpy(sources,
            interpolated_sources,
-           ppt->tau_size*sizeof(double));
+           ppt->tau_size*sizeof(__DOUBLE_OR_COMPLEX__));
 
     /* store values of (tau0-tau) */
     for (index_tau=0; index_tau < ppt->tau_size; index_tau++) {
@@ -3280,6 +3281,7 @@ int transfer_compute_for_each_l(
 
     }
     else {
+      //printf("DEBUG I will call transfer_integrate \n");
       class_call(transfer_integrate(
                                     ppt,
                                     ptr,
@@ -3304,12 +3306,16 @@ int transfer_compute_for_each_l(
                              * ptr->l_size[index_md] + index_l)
                             * ptr->q_size + index_q]
       = transfer_function;
+
+    //printf("DEBUG transfer_function for index_md=%d index_ic=%d index_tt=%d index_l=%d index_q=%d %e \n",index_md,index_ic,index_tt,index_l,index_q,std::real(transfer_function));
   }
   else {
     ptr->transfer_limber[index_md][((index_ic * ptr->tt_size[index_md] + index_tt)
                                    * ptr->l_size[index_md] + index_l)
                                   * ptr->q_size_limber + index_q]
       = transfer_function;
+
+    //printf("DEBUG transfer_function in limber for index_md=%d index_ic=%d index_tt=%d index_l=%d index_q=%d %e \n",index_md,index_ic,index_tt,index_l,index_q,std::real(transfer_function));
   }
 
   return _SUCCESS_;
@@ -3526,6 +3532,8 @@ int transfer_integrate(
   /** - Compute the radial function: */
   class_alloc(radial_function,sizeof(__DOUBLE_OR_COMPLEX__)*(index_tau_max+1),ptr->error_message);
 
+  //printf("DEBUG I will now call transfer_radial_functions\n");
+  
   class_call(transfer_radial_function(
                                       ptw,
                                       ppt,
@@ -3540,6 +3548,8 @@ int transfer_integrate(
              ptr->error_message,
              ptr->error_message);
 
+  //printf("DEBUG I will now call trapezoidal\n");
+
   /** - Now we do most of the convolution integral: */
   class_call(array_trapezoidal_convolution_complex(sources,
                                            radial_function,
@@ -3549,6 +3559,8 @@ int transfer_integrate(
                                            ptr->error_message),
              ptr->error_message,
              ptr->error_message);
+
+  //printf("DEBUG trsf = %e + I %e \n",std::real(*trsf),std::imag(*trsf));
 
   //Note to self. I think that what is computed is note the Theta_l^m but Theta_l^m/(2*l+1). Just a convention, but worth pointing.
 
@@ -3562,6 +3574,7 @@ int transfer_integrate(
     //Bessel truncation
     *trsf -= 0.5*(tau0_minus_tau[index_tau_max+1]-tau0_minus_tau_min_bessel)*
       radial_function[index_tau_max]*sources[index_tau_max];
+
   }
 
 
@@ -4270,6 +4283,9 @@ int transfer_radial_function(
     break;
   }
 
+  //for (j=0; j<x_size; j++)
+  //  printf("DEBUG radial function for j=%d is %e + I %e\n",j,std::real(radial_function[x_size-1-j]),std::imag(radial_function[x_size-1-j]));
+  
   free(Phi);
   free(dPhi);
   free(d2Phi);

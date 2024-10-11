@@ -3968,11 +3968,13 @@ int array_trapezoidal_convolution_complex(
   int i;
   __DOUBLE_OR_COMPLEX__ res=0.0;//complex eventually
   for (i=0; i<n; i++){
-    //printf("DEBUG res integrale %f %+fi \n",creal(res),cimag(res));
+    //printf("DEBUG integrand1[i] i=%d %f %+fi \n",i,std::real(integrand1[i]),std::imag(integrand1[i]));
+    //printf("DEBUG integrand2[i] i=%d %f %+fi \n",i,std::real(integrand2[i]),std::imag(integrand2[i]));
+    //printf("DEBUG res integrale i=%d %f %+fi \n",i,std::real(integrand1[i]*integrand2[i]*w_trapz[i]),std::imag(integrand1[i]*integrand2[i]*w_trapz[i]));
     res += integrand1[i]*integrand2[i]*w_trapz[i];
   }
   *In = res;
-  //printf("DEBUG *In %f %+fi \n",creal(*In),cimag(*In));
+  //printf("DEBUG *In %f %+fi \n",std::real(*In),std::imag(*In));
   return _SUCCESS_;
 }
 
