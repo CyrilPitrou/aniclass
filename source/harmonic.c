@@ -236,8 +236,10 @@ int harmonic_cl_at_l(
 
       /** - --> (c.3.) add contribution of cl_md[index_md] to cl_tot */
 
-      for (index_ct=0; index_ct<phr->ct_size; index_ct++)
+      for (index_ct=0; index_ct<phr->ct_size; index_ct++){
+	//printf("DEBUG index_md=%d index_ct=%d cl_md[index_md][index_ct] = %e \n",index_md,index_ct,cl_md[index_md][index_ct]);
         cl_tot[index_ct]+=cl_md[index_md][index_ct];
+      }
     }
   }
 
@@ -952,6 +954,8 @@ int harmonic_compute_cl(
         [((index_ic1 * ptr->tt_size[index_md] + index_tt)
           * ptr->l_size[index_md] + index_l)
          * ptr->q_size + index_q]);
+
+      //printf("DEBUG transfer_ic1[index_tt] =%e \n",transfer_ic1[index_tt]);
 
       if (index_ic1 == index_ic2) {
         transfer_ic2[index_tt] = transfer_ic1[index_tt];

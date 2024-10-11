@@ -813,7 +813,7 @@ int background_init(
   if (pba->background_verbose > 0) {
     printf("Running CLASS version %s\n",_VERSION_);
     if (__COMPLEX_CLASS_BOOL__)
-      printf("CLASS has been compiled with complex valued perturbations, sources and transfer functions.\n");
+      printf("!! WARNING !!! CLASS has been compiled with complex valued perturbations, sources and transfer functions.\n");
     printf("Computing background\n");
   }
 

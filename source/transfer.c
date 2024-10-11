@@ -712,13 +712,10 @@ int transfer_perturbation_copy_sources_and_nl_corrections(
           }
         }
         else {
-	  #ifdef __COMPLEX_CLASS__
-          sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp] =//WARNING we should remove the forced change of type
-            (std::complex<double> *)ppt->sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp];
-	  #else
 	  sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp] =//WARNING we should remove the forced change of type
             ppt->sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp];
-	  #endif
+
+	  printf("DEBUG source for index_ic %d index_tp %d, is %e \n",index_ic,index_tp,std::real(sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp][0]));
         }
       }
     }

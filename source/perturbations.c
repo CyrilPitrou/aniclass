@@ -49,7 +49,7 @@ int perturbations_sources_at_tau(
                                  int index_ic,
                                  int index_tp,
                                  double tau,
-                                 double * psource_at_tau
+                                 __DOUBLE_OR_COMPLEX__ * psource_at_tau
                                  ) {
 
   /** Summary: */
@@ -80,7 +80,7 @@ int perturbations_sources_at_tau(
 
   if (do_spline == _TRUE_) {
 
-    class_call(array_interpolate_spline(ppt->ln_tau,
+    class_call(array_interpolate_spline_complex(ppt->ln_tau,
                                         ppt->ln_tau_size,
                                         ppt->late_sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp],
                                         ppt->ddlate_sources[index_md][index_ic*ppt->tp_size[index_md] + index_tp],
@@ -101,7 +101,7 @@ int perturbations_sources_at_tau(
 
   else {
 
-    class_call(array_interpolate_two_bis(ppt->tau_sampling,
+    class_call(array_interpolate_two_bis_complex(ppt->tau_sampling,
                                          1,
                                          0,
                                          ppt->sources[index_md][index_ic*ppt->tp_size[index_md]+index_tp],
@@ -141,7 +141,7 @@ int perturbations_sources_at_z(
                                int index_ic,
                                int index_tp,
                                double z,
-                               double * psource_at_z
+                               __DOUBLE_OR_COMPLEX__ * psource_at_z
                                ) {
 
   double tau;
@@ -184,11 +184,11 @@ int perturbations_sources_at_k_and_z(
                                      int index_tp,
                                      double k,
                                      double z,
-                                     double * psource_at_k_and_z
+                                     __DOUBLE_OR_COMPLEX__ * psource_at_k_and_z
                                      ) {
 
-  double * sources;
-  double * ddsources_dk2;
+  __DOUBLE_OR_COMPLEX__ * sources;
+  __DOUBLE_OR_COMPLEX__ * ddsources_dk2;
   int last_index;
 
   class_alloc(sources,
@@ -203,7 +203,7 @@ int perturbations_sources_at_k_and_z(
              ppt->error_message,
              ppt->error_message);
 
-  class_call(array_spline_table_lines(ppt->k[index_md],
+  class_call(array_spline_table_lines_complex(ppt->k[index_md],
                                       ppt->k_size[index_md],
                                       sources,
                                       1,
@@ -213,7 +213,7 @@ int perturbations_sources_at_k_and_z(
              ppt->error_message,
              ppt->error_message);
 
-  class_call(array_interpolate_spline(ppt->k[index_md],
+  class_call(array_interpolate_spline_complex(ppt->k[index_md],
                                       ppt->k_size[index_md],
                                       sources,
                                       ddsources_dk2,
@@ -257,7 +257,7 @@ int perturbations_output_data_at_z(
 
   double * tkfull=NULL;  /* array with argument tkfull[(index_k * ppt->ic_size[index_md] + index_ic) * ppt->tp_size[index_md] + index_tp] */
 
-  double * pvecsources;
+  __DOUBLE_OR_COMPLEX__ * pvecsources;
 
   double tau;
 
@@ -307,7 +307,7 @@ int perturbations_output_data_at_z(
                ppt->error_message);
 
     class_alloc(pvecsources,
-                ppt->k_size[index_md]*sizeof(double),
+                ppt->k_size[index_md]*sizeof(__DOUBLE_OR_COMPLEX__),
                 ppt->error_message);
 
     for (index_tp=0; index_tp<ppt->tp_size[index_md]; index_tp++) {
@@ -1056,7 +1056,7 @@ int perturbations_init(
         for (index_tp = 0; index_tp < ppt->tp_size[index_md]; index_tp++) {
 
           class_run_parallel(with_arguments(ppt, index_md, index_ic, index_tp),
-            class_call(array_spline_table_lines(ppt->ln_tau,
+            class_call(array_spline_table_lines_complex(ppt->ln_tau,
                                                 ppt->ln_tau_size,
                                                 ppt->late_sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp],
                                                 ppt->k_size[index_md],
@@ -1234,9 +1234,9 @@ int perturbations_indices(
 
   /** - allocate array of arrays of source functions for each mode, ppt->source[index_md] */
 
-  class_alloc(ppt->sources,       ppt->md_size * sizeof(double *),ppt->error_message);
-  class_alloc(ppt->late_sources,  ppt->md_size * sizeof(double *),ppt->error_message);
-  class_alloc(ppt->ddlate_sources,ppt->md_size * sizeof(double *),ppt->error_message);
+  class_alloc(ppt->sources,       ppt->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ppt->error_message);
+  class_alloc(ppt->late_sources,  ppt->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ppt->error_message);
+  class_alloc(ppt->ddlate_sources,ppt->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ppt->error_message);
 
   /** - initialize variables for the output of k values */
 
@@ -1603,15 +1603,15 @@ int perturbations_indices(
     /** - (d) for each mode, allocate array of arrays of source functions for each initial conditions and wavenumber, (ppt->source[index_md])[index_ic][index_type] */
 
     class_alloc(ppt->sources[index_md],
-                ppt->ic_size[index_md] * ppt->tp_size[index_md] * sizeof(double *),
+                ppt->ic_size[index_md] * ppt->tp_size[index_md] * sizeof(__DOUBLE_OR_COMPLEX__ *),
                 ppt->error_message);
 
     class_alloc(ppt->late_sources[index_md],
-                ppt->ic_size[index_md] * ppt->tp_size[index_md] * sizeof(double *),
+                ppt->ic_size[index_md] * ppt->tp_size[index_md] * sizeof(__DOUBLE_OR_COMPLEX__ *),
                 ppt->error_message);
 
     class_alloc(ppt->ddlate_sources[index_md],
-                ppt->ic_size[index_md] * ppt->tp_size[index_md] * sizeof(double *),
+                ppt->ic_size[index_md] * ppt->tp_size[index_md] * sizeof(__DOUBLE_OR_COMPLEX__ *),
                 ppt->error_message);
 
   }
@@ -2089,7 +2089,7 @@ int perturbations_timesampling_for_sources(
       for (index_tp = 0; index_tp < ppt->tp_size[index_md]; index_tp++) {
 
         class_alloc(ppt->sources[index_md][index_ic*ppt->tp_size[index_md]+index_tp],
-                    ppt->k_size[index_md] * ppt->tau_size * sizeof(double),
+                    ppt->k_size[index_md] * ppt->tau_size * sizeof(__DOUBLE_OR_COMPLEX__),
                     ppt->error_message);
 
         if (ppt->ln_tau_size > 1) {
@@ -2099,7 +2099,7 @@ int perturbations_timesampling_for_sources(
                                                                                     [(ppt->tau_size-ppt->ln_tau_size) * ppt->k_size[index_md]]);
 
           class_alloc(ppt->ddlate_sources[index_md][index_ic*ppt->tp_size[index_md]+index_tp],
-                      ppt->k_size[index_md] * ppt->ln_tau_size * sizeof(double),
+                      ppt->k_size[index_md] * ppt->ln_tau_size * sizeof(__DOUBLE_OR_COMPLEX__),
                       ppt->error_message);
         }
       }
@@ -2859,8 +2859,8 @@ int perturbations_workspace_init(
 
   case tam:
     /* case s=2 and m=0,2 */
-    class_alloc(ppw->twokappam, sizeof(double)*(ppw->max_l_max+1),ppt->error_message);
-    class_alloc(ppw->zerokappam, sizeof(double)*(ppw->max_l_max+1),ppt->error_message);
+    class_alloc(ppw->twokappam, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
+    class_alloc(ppw->zerokappam, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
     break;
   }
 
@@ -2918,7 +2918,7 @@ int perturbations_workspace_init(
 
   class_alloc(ppw->pvecback,pba->bg_size*sizeof(double),ppt->error_message);
   class_alloc(ppw->pvecthermo,pth->th_size*sizeof(double),ppt->error_message);
-  class_alloc(ppw->pvecmetric,ppw->mt_size*sizeof(double),ppt->error_message);
+  class_alloc(ppw->pvecmetric,ppw->mt_size*sizeof(__DOUBLE_OR_COMPLEX__),ppt->error_message);
 
   /** - count number of approximations, initialize their indices, and allocate their flags */
   index_ap=0;
@@ -3053,11 +3053,11 @@ int perturbations_update_streaming_coefficients(
 					 struct background * pba,
 					 struct perturbations * ppt,
 					 int index_md,
-					 double k,
+					 __DOUBLE_OR_COMPLEX__ k,
 					 struct perturbations_workspace * ppw
 					 ) {
 
-  double q2, argsqrt;
+  __DOUBLE_OR_COMPLEX__ q2, argsqrt;
   int l;
   double m;
 
@@ -3158,6 +3158,10 @@ int perturbations_solve(
 
   /* Fourier mode */
   double k;
+  double q2;
+  double m;
+  __DOUBLE_OR_COMPLEX__ k_complex;
+
 
   /* number of time intervals where the approximation scheme is uniform */
   int interval_number;
@@ -3386,6 +3390,9 @@ int perturbations_solve(
 
   free(interval_number_of);
 
+  // This is where we will put the find complex mode.
+  *k_complex = k;
+  
   /** - fill the structure containing all fixed parameters, indices
       and workspaces needed by perturbations_derivs */
 
@@ -3396,7 +3403,7 @@ int perturbations_solve(
   ppaw.index_md = index_md;
   ppaw.index_ic = index_ic;
   ppaw.index_k = index_k;
-  ppaw.k = k;
+  ppaw.k = k_complex;//We update. A bit stupid.
   ppaw.ppw = ppw;
   ppaw.ppw->inter_mode = inter_closeby;
   ppaw.ppw->last_index_back = 0;
@@ -3440,7 +3447,7 @@ int perturbations_solve(
     class_call(perturbations_update_streaming_coefficients(pba,
 						    ppt,
 						    index_md,
-						    k,
+						    k,//WARNING we must put k_complex for Bianchi case
 						    ppw),
 	       ppt->error_message,
 	       ppt->error_message);
@@ -3460,7 +3467,7 @@ int perturbations_solve(
                                          ppt,
                                          index_md,
                                          index_ic,
-                                         k,
+                                         k_complex,
                                          interval_limit[index_interval],
                                          ppw,
                                          previous_approx),
@@ -3476,7 +3483,33 @@ int perturbations_solve(
       generic_evolver = evolver_ndf15;
     }
 
-    class_call(generic_evolver(perturbations_derivs,
+    if (__COMPLEX_CLASS_BOOL__) {
+      if (__DEBUG__)
+	printf("DEBUG launch generic evolver \n");
+      //This function is called if complex compilation has been performed.
+      class_call(generic_evolver(perturbations_derivs_recast,//perturbations_derivs_recast  uses a recast of the y and dy to transform a double complex* to a double*
+				 interval_limit[index_interval],
+				 interval_limit[index_interval+1],
+				 ppw->pv->y,
+				 ppw->pv->used_in_sources,
+				 2 * ppw->pv->pt_size,//Hence this requires to double the number of variables
+				 &ppaw,
+				 ppr->tol_perturbations_integration,
+				 ppr->smallest_allowed_variation,
+				 perturbations_timescale,
+				 ppr->perturbations_integration_stepsize,
+				 ppt->tau_sampling,
+				 tau_actual_size,
+				 perturbations_sources_recast,//And perturbations_sources_recast uses the same trick of recasting double complex* to a double*.
+				 perhaps_print_variables,
+				 ppt->error_message),
+		 ppt->error_message,
+		 ppt->error_message);
+      if (__DEBUG__)
+	printf("DEBUG end generic evolver \n");
+    }
+    else {
+      class_call(generic_evolver(perturbations_derivs,
                                interval_limit[index_interval],
                                interval_limit[index_interval+1],
                                ppw->pv->y,
@@ -3494,7 +3527,8 @@ int perturbations_solve(
                                ppt->error_message),
                ppt->error_message,
                ppt->error_message);
-
+    }
+      
   }
 
   /** - if perturbations were printed in a file, close the file */
@@ -3540,10 +3574,14 @@ int perturbations_solve(
  */
 
 int perturbations_prepare_k_output(struct background * pba,
-                                   struct perturbations * ppt
-                                   ){
-  int n_ncdm;
+			     struct perturbations * ppt,
+			     struct precision * ppr){
+
+  int n_ncdm,l,lmax_ten_out,lmax_vec_out;
   char tmp[40];
+
+  lmax_ten_out = MIN(ppr->l_max_g_ten+2,ppr->l_max_pol_g_ten+2);
+  lmax_vec_out = MIN(ppr->l_max_g_vec+2,ppr->l_max_pol_g_vec+2);
 
   ppt->scalar_titles[0]='\0';
   ppt->vector_titles[0]='\0';
@@ -3598,13 +3636,13 @@ int perturbations_prepare_k_output(struct background * pba,
       /* Non-cold dark matter */
       if ((pba->has_ncdm == _TRUE_) && ((ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_source_delta_m == _TRUE_))) {
         for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
-          class_sprintf(tmp,"delta_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"delta_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->scalar_titles,tmp,_TRUE_);
-          class_sprintf(tmp,"theta_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"theta_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->scalar_titles,tmp,_TRUE_);
-          class_sprintf(tmp,"shear_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"shear_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->scalar_titles,tmp,_TRUE_);
-          class_sprintf(tmp,"cs2_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"cs2_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->scalar_titles,tmp,_TRUE_);
         }
       }
@@ -3646,6 +3684,42 @@ int perturbations_prepare_k_output(struct background * pba,
 	class_store_columntitle(ppt->vector_titles,"G_g_2",_TRUE_);
 	break;
       case tam:
+	if (__COMPLEX_CLASS_BOOL__) {
+	  class_store_columntitle(ppt->vector_titles,"Re@V (vec. mod.)",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@V (vec. mod.)",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@theta_b",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@theta_b",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@N_1",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@N_1",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@N_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@N_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@N_3",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@N_3",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@T_1",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@T_1",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@T_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@T_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@E_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@E_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Re@B_2",_TRUE_);
+	  class_store_columntitle(ppt->vector_titles,"Im@B_2",_TRUE_);
+	  //This is to print all multipoles, but should be commented out as this wastes memeory and time.
+	  /*for(l=3; l <= lmax_vec_out; l++){
+	    sprintf(tmp,"Re@T_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Im@T_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Re@E_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Im@E_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Re@B_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Im@B_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    }*/
+	}
+	else {
 	  class_store_columntitle(ppt->vector_titles,"V (vec. mod.)",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"theta_b",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"N_1",_TRUE_);
@@ -3655,49 +3729,74 @@ int perturbations_prepare_k_output(struct background * pba,
 	  class_store_columntitle(ppt->vector_titles,"T_2",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"E_2",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"B_2",_TRUE_);
-	  break;
+	}
+	break;
       }
-
-      ppt->number_of_vector_titles =
-        get_number_of_titles(ppt->vector_titles);
+      
+      ppt->number_of_vector_titles = get_number_of_titles(ppt->vector_titles);
     }
 
-    
     if (ppt->has_tensors == _TRUE_){
 
       class_store_columntitle(ppt->tensor_titles,"tau [Mpc]",_TRUE_);
       class_store_columntitle(ppt->tensor_titles,"a",_TRUE_);
+
       switch (ppt->hierarchy) {
       case optimal:
 	class_store_columntitle(ppt->tensor_titles,"H (gw)",_TRUE_);
 	class_store_columntitle(ppt->tensor_titles,"Hdot (gwdot)",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"F_g_0",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"F_g_2",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"F_g_4",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"G_g_0",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"G_g_2",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"G_g_4",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"F_ur_0",ppt->evolve_tensor_ur);
-	class_store_columntitle(ppt->tensor_titles,"F_ur_2",ppt->evolve_tensor_ur);
-	class_store_columntitle(ppt->tensor_titles,"F_ur_4",ppt->evolve_tensor_ur);
-	break;
+        class_store_columntitle(ppt->tensor_titles,"F_g_0",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"F_g_2",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"F_g_4",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"G_g_0",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"G_g_2",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"G_g_4",_TRUE_);
+        break;
       case tam:
-	class_store_columntitle(ppt->tensor_titles,"H (gw)",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"Hdot (gwdot)",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"Theta_2",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"E_2",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"B_2",_TRUE_);
-	class_store_columntitle(ppt->tensor_titles,"F_ur_2",ppt->evolve_tensor_ur);
-	break;
+	if (__COMPLEX_CLASS_BOOL__) {
+	  class_store_columntitle(ppt->tensor_titles,"Re@H (gw)",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Im@H (gw)",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Re@Hdot (gwdot)",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Im@Hdot (gwdot)",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Re@Theta_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Im@Theta_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Re@E_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Im@E_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Re@B_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Im@B_2",_TRUE_);
+	  //This is to print all multipoles, but should be commented out as this wastes memeory and time.
+	  /*for(l=3; l <= lmax_ten_out; l++){
+	    sprintf(tmp,"Re@T_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Im@T_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Re@E_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Im@E_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Re@B_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    sprintf(tmp,"Im@B_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    }*/
+	}
+	else {
+	  class_store_columntitle(ppt->tensor_titles,"H (gw)",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Hdot (gwdot)",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"Theta_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"E_2",_TRUE_);
+	  class_store_columntitle(ppt->tensor_titles,"B_2",_TRUE_);
+	}
+        break;
       }
-      
+
       if (ppt->evolve_tensor_ncdm == _TRUE_) {
         for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
-          class_sprintf(tmp,"delta_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"delta_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
-          class_sprintf(tmp,"theta_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"theta_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
-          class_sprintf(tmp,"shear_ncdm[%d]",n_ncdm);
+          sprintf(tmp,"shear_ncdm[%d]",n_ncdm);
           class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
         }
       }
@@ -4142,7 +4241,7 @@ int perturbations_vector_init(
                               struct perturbations * ppt,
                               int index_md,
                               int index_ic,
-                              double k,
+                              __DOUBLE_OR_COMPLEX__ k,
                               double tau,
                               struct perturbations_workspace * ppw, /* ppw->pv unallocated if pa_old = NULL, allocated and filled otherwise */
                               int * pa_old
@@ -4534,8 +4633,8 @@ int perturbations_vector_init(
   /** - allocate vectors for storing the values of all these
       quantities and their time-derivatives at a given time */
   
-  class_calloc(ppv->y,ppv->pt_size,sizeof(double),ppt->error_message);
-  class_alloc(ppv->dy,ppv->pt_size*sizeof(double),ppt->error_message);
+  class_calloc(ppv->y,ppv->pt_size,sizeof(__DOUBLE_OR_COMPLEX__),ppt->error_message);
+  class_alloc(ppv->dy,ppv->pt_size*sizeof(__DOUBLE_OR_COMPLEX__),ppt->error_message);
   class_alloc(ppv->used_in_sources,ppv->pt_size*sizeof(int),ppt->error_message);
   
   /** - specify which perturbations are needed in the evaluation of source terms */
@@ -4757,6 +4856,20 @@ int perturbations_vector_init(
     
   }
 
+  /*If Complex we now need to double the size of this array since in fact we have twice as many variables (Real an imaginary parts) */
+  /*That is we affect the value at p to 2p and 2p+1.*/ 
+  if (__COMPLEX_CLASS_BOOL__) {
+    class_alloc(used_in_sources_temp,ppv->pt_size*2*sizeof(int),ppt->error_message);
+    for (index_pt=0; index_pt<(ppv->pt_size); index_pt++) {
+      used_in_sources_temp[2*index_pt] = ppv->used_in_sources[index_pt];
+      used_in_sources_temp[2*index_pt+1] = ppv->used_in_sources[index_pt];
+    }
+    //And we reallocate and free the previous array.
+    free(ppv->used_in_sources);
+    ppv->used_in_sources = used_in_sources_temp;
+  }
+
+  
   /** - case of setting initial conditions for a new wavenumber */
 
   if (pa_old == NULL) {
@@ -5925,7 +6038,7 @@ int perturbations_initial_conditions(struct precision * ppr,
                                      struct perturbations * ppt,
                                      int index_md,
                                      int index_ic,
-                                     double k,
+                                     __DOUBLE_OR_COMPLEX__ k,
                                      double tau,
                                      struct perturbations_workspace * ppw
                                      ) {
@@ -5947,12 +6060,12 @@ int perturbations_initial_conditions(struct precision * ppr,
 
   double delta_tot;
   double velocity_tot;
-  double s2_squared, ssqrt3;
+  __DOUBLE_OR_COMPLEX__ s2_squared, ssqrt3;
   //For vector initial conditions :
   double Phi0,R,om,cH;
-  double V_init, theta_b, l1_ur, l2_ur, l4_ur;
+  __DOUBLE_OR_COMPLEX__ V_init, theta_b, l1_ur, l2_ur, l4_ur;
   //for tensor initial conditions
-  double k2, q2, h_corr_2;
+  __DOUBLE_OR_COMPLEX__ k2, q2, h_corr_2;
 
   class_call(background_at_tau(pba,
 			       tau,
@@ -7420,16 +7533,17 @@ int perturbations_einstein(
                            struct thermodynamics * pth,
                            struct perturbations * ppt,
                            int index_md,
-                           double k,
+                           __DOUBLE_OR_COMPLEX__ k,
                            double tau,
-                           double * y,
+                           __DOUBLE_OR_COMPLEX__ * y,
                            struct perturbations_workspace * ppw
                            ) {
   /** Summary: */
 
   /** - define local variables */
 
-  double k2,a,a2,a_prime_over_a;
+  double a,a2,a_prime_over_a;
+  __DOUBLE_OR_COMPLEX__ k2;
   double s2_squared;
   double shear_g = 0.;
   double shear_idr = 0.;
@@ -7625,15 +7739,16 @@ int perturbations_total_stress_energy(
                                       struct thermodynamics * pth,
                                       struct perturbations * ppt,
                                       int index_md,
-                                      double k,
-                                      double * y,
+                                      __DOUBLE_OR_COMPLEX__ k,
+                                      __DOUBLE_OR_COMPLEX__ * y,
                                       struct perturbations_workspace * ppw
                                       ) {
   /** Summary: */
 
   /** - define local variables */
 
-  double a,a2,a_prime_over_a,k2;
+  double a,a2,a_prime_over_a;
+  __DOUBLE_OR_COMPLEX__ k2;
   double rho_m=0.;
   double delta_rho_m=0.;
   double rho_plus_p_m=0.;
@@ -8416,8 +8531,8 @@ int perturbations_total_stress_energy(
 
 int perturbations_sources(
                           double tau,
-                          double * y,
-                          double * dy,
+                          __DOUBLE_OR_COMPLEX__ * y,
+                          __DOUBLE_OR_COMPLEX__ * dy,
                           int index_tau,
                           void * parameters_and_workspace,
                           ErrorMsg error_message
@@ -8426,7 +8541,7 @@ int perturbations_sources(
 
   /** - define local variables */
 
-  double P;
+  __DOUBLE_OR_COMPLEX__ P;
   int index_tp;
 
   struct perturbations_parameters_and_workspace * pppaw;
@@ -8437,12 +8552,12 @@ int perturbations_sources(
   int index_md;
   int index_ic;
   int index_k;
-  double k;
+  __DOUBLE_OR_COMPLEX__ k;
   double z;
   struct perturbations_workspace * ppw;
   double * pvecback;
   double * pvecthermo;
-  double * pvecmetric;
+  __DOUBLE_OR_COMPLEX__ * pvecmetric;
 
   double delta_g, delta_rho_scf, rho_plus_p_theta_scf;
   double a_prime_over_a=0.;  /* (a'/a) */
@@ -8450,17 +8565,18 @@ int perturbations_sources(
   double w_fld,dw_over_da_fld,integral_fld;
   int switch_isw = 1;
 
-  double a, a2, f_dr;
+  double a, a2, f_dr, R;
 
   double H_T_Nb_prime=0., rho_tot;
   double theta_over_k2,theta_shift;
 
-  double theta_b, theta_b_prime, theta_g, theta_ur;
+  __DOUBLE_OR_COMPLEX__ theta_b, theta_g, theta_ur;
+  double theta_b_prime;
   double dkappa, ddkappa, exp_m_kappa, g, g_prime;
   double theta_idm = 0., theta_idm_prime = 0.;
   double dmu_idm_g = 0., ddmu_idm_g = 0., exp_mu_idm_g = 0.;
 
-  double ssqrt3, R;
+  __DOUBLE_OR_COMPLEX__ ssqrt3;
   /** - rename structure fields (just to avoid heavy notations) */
 
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
@@ -9232,8 +9348,8 @@ int perturbations_sources(
  */
 
 int perturbations_print_variables(double tau,
-                                  double * y,
-                                  double * dy,
+                                  __DOUBLE_OR_COMPLEX__ * y,
+                                  __DOUBLE_OR_COMPLEX__ * dy,
                                   void * parameters_and_workspace,
                                   ErrorMsg error_message
                                   ) {
@@ -9242,7 +9358,7 @@ int perturbations_print_variables(double tau,
   /** Summary: */
 
   /** - define local variables */
-  double k;
+  __DOUBLE_OR_COMPLEX__ k;
   int index_md;
 
   struct precision * ppr;
@@ -9252,16 +9368,18 @@ int perturbations_print_variables(double tau,
   struct perturbations_workspace * ppw;
   double * pvecback;
   double * pvecthermo;
-  double * pvecmetric;
+  __DOUBLE_OR_COMPLEX__ * pvecmetric;
 
   double delta_g,theta_g,shear_g,l0_g=0.,l4_g,pol0_g,pol1_g,pol2_g,pol4_g;
-  double l1_g=0., l2_g=0., E2=0., B2=0., l1_ur=0., l3_ur=0., l3_g=0.;
-  double delta_b,theta_b;
+  __DOUBLE_OR_COMPLEX__ l1_g=0., l2_g=0., E2=0., B2=0., l1_ur=0., l3_ur=0., l3_g=0.;
+  double delta_b;
+  __DOUBLE_OR_COMPLEX__ theta_b;
   double delta_cdm=0.,theta_cdm=0.;
   double delta_idm=0., theta_idm=0.;
   double delta_dcdm=0.,theta_dcdm=0.;
   double delta_dr=0.,theta_dr=0.,shear_dr=0., f_dr=1.0;
-  double delta_ur=0.,theta_ur=0.,shear_ur=0.,l0_ur=0.,l2_ur=0.,l4_ur=0.;
+  double delta_ur=0.,theta_ur=0.,shear_ur=0.,l0_ur=0.;
+  __DOUBLE_OR_COMPLEX__ l2_ur=0.,l4_ur=0.;
   double delta_idr=0., theta_idr=0., shear_idr=0.;
   double delta_rho_scf=0., rho_plus_p_theta_scf=0.;
   double delta_scf=0., theta_scf=0.;
@@ -9916,15 +10034,57 @@ int perturbations_print_variables(double tau,
       class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
       break;
     case tam:
-      class_store_double(dataptr, y[ppw->pv->index_pt_V], _TRUE_, storeidx);
-      class_store_double(dataptr, theta_b, _TRUE_, storeidx);
-      class_store_double(dataptr, l1_ur, _TRUE_, storeidx);
-      class_store_double(dataptr, l2_ur, _TRUE_, storeidx);
-      class_store_double(dataptr, l3_ur, _TRUE_, storeidx);
-      class_store_double(dataptr, l1_g, _TRUE_, storeidx);
-      class_store_double(dataptr, l2_g, _TRUE_, storeidx);
-      class_store_double(dataptr, E2, _TRUE_, storeidx);
-      class_store_double(dataptr, B2, _TRUE_, storeidx);
+      if (__COMPLEX_CLASS_BOOL__) {
+	class_store_double(dataptr, std::real(y[ppw->pv->index_pt_V]), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_V]), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(theta_b), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(theta_b), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(l1_ur), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(l1_ur), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(l2_ur), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(l2_ur), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(l3_ur), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(l3_ur), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(l1_g), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(l1_g), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(l2_g), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(l2_g), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(E2), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(E2), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(B2), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(B2), _TRUE_, storeidx);
+	//This for loop must be commented or the output file is way too large as it outputs al multipoles. This is used only to check the quality of the line of sight method.
+	/*for(l=3; l <= lmax_vec_out; l++){
+	  if ((ppw->approx[ppw->index_ap_tca]==(int)tca_off) && (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off)) {//A bit of dirty coding here for Bianchi
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_l1_g+l-1]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_l1_g+l-1]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_E2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_E2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_B2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_B2+l-2]), _TRUE_, storeidx);
+	  }
+	  else {
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	  }
+	  }*/
+
+      }
+      else {
+	class_store_double(dataptr, y[ppw->pv->index_pt_V], _TRUE_, storeidx);
+	class_store_double(dataptr, theta_b, _TRUE_, storeidx);
+	class_store_double(dataptr, l1_ur, _TRUE_, storeidx);
+	class_store_double(dataptr, l2_ur, _TRUE_, storeidx);
+	class_store_double(dataptr, l3_ur, _TRUE_, storeidx);
+	class_store_double(dataptr, l1_g, _TRUE_, storeidx);
+	class_store_double(dataptr, l2_g, _TRUE_, storeidx);
+	class_store_double(dataptr, E2, _TRUE_, storeidx);
+	class_store_double(dataptr, B2, _TRUE_, storeidx);
+      }
       break;
     }
 
@@ -10053,12 +10213,44 @@ int perturbations_print_variables(double tau,
       class_store_double(dataptr, l4_ur, ppt->evolve_tensor_ur, storeidx);
       break;
     case tam:
-      class_store_double(dataptr, y[ppw->pv->index_pt_gw], _TRUE_, storeidx);
-      class_store_double(dataptr, y[ppw->pv->index_pt_gwdot], _TRUE_, storeidx);
-      class_store_double(dataptr, l2_g, _TRUE_, storeidx);
-      class_store_double(dataptr, E2, _TRUE_, storeidx);
-      class_store_double(dataptr, B2, _TRUE_, storeidx);
-      class_store_double(dataptr, l2_ur, ppt->evolve_tensor_ur, storeidx);
+      if (__COMPLEX_CLASS_BOOL__) {
+	class_store_double(dataptr, std::real(y[ppw->pv->index_pt_gw]), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_gw]), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(y[ppw->pv->index_pt_gwdot]), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_gwdot]), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(l2_g), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(l2_g), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(E2), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(E2), _TRUE_, storeidx);
+	class_store_double(dataptr, std::real(B2), _TRUE_, storeidx);
+	class_store_double(dataptr, std::imag(B2), _TRUE_, storeidx);
+	//This for loop must be commented or the output file is way too large as it outputs al multipoles. This is used only to check the quality of the line of sight method.
+	/*for(l=3; l <= lmax_ten_out; l++){
+	  if ((ppw->approx[ppw->index_ap_tca]==(int)tca_off) && (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off)) {//A bit of dirty coding here for Bianchi	  
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_l2_g+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_l2_g+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_E2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_E2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_B2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_B2+l-2]), _TRUE_, storeidx);
+	  }
+	  else {
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	  }
+	  }*/
+      }
+      else {
+	class_store_double(dataptr, y[ppw->pv->index_pt_gw], _TRUE_, storeidx);
+	class_store_double(dataptr, y[ppw->pv->index_pt_gwdot], _TRUE_, storeidx);
+	class_store_double(dataptr, l2_g, _TRUE_, storeidx);
+        class_store_double(dataptr, E2, _TRUE_, storeidx);
+	class_store_double(dataptr, B2, _TRUE_, storeidx);
+      }
       break;
     }
 
@@ -10145,8 +10337,8 @@ int perturbations_print_variables(double tau,
  */
 
 int perturbations_derivs(double tau,
-                         double * y,
-                         double * dy,
+                         __DOUBLE_OR_COMPLEX__ * y,
+                         __DOUBLE_OR_COMPLEX__ * dy,
                          void * parameters_and_workspace,
                          ErrorMsg error_message
                          ) {
@@ -10162,7 +10354,7 @@ int perturbations_derivs(double tau,
 
   /* short-cut names for the fields of the input structure */
   struct perturbations_parameters_and_workspace * pppaw;
-  double k,k2;
+  __DOUBLE_OR_COMPLEX__ k,k2;
   int index_md;
   struct precision * ppr;
   struct background * pba;
@@ -10171,15 +10363,16 @@ int perturbations_derivs(double tau,
   struct perturbations_workspace * ppw;
   double * pvecback;
   double * pvecthermo;
-  double * pvecmetric;
+  __DOUBLE_OR_COMPLEX__ * pvecmetric;
   double * s_l;
-  double * twokappam = NULL;
-  double * zerokappam = NULL;
+  __DOUBLE_OR_COMPLEX__ * twokappam = NULL;
+  __DOUBLE_OR_COMPLEX__ * zerokappam = NULL;
   struct perturbations_vector * pv;
 
   /* short-cut notations for the perturbations */
-  double delta_g=0.,theta_g=0.,shear_g=0.;
-  double delta_b,theta_b;
+  double delta_g=0.,shear_g=0.;
+  double delta_b;
+  __DOUBLE_OR_COMPLEX__ theta_b, theta_g=0.;
   double delta_idm = 0., theta_idm = 0.;
   double delta_idr=0., theta_idr=0.;
   double cb2,cs2,ca2,delta_p_b_over_rho_b;
@@ -10195,7 +10388,7 @@ int perturbations_derivs(double tau,
 
 
   /* Non-metric source terms for photons, i.e. \mathcal{P}^{(m)} from arXiv:1305.3261  */
-  double P0,P1,P2;
+  __DOUBLE_OR_COMPLEX__ P0=0.,P1-0.,P2=0.;
 
   /* for use with fluid (fld): */
   double w_fld,dw_over_da_fld,w_prime_fld,integral_fld;
@@ -10212,7 +10405,8 @@ int perturbations_derivs(double tau,
   double rho_ncdm_bg,p_ncdm_bg,pseudo_p_ncdm,w_ncdm,ca2_ncdm,ceff2_ncdm=0.,cvis2_ncdm=0.;
 
   /* for use with curvature */
-  double cotKgen, sqrt_absK;
+  __DOUBLE_OR_COMPLEX__ cotKgen;
+  double kcotKgen, sqrt_absK;
   double s2_squared, ssqrt3;
 
   /* for use with dcdm and dr */
@@ -10232,6 +10426,8 @@ int perturbations_derivs(double tau,
   pth = pppaw->pth;
   ppt = pppaw->ppt;
   ppw = pppaw->ppw;
+
+  sqrt_absK = sqrt(std::abs(pba->K));
 
   s_l = ppw->s_l;
   
@@ -10323,15 +10519,18 @@ int perturbations_derivs(double tau,
       (see equation 2.34 in arXiv:1305.3261): */
   if (pba->has_curvature == _FALSE_){
     cotKgen = 1.0/(k*tau);
+    kcotKgen = 1.0/(tau);
   }
   else{
-    sqrt_absK = sqrt(fabs(pba->K));
-    if (pba->K < 0)
+    if (pba->K < 0) {
       cotKgen = sqrt_absK/k/tanh(sqrt_absK*tau);
-    else
+      kcotKgen = sqrt_absK/tanh(sqrt_absK*tau);
+    }
+    else {
       cotKgen = sqrt_absK/k/tan(sqrt_absK*tau);
+      kcotKgen = sqrt_absK/tan(sqrt_absK*tau);
+    }
   }
-
   s2_squared = 1.-3.*pba->K/k2;
 
   /** - for scalar modes: */
@@ -11382,18 +11581,18 @@ int perturbations_derivs(double tau,
 	  /* l=lmax */
 	  l = pv->l_max_g;
           dy[pv->index_pt_l1_g+l-1] = zerokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_g+l-2]
-            -(l+2.)*k*cotKgen*y[pv->index_pt_l1_g+l-1]
+            -(l+2.)*kcotKgen*y[pv->index_pt_l1_g+l-1]
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l1_g+l-1];
 	  
 	  l = pv->l_max_pol_g;
           dy[pv->index_pt_E2+l-2] = twokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_E2+l-3]
 	    +q_m*2./l*y[pv->index_pt_B2+l-2]
-	    -(l+2.)*k*cotKgen*y[pv->index_pt_E2+l-2]
+	    -(l+2.)*kcotKgen*y[pv->index_pt_E2+l-2]
 	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
 	  
           dy[pv->index_pt_B2+l-2] = twokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_B2+l-3]
 	    -q_m*2./l*y[pv->index_pt_E2+l-2]
-	    -(l+2.)*k*cotKgen*y[pv->index_pt_B2+l-2]
+	    -(l+2.)*kcotKgen*y[pv->index_pt_B2+l-2]
 	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
 	  
 	  break;
@@ -11532,7 +11731,7 @@ int perturbations_derivs(double tau,
 	  /* l=lmax */
 	  l = pv->l_max_ur;
 	  dy[pv->index_pt_l1_ur+l-1] = zerokappam[l] * (2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_ur+l-2]
-	    -(l+2.)*k*cotKgen*y[pv->index_pt_l1_ur+l-1];
+	    -(l+2.)*kcotKgen*y[pv->index_pt_l1_ur+l-1];
 	  
 	  break;
 	}
@@ -11696,7 +11895,7 @@ int perturbations_derivs(double tau,
           /* Closure relation using (9) of 2005.12119 */
           l = pv->l_max_g;
           dy[pv->index_pt_l2_g+l-2] = zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_l2_g+l-3]
-            -(l+3.)*k*cotKgen*y[pv->index_pt_l2_g+l-2]
+            -(l+3.)*kcotKgen*y[pv->index_pt_l2_g+l-2]
             -photon_scattering_rate*y[pv->index_pt_l2_g+l-2];
 
           /* Polarisation hierarchy for photons using (34) of astro-ph/9709066 with m=2 */
@@ -11729,12 +11928,12 @@ int perturbations_derivs(double tau,
 	  
           dy[pv->index_pt_E2+l-2] = twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
 	    +q_m*2./l*y[pv->index_pt_B2+l-2]
-	    -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2]
+	    -(l+3.)*kcotKgen*y[pv->index_pt_E2+l-2]
 	    -photon_scattering_rate*y[pv->index_pt_E2+l-2];
 	  
           dy[pv->index_pt_B2+l-2] = twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
 	    -q_m*2./l*y[pv->index_pt_E2+l-2]
-	    -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2]
+	    -(l+3.)*kcotKgen*y[pv->index_pt_B2+l-2]
 	    -photon_scattering_rate*y[pv->index_pt_B2+l-2];
           break;
         }
@@ -11855,7 +12054,7 @@ int perturbations_derivs(double tau,
  * @param error_message            Output: error message
  */
 
-int perturbations_tca_slip_and_shear(double * y,
+int perturbations_tca_slip_and_shear(__DOUBLE_OR_COMPLEX__ * y,
                                      void * parameters_and_workspace,
                                      ErrorMsg error_message
                                      ) {
@@ -11883,7 +12082,7 @@ int perturbations_tca_slip_and_shear(double * y,
   struct perturbations_workspace * ppw;
   double * pvecback;
   double * pvecthermo;
-  double * pvecmetric;
+  __DOUBLE_OR_COMPLEX__ * pvecmetric;
   struct perturbations_vector * pv;
 
   /* short-cut notations for the perturbations */
@@ -12245,8 +12444,8 @@ int perturbations_rsa_delta_and_theta(
                                       struct background * pba,
                                       struct thermodynamics * pth,
                                       struct perturbations * ppt,
-                                      double k,
-                                      double * y,
+                                      __DOUBLE_OR_COMPLEX__ k,
+                                      __DOUBLE_OR_COMPLEX__ * y,
                                       double a_prime_over_a,
                                       double * pvecthermo,
                                       struct perturbations_workspace * ppw,
@@ -12254,7 +12453,7 @@ int perturbations_rsa_delta_and_theta(
                                       ) {
   /* - define local variables */
 
-  double k2;
+  __DOUBLE_OR_COMPLEX__ k2;
 
   k2 = k*k;
 
@@ -12384,8 +12583,8 @@ int perturbations_rsa_idr_delta_and_theta(
                                           struct background * pba,
                                           struct thermodynamics * pth,
                                           struct perturbations * ppt,
-                                          double k,
-                                          double * y,
+                                          __DOUBLE_OR_COMPLEX__ k,
+                                          __DOUBLE_OR_COMPLEX__ * y,
                                           double a_prime_over_a,
                                           double * pvecthermo,
                                           struct perturbations_workspace * ppw,
@@ -12393,7 +12592,7 @@ int perturbations_rsa_idr_delta_and_theta(
                                           ) {
   /* - define local variables */
 
-  double k2;
+  __DOUBLE_OR_COMPLEX__ k2;
 
   k2 = k*k;
 
@@ -12424,3 +12623,53 @@ int perturbations_rsa_idr_delta_and_theta(
   return _SUCCESS_;
 
 }
+
+
+/**
+ * For complex compilations : these functions recast an array of pure doubles (with Re Im Re Im... values) to an array of pure double complex.
+ * This is because the solver uses perturbations_sources and perturbations_derivs with only double valued arrays.
+ */
+
+int perturbations_sources_recast(
+                    double tau,
+                    double * y,
+                    double * dy,
+                    int index_tau,
+                    void * parameters_and_workspace,
+                    ErrorMsg error_message
+                    ) {
+  return perturbations_sources(tau,
+			 (__DOUBLE_OR_COMPLEX__ *)y,
+			 (__DOUBLE_OR_COMPLEX__ *)dy,
+			 index_tau,
+			 parameters_and_workspace,
+			 error_message);
+}
+
+
+int perturbations_derivs_recast(double tau,
+                   double * y,
+                   double * dy,
+                   void * parameters_and_workspace,
+                   ErrorMsg error_message
+                   ) {
+
+  return perturbations_derivs(tau,
+			(__DOUBLE_OR_COMPLEX__ *) y,
+			(__DOUBLE_OR_COMPLEX__ *) dy,
+			parameters_and_workspace,
+			error_message);
+}
+  
+
+/**
+ * This function computes the complex q and the complex k (related by q^2 = k^2 + (1+m) K) from the Re[q] which is provided in k_output_values in the *.ini file.
+ * In the process it also updates the \f$ {}_s \kappa_l^m \f$ for the coupling in the hierarchy
+ * and the ratios \f$ \zeta_l^m /\zeta_{l-1}^m \f$ where \f$ \zeta_l^m \f$ are defined in Eq. 5.9 and Table IV of 1909.13688.
+ * These ratios are stored in the ratio_zetal_m2 which are valid only for m=2 since vector modes have not been implemented in Bianchi.
+ *
+ * @param q_real                       Input: Re[q]
+ * @param q                            Output: complex valued q
+ * @param newk                         Output: complex valued k
+ * @param parameters_and_workspace     Input: curvature and the mode (index_md) considered.
+ */

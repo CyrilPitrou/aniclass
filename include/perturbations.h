@@ -430,7 +430,7 @@ struct perturbations
 
   //@{
 
-  double *** sources; /**< Pointer towards the source interpolation table
+  __DOUBLE_OR_COMPLEX__ *** sources; /**< Pointer towards the source interpolation table
                          sources[index_md]
                          [index_ic * ppt->tp_size[index_md] + index_tp]
                          [index_tau * ppt->k_size + index_k] */
@@ -446,14 +446,14 @@ struct perturbations
                                Fourier transfer functions (used for interpolations) */
   int ln_tau_size;         /**< total number of values in this array */
 
-  double *** late_sources; /**< Pointer towards the source interpolation table
+  __DOUBLE_OR_COMPLEX__ *** late_sources; /**< Pointer towards the source interpolation table
                               late_sources[index_md]
                               [index_ic * ppt->tp_size[index_md] + index_tp]
                               [index_tau * ppt->k_size + index_k]
                               Note that this is not a replication of part of the sources table,
                               it is just poiting towards the same memory zone, at the place where the late_sources actually start */
 
-  double *** ddlate_sources; /**< Pointer towards the splined source interpolation table with second derivatives with respect to time
+  __DOUBLE_OR_COMPLEX__ *** ddlate_sources; /**< Pointer towards the splined source interpolation table with second derivatives with respect to time
                                 ddlate_sources[index_md]
                                 [index_ic * ppt->tp_size[index_md] + index_tp]
                                 [index_tau * ppt->k_size + index_k] */
@@ -596,8 +596,8 @@ struct perturbations_vector
   int index_pt_gwdot;     /**< its time-derivative */
   int pt_size;            /**< size of perturbation vector */
 
-  double * y;             /**< vector of perturbations to be integrated */
-  double * dy;            /**< time-derivative of the same vector */
+  __DOUBLE_OR_COMPLEX__ * y;             /**< vector of perturbations to be integrated */
+  __DOUBLE_OR_COMPLEX__ * dy;            /**< time-derivative of the same vector */
 
   int * used_in_sources; /**< boolean array specifying which
                             perturbations enter in the calculation of
@@ -644,7 +644,7 @@ struct perturbations_workspace
 
   double * pvecback;          /**< background quantities */
   double * pvecthermo;        /**< thermodynamics quantities */
-  double * pvecmetric;        /**< metric quantities */
+  __DOUBLE_OR_COMPLEX__ * pvecmetric;        /**< metric quantities */
   struct perturbations_vector * pv; /**< pointer to vector of integrated
                                        perturbations and their
                                        time-derivatives */
@@ -656,15 +656,15 @@ struct perturbations_workspace
 
   double rho_plus_p_tot;    /**< total (rho+p) (used to infer theta_tot from rho_plus_p_theta) */
 
-  double gw_source;		    /**< stress-energy source term in Einstein's tensor equations (gives Tij[tensor]) */
-  double vector_source_pi;	/**< first stress-energy source term in Einstein's vector equations */
-  double vector_source_v;	/**< second stress-energy source term in Einstein's vector equations */
+  __DOUBLE_OR_COMPLEX__ gw_source;		    /**< stress-energy source term in Einstein's tensor equations (gives Tij[tensor]) */
+  __DOUBLE_OR_COMPLEX__ vector_source_pi;	/**< first stress-energy source term in Einstein's vector equations */
+  __DOUBLE_OR_COMPLEX__ vector_source_v;	/**< second stress-energy source term in Einstein's vector equations */
 
   double tca_shear_g;  /**< photon shear in tight-coupling approximation */
   double tca_slip;     /**< photon-baryon slip in tight-coupling approximation */
 
-  double tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
-  double tca_slip_vector;     /**< photon-baryon slip in tight-coupling approximation for vector modes */
+  __DOUBLE_OR_COMPLEX__ tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
+  __DOUBLE_OR_COMPLEX__ tca_slip_vector;     /**< photon-baryon slip in tight-coupling approximation for vector modes */
   
   double tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
   double rsa_delta_g;  /**< photon density in radiation streaming approximation */
@@ -738,8 +738,8 @@ struct perturbations_workspace
   //@{
 
   double * s_l;     /**< array of freestreaming coefficients \f$ s_l = \sqrt{1-K*(l^2-1)/k^2} \f$. They are dimensionless. */
-  double * twokappam; /**< array of freestreaming coefficients \f$ {{}_s}\kappa^m_l = \sqrt{(l^2-m^2)(l^2-s^2)/l^2 * (q^2-K*l^2)} \f$ for s=2. They have dimension of k.*/
-  double * zerokappam; /**< array of freestreaming coefficients \f$ {{}_0}\kappa^m_l = \sqrt{(l^2-m^2) * (q^2-K*l^2)} \f$. They have dimension of k.*/
+  __DOUBLE_OR_COMPLEX__ * twokappam; /**< array of freestreaming coefficients \f$ {{}_s}\kappa^m_l = \sqrt{(l^2-m^2)(l^2-s^2)/l^2 * (q^2-K*l^2)} \f$ for s=2. They have dimension of k.*/
+  __DOUBLE_OR_COMPLEX__ * zerokappam; /**< array of freestreaming coefficients \f$ {{}_0}\kappa^m_l = \sqrt{(l^2-m^2) * (q^2-K*l^2)} \f$. They have dimension of k.*/
   double q_m; /**< Current value of q such that \f$ q^2 = k^2 + (1+m) K\f$ */
   
   //@}
@@ -761,7 +761,7 @@ struct perturbations_parameters_and_workspace {
   int index_md;                   /**< index of mode (scalar/.../vector/tensor) */
   int index_ic;			          /**< index of initial condition (adiabatic/isocurvature(s)/...) */
   int index_k;			          /**< index of wavenumber */
-  double k;			              /**< current value of wavenumber in 1/Mpc */
+  __DOUBLE_OR_COMPLEX__ k;			              /**< current value of wavenumber in 1/Mpc */
   struct perturbations_workspace * ppw; /**< workspace defined above */
 
 };
@@ -781,7 +781,7 @@ extern "C" {
                                    int index_ic,
                                    int index_tp,
                                    double tau,
-                                   double * psource_at_tau
+                                   __DOUBLE_OR_COMPLEX__ * psource_at_tau
                                    );
 
   int perturbations_sources_at_z(
@@ -791,7 +791,7 @@ extern "C" {
                                  int index_ic,
                                  int index_tp,
                                  double z,
-                                 double * psource_at_z
+                                 __DOUBLE_OR_COMPLEX__ * psource_at_z
                                  );
 
   int perturbations_output_data_at_z(
@@ -945,7 +945,7 @@ extern "C" {
                                 struct perturbations * ppt,
                                 int index_md,
                                 int index_ic,
-                                double k,
+                                __DOUBLE_OR_COMPLEX__ k,
                                 double tau,
                                 struct perturbations_workspace * ppw,
                                 int * pa_old
@@ -961,7 +961,7 @@ extern "C" {
                                        struct perturbations * ppt,
                                        int index_md,
                                        int index_ic,
-                                       double k,
+                                       __DOUBLE_OR_COMPLEX__ k,
                                        double tau,
                                        struct perturbations_workspace * ppw
                                        );
@@ -990,9 +990,9 @@ extern "C" {
                              struct thermodynamics * pth,
                              struct perturbations * ppt,
                              int index_md,
-                             double k,
+                             __DOUBLE_OR_COMPLEX__ k,
                              double tau,
-                             double * y,
+                             __DOUBLE_OR_COMPLEX__ * y,
                              struct perturbations_workspace * ppw
                              );
 
@@ -1002,15 +1002,15 @@ extern "C" {
                                         struct thermodynamics * pth,
                                         struct perturbations * ppt,
                                         int index_md,
-                                        double k,
-                                        double * y,
+                                        __DOUBLE_OR_COMPLEX__ k,
+                                        __DOUBLE_OR_COMPLEX__ * y,
                                         struct perturbations_workspace * ppw
                                         );
 
   int perturbations_sources(
                             double tau,
-                            double * pvecperturbations,
-                            double * pvecderivs,
+                            __DOUBLE_OR_COMPLEX__ * pvecperturbations,
+                            __DOUBLE_OR_COMPLEX__ * pvecderivs,
                             int index_tau,
                             void * parameters_and_workspace,
                             ErrorMsg error_message
@@ -1018,16 +1018,16 @@ extern "C" {
 
   int perturbations_print_variables(
                                     double tau,
-                                    double * y,
-                                    double * dy,
+                                    __DOUBLE_OR_COMPLEX__ * y,
+                                    __DOUBLE_OR_COMPLEX__ * dy,
                                     void * parameters_and_workspace,
                                     ErrorMsg error_message
                                     );
 
   int perturbations_derivs(
                            double tau,
-                           double * y,
-                           double * dy,
+                           __DOUBLE_OR_COMPLEX__ * y,
+                           __DOUBLE_OR_COMPLEX__ * dy,
                            void * parameters_and_workspace,
                            ErrorMsg error_message
                            );
@@ -1043,8 +1043,8 @@ extern "C" {
                                         struct background * pba,
                                         struct thermodynamics * pth,
                                         struct perturbations * ppt,
-                                        double k,
-                                        double * y,
+                                        __DOUBLE_OR_COMPLEX__ k,
+                                        __DOUBLE_OR_COMPLEX__ * y,
                                         double a_prime_over_a,
                                         double * pvecthermo,
                                         struct perturbations_workspace * ppw,
@@ -1056,8 +1056,8 @@ extern "C" {
                                             struct background * pba,
                                             struct thermodynamics * pth,
                                             struct perturbations * ppt,
-                                            double k,
-                                            double * y,
+                                            __DOUBLE_OR_COMPLEX__ k,
+                                            __DOUBLE_OR_COMPLEX__ * y,
                                             double a_prime_over_a,
                                             double * pvecthermo,
                                             struct perturbations_workspace * ppw,
@@ -1068,10 +1068,34 @@ extern "C" {
 						  struct background * pba,
 						  struct perturbations * ppt,
 						  int index_md,
-						  double k,
+						  __DOUBLE_OR_COMPLEX__ k,
 						  struct perturbations_workspace * ppw
-						  );
+       					     );
 
+  /**
+   * Functions which are used when CLASS is compiled with complex valued perturbations.
+   * Needed only when CLASS is compiled with complex types (-D__COMPLEX_CLASS__ flag for compiler).
+   */
+  
+  int perturbations_derivs_recast(
+                     double tau,
+                     double * y,
+                     double * dy,
+                     void * parameters_and_workspace,
+                     ErrorMsg error_message
+                     );
+
+
+  int perturbations_sources_recast(
+                      double tau,
+                      double * pvecperturbations,
+                      double * pvecderivs,
+                      int index_tau,
+                      void * parameters_and_workspace,
+                      ErrorMsg error_message
+                      );
+
+  
 #ifdef __cplusplus
 }
 #endif
