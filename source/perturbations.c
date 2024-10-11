@@ -3492,8 +3492,8 @@ int perturbations_solve(
     }
 
     if (__COMPLEX_CLASS_BOOL__) {
-      if (__DEBUG__)
-	printf("DEBUG launch generic evolver \n");
+      //if (__DEBUG__)
+      //printf("DEBUG launch generic evolver \n");
       //This function is called if complex compilation has been performed.
       class_call(generic_evolver(perturbations_derivs_recast,//perturbations_derivs_recast  uses a recast of the y and dy to transform a double complex* to a double*
 				 interval_limit[index_interval],
@@ -3513,10 +3513,12 @@ int perturbations_solve(
 				 ppt->error_message),
 		 ppt->error_message,
 		 ppt->error_message);
-      if (__DEBUG__)
-	printf("DEBUG end generic evolver \n");
+      //if (__DEBUG__)
+      //printf("DEBUG end generic evolver \n");
     }
     else {
+      //if (__DEBUG__)
+      //printf("DEBUG launch generic evolver \n");
       class_call(generic_evolver(perturbations_derivs_recast,
                                interval_limit[index_interval],
                                interval_limit[index_interval+1],
@@ -3539,6 +3541,9 @@ int perturbations_solve(
       
   }
 
+  //if (__DEBUG__)
+  //printf("DEBUG finished generic evolver \n");
+  
   /** - if perturbations were printed in a file, close the file */
 
   //if (perhaps_print_variables != NULL)
@@ -9415,6 +9420,9 @@ int perturbations_print_variables(double tau,
 
   /** - rename structure fields (just to avoid heavy notations) */
 
+  if (__DEBUG__)
+    printf("DEBUG we start printvariable \n");
+  
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
   k = pppaw->k;
   index_md = pppaw->index_md;
@@ -10104,7 +10112,7 @@ int perturbations_print_variables(double tau,
   /** - for tensor modes: */
 
   if (_tensors_) {
-
+    
     if (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
 
@@ -10112,7 +10120,7 @@ int perturbations_print_variables(double tau,
 	
         switch (ppt->hierarchy) {
         case optimal:
-          l0_g = y[ppw->pv->index_pt_l0_g];       /* F_0^(2) of 1305.3261 */
+	  l0_g = y[ppw->pv->index_pt_l0_g];       /* F_0^(2) of 1305.3261 */
           l2_g = y[ppw->pv->index_pt_l0_g+2];       /* F_2^(2) of 1305.3261*/
           l4_g = y[ppw->pv->index_pt_l0_g+4];     /* F_4^(2) of 1305.3261*/
           pol0_g = y[ppw->pv->index_pt_pol0_g];   /* G_0^(2) of 1305.3261*/
@@ -10131,7 +10139,7 @@ int perturbations_print_variables(double tau,
 	/* quantities in tca approximation */
         switch (ppt->hierarchy) {
         case optimal:
-          /* Modified by C. Pitrou (3.0): tight coupling gives F_0^(2) = 4/3*sqrt(6) H'/kappa' */
+	  /* Modified by C. Pitrou (3.0): tight coupling gives F_0^(2) = 4/3*sqrt(6) H'/kappa' */
           l0_g = 4./3.*_SQRT6_*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
           l2_g = 0.;
           l4_g = 0.;
@@ -10173,20 +10181,23 @@ int perturbations_print_variables(double tau,
       }
     }
 
+    /*
     if (ppt->evolve_tensor_ur == _TRUE_){
 
       switch (ppt->hierarchy) {
       case optimal:
+	if (__DEBUG__)
+	  printf("DEBUG we start print variable 5 \n");
         l0_ur = y[ppw->pv->index_pt_l0_ur];
         l2_ur = y[ppw->pv->index_pt_l0_ur+2];
         l4_ur = y[ppw->pv->index_pt_l0_ur+4];
         break;
       case tam:
-        /* tam hierachy does not use first two temperature multipoles for tensors */
+        // tam hierachy does not use first two temperature multipoles for tensors 
         l2_ur = y[ppw->pv->index_pt_l2_ur];
         break;
       }
-    }
+    }*/
 
     /** - --> Handle (re-)allocation */
     if (ppt->tensor_perturbations_data[ppw->index_ikout] == NULL){
@@ -10200,6 +10211,7 @@ int perturbations_print_variables(double tau,
         (double*)realloc(ppt->tensor_perturbations_data[ppw->index_ikout],
                 sizeof(double)*(ppt->size_tensor_perturbation_data[ppw->index_ikout]+ppt->number_of_tensor_titles));
     }
+
     storeidx = 0;
     dataptr = ppt->tensor_perturbations_data[ppw->index_ikout]+
       ppt->size_tensor_perturbation_data[ppw->index_ikout];
@@ -10219,9 +10231,9 @@ int perturbations_print_variables(double tau,
       class_store_double(dataptr, std::real(pol0_g), _TRUE_, storeidx);
       class_store_double(dataptr, std::real(pol2_g), _TRUE_, storeidx);
       class_store_double(dataptr, std::real(pol4_g), _TRUE_, storeidx);
-      class_store_double(dataptr, std::real(l0_ur), ppt->evolve_tensor_ur, storeidx);
+      /*class_store_double(dataptr, std::real(l0_ur), ppt->evolve_tensor_ur, storeidx);
       class_store_double(dataptr, std::real(l2_ur), ppt->evolve_tensor_ur, storeidx);
-      class_store_double(dataptr, std::real(l4_ur), ppt->evolve_tensor_ur, storeidx);
+      class_store_double(dataptr, std::real(l4_ur), ppt->evolve_tensor_ur, storeidx);*/
       break;
     case tam:
       if (__COMPLEX_CLASS_BOOL__) {
@@ -10430,6 +10442,9 @@ int perturbations_derivs(double tau,
   /* For the TAM hierarchy */
   __DOUBLE_OR_COMPLEX__ q_m, zerokappam2;
 
+  //if (__DEBUG__)
+  //  printf("DEBUG start _derivs \n");
+
   /** - rename the fields of the input structure (just to avoid heavy notations) */
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
 
@@ -10548,6 +10563,10 @@ int perturbations_derivs(double tau,
   }
   s2_squared = 1.-3.*pba->K/k2;
 
+  //if (__DEBUG__)
+  //  printf("DEBUG entering scalars in _derivs \n");
+
+  
   /** - for scalar modes: */
   if (_scalars_) {
 
@@ -11827,6 +11846,9 @@ int perturbations_derivs(double tau,
   /** - tensor modes: */
   if (_tensors_) {
 
+    //if (__DEBUG__)
+    //  printf("DEBUG start _derivs 1 \n");
+
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
 
@@ -11834,6 +11856,8 @@ int perturbations_derivs(double tau,
 	
         switch (ppt->hierarchy) {
         case optimal:
+	  //if (__DEBUG__)
+	  //  printf("DEBUG start _derivs 2 \n");
 	  
           /* P^(2) using (2.16c) of 1305.3261 */
           P2 = -1.0/_SQRT6_*(1./10.*y[pv->index_pt_l0_g]
@@ -11959,7 +11983,9 @@ int perturbations_derivs(double tau,
 
       switch (ppt->hierarchy) {
       case optimal:
-	
+
+	//if (__DEBUG__)
+	//  printf("DEBUG start _derivs 3 \n");
         /* Temperature hierarchy for ultra-relativistic species using (2.35) of 1305.3261 with m=2 */
 	
         /* derivative of F_0^(2) using (2.35) of 1305.3261 with l=0 m=2 (remember s_1=1) */
@@ -12005,6 +12031,9 @@ int perturbations_derivs(double tau,
     //TBC: curvature in all ncdm
     if (ppt->evolve_tensor_ncdm == _TRUE_) {
 
+      //if (__DEBUG__)
+      //printf("DEBUG start _derivs 4 \n");
+      
       /* note that for ncdm we always use the optimal temperature
          hierarchy, not the tam temperature hierarchy. In principle
          this could lead to tiny differences for large |Omega_k| when
@@ -12057,6 +12086,8 @@ int perturbations_derivs(double tau,
     dy[pv->index_pt_gwdot] = pvecmetric[ppw->index_mt_gw_prime_prime];
 
   }
+  //if (__DEBUG__)
+  //  printf("DEBUG end _derivs \n");
   return _SUCCESS_;
 }
 

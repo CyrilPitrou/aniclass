@@ -143,7 +143,8 @@ CLASS_INPUT['Lensing'] = (
 
 #Testing the possibility of switching to the Total angular momentum hierarchy instead of the optimal hierarchy                                                                                 
 CLASS_INPUT['Hierarchies'] = (
-    [{'hierarchy': 'tam'}],
+    [{'hierarchy': 'optimal'},
+     {'hierarchy': 'tam'}],
     'power')
 
 if TEST_LEVEL > 0:
