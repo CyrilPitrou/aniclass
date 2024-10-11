@@ -712,8 +712,13 @@ int transfer_perturbation_copy_sources_and_nl_corrections(
           }
         }
         else {
-          sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp] =
+	  #ifdef __COMPLEX_CLASS__
+          sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp] =//WARNING we should remove the forced change of type
+            (std::complex<double> *)ppt->sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp];
+	  #else
+	  sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp] =//WARNING we should remove the forced change of type
             ppt->sources[index_md][index_ic * ppt->tp_size[index_md] + index_tp];
+	  #endif
         }
       }
     }
@@ -4169,7 +4174,7 @@ int transfer_radial_function(
     class_call(interpolate_Phid2Phi(pHIS, x_size, index_l, chireverse, Phi, d2Phi, ptr->error_message),
                ptr->error_message, ptr->error_message);
     //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, d2Phi);
-    s2 = std::sqrt(1.0-3.0*K/k2);
+    s2 = sqrt(1.0-3.0*K/k2);
     factor = 1.0/(2.0*s2);
     for (j=0; j<x_size; j++)
       radial_function[x_size-1-j] = factor*(3.*absK_over_k2*d2Phi[j]*rescale_argument*rescale_argument+Phi[j])*rescale_function[j];

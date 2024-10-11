@@ -947,20 +947,21 @@ int harmonic_compute_cl(
 
     for (index_tt=0; index_tt < ptr->tt_size[index_md]; index_tt++) {
 
-      transfer_ic1[index_tt] =
-        ptr->transfer[index_md]
+      transfer_ic1[index_tt] =//WARNING we discar the imagonary part with brute force
+        std::real(ptr->transfer[index_md]
         [((index_ic1 * ptr->tt_size[index_md] + index_tt)
           * ptr->l_size[index_md] + index_l)
-         * ptr->q_size + index_q];
+         * ptr->q_size + index_q]);
 
       if (index_ic1 == index_ic2) {
         transfer_ic2[index_tt] = transfer_ic1[index_tt];
       }
       else {
-        transfer_ic2[index_tt] = ptr->transfer[index_md]
+        transfer_ic2[index_tt] =
+	  std::real(ptr->transfer[index_md]
           [((index_ic2 * ptr->tt_size[index_md] + index_tt)
             * ptr->l_size[index_md] + index_l)
-           * ptr->q_size + index_q];
+           * ptr->q_size + index_q]);
       }
     }
 
@@ -1236,19 +1237,20 @@ int harmonic_compute_cl(
         index_ct = phr->index_ct_pp;
 
         transfer_ic1[index_tt] =
-          ptr->transfer_limber[index_md]
+          std::real(ptr->transfer_limber[index_md]
           [((index_ic1 * ptr->tt_size[index_md] + ptr->index_tt_lcmb)
             * ptr->l_size[index_md] + index_l)
-           * ptr->q_size_limber + index_q];
+           * ptr->q_size_limber + index_q]);
 
         if (index_ic1 == index_ic2) {
           transfer_ic2[index_tt] = transfer_ic1[ptr->index_tt_lcmb];
         }
         else {
-          transfer_ic2[index_tt] = ptr->transfer_limber[index_md]
+          transfer_ic2[index_tt] =
+	    std::real(ptr->transfer_limber[index_md]
             [((index_ic2 * ptr->tt_size[index_md] + ptr->index_tt_lcmb)
               * ptr->l_size[index_md] + index_l)
-             * ptr->q_size_limber + index_q];
+             * ptr->q_size_limber + index_q]);
         }
 
         factor = 4. * _PI_ / k;

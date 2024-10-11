@@ -245,8 +245,11 @@ int hyperspherical_HIS_create(int K,
   free(one_over_sqrtK);
 
   for (k=0; k<nl; k++){
-    //pHIS->chi_at_phimin[k] = xmin;//WARNING THIS HAS CHANGED
+    #ifdef __COMPLEX_CLASS__
+    pHIS->chi_at_phimin[k] = xmin;//WARNING THIS HAS CHANGED
+    #else
     hyperspherical_get_xmin_from_approx(K,lvec[k],beta,0.,phiminabs,pHIS->chi_at_phimin+k,NULL);
+    #endif
   }
 
   //hyperspherical_get_xmin(pHIS,1.e-4,phiminabs,pHIS->chi_at_phimin);
@@ -1074,14 +1077,14 @@ int hyperspherical_get_xmin(HyperInterpStruct *pHIS,
   int nx = pHIS->x_size;
   int REFINE=10;
   double x[REFINE];
-  double Phi[REFINE];
+  __DOUBLE_OR_COMPLEX__ Phi[REFINE];
   __DOUBLE_OR_COMPLEX__ *phivec = pHIS->phi;
   double *xvec = pHIS->x;
   double xleft, xright;
 
   for (index_l=0; index_l<nl; index_l++){
     for (right_index = 0; right_index<nx; right_index++){
-      if (std::abs(phivec[index_l*nx+right_index])>phiminabs )//WARNING I have to cast the type in such a ugly fashion here because I cannot use the abs function....
+      if (std::abs(phivec[index_l*nx+right_index])>phiminabs )//WARNING I have used std::abs
         break;
     }
     if (right_index==0){
@@ -1106,7 +1109,7 @@ int hyperspherical_get_xmin(HyperInterpStruct *pHIS,
       hyperspherical_Hermite_interpolation_vector(pHIS,REFINE,
                                                   index_l, x, Phi, NULL,NULL);
       for (right_index = 1; right_index<REFINE; right_index++){
-        if (fabs(Phi[right_index])>phiminabs)
+        if (std::abs(Phi[right_index])>phiminabs)
           break;
       }
       left_index = right_index-1;

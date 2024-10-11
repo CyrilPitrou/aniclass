@@ -164,9 +164,9 @@ int hyperspherical_forwards_recurrence_chunk(int K,
                                                   int nxi,
                                                   int lnum,
                                                   double *xinterp,
-                                                  double *Phi,
-                                                  double *dPhi,
-                                                  double *d2Phi);
+                                                  __DOUBLE_OR_COMPLEX__ *Phi,
+                                                  __DOUBLE_OR_COMPLEX__ *dPhi,
+                                                  __DOUBLE_OR_COMPLEX__ *d2Phi);
 
   int hyperspherical_Hermite3_interpolation_vector_Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi, ErrorMsg error_message);
   int hyperspherical_Hermite3_interpolation_vector_dPhi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi, ErrorMsg error_message);
