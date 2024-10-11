@@ -13,15 +13,19 @@ reio_inter_num = 8
 reio_inter_z = 0,  3,  4,   8,   9,  10,  11, 12
 reio_inter_xe = -2, -2, -1,  -1, 0.9, 0.5, 0.1,  0
 <<<<<<< HEAD
+<<<<<<< HEAD
 varying_alpha = 1.
 varying_me = 1.
 bbn_alpha_sensitivity = 1.
+=======
+>>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
 =======
 >>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
 ncdm_psd_filenames = psd_FD_single.dat
 m_ncdm = 0.06
 Gamma_dcdm = 0.0
 tau_dcdm = 0.0
+<<<<<<< HEAD
 <<<<<<< HEAD
 m_idm = 1e9
 a_idm_dr = 0.
@@ -31,6 +35,10 @@ cross_idm_b = 0.
 n_index_idm_b = 0
 u_idm_g = 0
 n_index_idm_g = 0
+=======
+m_idm = 1.0e11
+a_idm_dr = 0.
+>>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
 =======
 m_idm = 1.0e11
 a_idm_dr = 0.
@@ -77,7 +85,11 @@ P_{II}^2 = 1.e-11
 P_{RI}^1 = -1.e-13
 |P_{RI}^2| = 1.e-13
 <<<<<<< HEAD
+<<<<<<< HEAD
 command = cat external/external_Pk/Pk_example.dat
+=======
+command = cat external_Pk/Pk_example.dat
+>>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
 =======
 command = cat external_Pk/Pk_example.dat
 >>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
@@ -92,6 +104,10 @@ selection_mean = 0.98,0.99,1.0,1.1,1.2
 selection_width = 0.1
 non_diagonal = 4
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+write_warnings = no
+>>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
 =======
 write_warnings = no
 >>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)

@@ -1,5 +1,6 @@
 # Matter power spectrum P(k) at redshift z=0
 <<<<<<< HEAD
+<<<<<<< HEAD
 # for k=1.04206e-05 to 5.30493 h/Mpc,
 # number of wavenumbers equal to 556
 #    1:k (h/Mpc)              2:P (Mpc/h)^3        
@@ -560,6 +561,8 @@
        4.213859363470e+00       2.129640115358e+00 
        5.304934634399e+00       1.186161740366e+00 
 =======
+=======
+>>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
 # for k=1.04206e-05 to 1.08688 h/Mpc,
 # number of wavenumbers equal to 603
 #    1:k (h/Mpc)              2:P (Mpc/h)^3        
@@ -1166,4 +1169,7 @@
        8.234874576443e-01       1.086168973762e+02 
        9.251239653234e-01       8.340952862707e+01 
        1.086877471844e+00       5.758170168318e+01 
+<<<<<<< HEAD
+>>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
+=======
 >>>>>>> 2817b44a (modified the python wrapper manually to make it accept complex types)
