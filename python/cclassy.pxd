@@ -7,9 +7,12 @@
 # Class.  If, for whatever reason, you need an other, existing
 # parameter from Class, remember to add it inside this cdef.
 
-#ctypedef std::complex<double> __DOUBLE_OR_COMPLEX__
-##ctypedef double complex __DOUBLE_OR_COMPLEX__
-ctypedef double __DOUBLE_OR_COMPLEX__
+ctypedef double complex __DOUBLE_OR_COMPLEX__
+#ctypedef double __DOUBLE_OR_COMPLEX__
+
+#ctypedef fused __DOUBLE_OR_COMPLEX__:
+#    double
+#    double complex
 
 cdef extern from "class.h":
 
@@ -270,7 +273,7 @@ cdef extern from "class.h":
         int index_tp_k2gamma_Nb
 
 
-        double *** sources
+        __DOUBLE_OR_COMPLEX__ *** sources
         double * tau_sampling
         int tau_size
         int k_size_pk

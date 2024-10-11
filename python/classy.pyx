@@ -3131,8 +3131,8 @@ make        nonlinear_scale_cb(z, z_size)
             int k_size = self.pt.k_size[index_md];
             int tau_size = self.pt.tau_size;
             int tp_size = self.pt.tp_size[index_md];
-            double *** sources_ptr = self.pt.sources;
-            double [:,:] tmparray = np.zeros((k_size, tau_size)) ;
+            __DOUBLE_OR_COMPLEX__ *** sources_ptr = self.pt.sources;
+            __DOUBLE_OR_COMPLEX__ [:,:] tmparray = np.zeros((k_size, tau_size)) ;
             double [:] k_array = np.zeros(k_size);
             double [:] tau_array = np.zeros(tau_size);
 
