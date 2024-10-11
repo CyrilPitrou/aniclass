@@ -8,21 +8,20 @@
 #include <stdarg.h>
 
 //To choose a complex valued CLASS code. comment to switch to usual real valued CLASS code.
-#define __COMPLEX_CLASS__
+//#define __COMPLEX_CLASS__
 
 //Define a type which can be double for usual class and double complex. This is for Bianchi use.
 #ifdef __cplusplus
 
 
 #include <cmath>
-#ifdef __COMPLEX_CLASS__
 #include <complex>
+#ifdef __COMPLEX_CLASS__
 // Does not work to use C. We must siwtch to full C++
 #define __DOUBLE_OR_COMPLEX__ std::complex<double>
 //#define __DOUBLE_OR_COMPLEX__ _Complex double
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
 #else
-#include <complex>
 #define __DOUBLE_OR_COMPLEX__ double
 #define __COMPLEX_CLASS_BOOL__ _FALSE_
 #endif
@@ -30,8 +29,8 @@
 #else
 
 #include "math.h"
-#ifdef __COMPLEX_CLASS__
 #include "complex.h"
+#ifdef __COMPLEX_CLASS__
 #define __DOUBLE_OR_COMPLEX__ _Complex double
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
 #else

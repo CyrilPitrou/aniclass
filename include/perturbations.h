@@ -189,11 +189,11 @@ struct perturbations
   double selection_mean[_SELECTION_NUM_MAX_]; /**< centers of selection functions */
   double selection_width[_SELECTION_NUM_MAX_];  /**< widths of selection functions */
 
-  int switch_sw;   /**< in temperature calculation, do we want to include the intrinsic temperature + Sachs Wolfe term? */
-  int switch_eisw; /**< in temperature calculation, do we want to include the early integrated Sachs Wolfe term? */
-  int switch_lisw; /**< in temperature calculation, do we want to include the late integrated Sachs Wolfe term? */
-  int switch_dop;  /**< in temperature calculation, do we want to include the Doppler term? */
-  int switch_pol;  /**< in temperature calculation, do we want to include the polarization-related term? */
+  double switch_sw;   /**< in temperature calculation, do we want to include the intrinsic temperature + Sachs Wolfe term? */
+  double switch_eisw; /**< in temperature calculation, do we want to include the early integrated Sachs Wolfe term? */
+  double switch_lisw; /**< in temperature calculation, do we want to include the late integrated Sachs Wolfe term? */
+  double switch_dop;  /**< in temperature calculation, do we want to include the Doppler term? */
+  double switch_pol;  /**< in temperature calculation, do we want to include the polarization-related term? */
   double eisw_lisw_split_z; /**< at which redshift do we define the cut between eisw and lisw ?*/
 
   int store_perturbations;  /**< Do we want to store perturbations? */
@@ -649,49 +649,49 @@ struct perturbations_workspace
                                        perturbations and their
                                        time-derivatives */
 
-  double delta_rho;		    /**< total density perturbation (gives delta Too) */
-  double rho_plus_p_theta;	/**< total (rho+p)*theta perturbation (gives delta Toi) */
-  double rho_plus_p_shear;	/**< total (rho+p)*shear (gives delta Tij) */
-  double delta_p;		    /**< total pressure perturbation (gives Tii) */
+  __DOUBLE_OR_COMPLEX__ delta_rho;		    /**< total density perturbation (gives delta Too) */
+  __DOUBLE_OR_COMPLEX__ rho_plus_p_theta;	/**< total (rho+p)*theta perturbation (gives delta Toi) */
+  __DOUBLE_OR_COMPLEX__ rho_plus_p_shear;	/**< total (rho+p)*shear (gives delta Tij) */
+  __DOUBLE_OR_COMPLEX__ delta_p;		    /**< total pressure perturbation (gives Tii) */
 
-  double rho_plus_p_tot;    /**< total (rho+p) (used to infer theta_tot from rho_plus_p_theta) */
+  __DOUBLE_OR_COMPLEX__ rho_plus_p_tot;    /**< total (rho+p) (used to infer theta_tot from rho_plus_p_theta) */
 
   __DOUBLE_OR_COMPLEX__ gw_source;		    /**< stress-energy source term in Einstein's tensor equations (gives Tij[tensor]) */
   __DOUBLE_OR_COMPLEX__ vector_source_pi;	/**< first stress-energy source term in Einstein's vector equations */
   __DOUBLE_OR_COMPLEX__ vector_source_v;	/**< second stress-energy source term in Einstein's vector equations */
 
-  double tca_shear_g;  /**< photon shear in tight-coupling approximation */
-  double tca_slip;     /**< photon-baryon slip in tight-coupling approximation */
+  __DOUBLE_OR_COMPLEX__ tca_shear_g;  /**< photon shear in tight-coupling approximation */
+  __DOUBLE_OR_COMPLEX__ tca_slip;     /**< photon-baryon slip in tight-coupling approximation */
 
   __DOUBLE_OR_COMPLEX__ tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
   __DOUBLE_OR_COMPLEX__ tca_slip_vector;     /**< photon-baryon slip in tight-coupling approximation for vector modes */
   
-  double tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
-  double rsa_delta_g;  /**< photon density in radiation streaming approximation */
-  double rsa_theta_g;  /**< photon velocity in radiation streaming approximation */
-  double rsa_delta_ur; /**< photon density in radiation streaming approximation */
-  double rsa_theta_ur; /**< photon velocity in radiation streaming approximation */
-  double rsa_delta_idr; /**< interacting dark radiation density in dark radiation streaming approximation */
-  double rsa_theta_idr; /**< interacting dark radiation velocity in dark radiation streaming approximation */
+  __DOUBLE_OR_COMPLEX__ tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
+  __DOUBLE_OR_COMPLEX__ rsa_delta_g;  /**< photon density in radiation streaming approximation */
+  __DOUBLE_OR_COMPLEX__ rsa_theta_g;  /**< photon velocity in radiation streaming approximation */
+  __DOUBLE_OR_COMPLEX__ rsa_delta_ur; /**< photon density in radiation streaming approximation */
+  __DOUBLE_OR_COMPLEX__ rsa_theta_ur; /**< photon velocity in radiation streaming approximation */
+  __DOUBLE_OR_COMPLEX__ rsa_delta_idr; /**< interacting dark radiation density in dark radiation streaming approximation */
+  __DOUBLE_OR_COMPLEX__ rsa_theta_idr; /**< interacting dark radiation velocity in dark radiation streaming approximation */
 
-  double theta_idm; /**< interacting dark matter velocity */
-  double theta_idm_prime; /**< derivative of interacting dark matter velocity in regard to conformal time */
+  __DOUBLE_OR_COMPLEX__ theta_idm; /**< interacting dark matter velocity */
+  __DOUBLE_OR_COMPLEX__ theta_idm_prime; /**< derivative of interacting dark matter velocity in regard to conformal time */
 
-  double * delta_ncdm;	/**< relative density perturbation of each ncdm species */
-  double * theta_ncdm;	/**< velocity divergence theta of each ncdm species */
-  double * shear_ncdm;	/**< shear for each ncdm species */
+  __DOUBLE_OR_COMPLEX__ * delta_ncdm;	/**< relative density perturbation of each ncdm species */
+  __DOUBLE_OR_COMPLEX__ * theta_ncdm;	/**< velocity divergence theta of each ncdm species */
+  __DOUBLE_OR_COMPLEX__ * shear_ncdm;	/**< shear for each ncdm species */
 
-  double delta_m;	/**< relative density perturbation of all non-relativistic species */
-  double theta_m;	/**< velocity divergence theta of all non-relativistic species */
+  __DOUBLE_OR_COMPLEX__ delta_m;	/**< relative density perturbation of all non-relativistic species */
+  __DOUBLE_OR_COMPLEX__ theta_m;	/**< velocity divergence theta of all non-relativistic species */
 
-  double delta_cb;       /**< relative density perturbation of only cdm and baryon */
-  double theta_cb;       /**< velocity divergence theta of only cdm and baryon */
+  __DOUBLE_OR_COMPLEX__ delta_cb;       /**< relative density perturbation of only cdm and baryon */
+  __DOUBLE_OR_COMPLEX__ theta_cb;       /**< velocity divergence theta of only cdm and baryon */
 
-  double delta_rho_fld;        /**< density perturbation of fluid, not so trivial in PPF scheme */
-  double delta_p_fld;          /**< pressure perturbation of fluid, very non-trivial in PPF scheme */
-  double rho_plus_p_theta_fld; /**< velocity divergence of fluid, not so trivial in PPF scheme */
-  double S_fld;                /**< S quantity sourcing Gamma_prime evolution in PPF scheme (equivalent to eq. 15 in 0808.3125) */
-  double Gamma_prime_fld;      /**< Gamma_prime in PPF scheme (equivalent to eq. 14 in 0808.3125) */
+  __DOUBLE_OR_COMPLEX__ delta_rho_fld;        /**< density perturbation of fluid, not so trivial in PPF scheme */
+  __DOUBLE_OR_COMPLEX__ delta_p_fld;          /**< pressure perturbation of fluid, very non-trivial in PPF scheme */
+  __DOUBLE_OR_COMPLEX__ rho_plus_p_theta_fld; /**< velocity divergence of fluid, not so trivial in PPF scheme */
+  __DOUBLE_OR_COMPLEX__ S_fld;                /**< S quantity sourcing Gamma_prime evolution in PPF scheme (equivalent to eq. 15 in 0808.3125) */
+  __DOUBLE_OR_COMPLEX__ Gamma_prime_fld;      /**< Gamma_prime in PPF scheme (equivalent to eq. 14 in 0808.3125) */
 
   FILE * perturbations_output_file; /**< filepointer to output file*/
   int index_ikout;            /**< index for output k value (when k_output_values is set) */
@@ -904,7 +904,8 @@ extern "C" {
 
   int perturbations_prepare_k_output(
                                      struct background * pba,
-                                     struct perturbations * ppt
+                                     struct perturbations * ppt,
+				     struct precision * ppr
                                      );
 
   int perturbations_find_approximation_number(
@@ -1033,7 +1034,7 @@ extern "C" {
                            );
 
   int perturbations_tca_slip_and_shear(
-                                       double * y,
+                                       __DOUBLE_OR_COMPLEX__ * y,
                                        void * parameters_and_workspace,
                                        ErrorMsg error_message
                                        );
@@ -1095,6 +1096,12 @@ extern "C" {
                       ErrorMsg error_message
                       );
 
+  int perturbations_print_variables_recast(double tau,
+                                  double * y,
+                                  double * dy,
+                                  void * parameters_and_workspace,
+                                  ErrorMsg error_message
+				  );
   
 #ifdef __cplusplus
 }

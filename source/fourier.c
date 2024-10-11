@@ -1984,7 +1984,7 @@ int fourier_get_source(
                        int index_ic,
                        int index_tp,
                        int index_tau,
-                       double ** sources,
+                       __DOUBLE_OR_COMPLEX__ ** sources,
                        double * source
                        ) {
 
@@ -2004,14 +2004,14 @@ int fourier_get_source(
     /**
      * --> Get last source and k, which are used in (almost) all methods
      */
-    k_max = pfo->k[pfo->k_size-1];
-    source_max = sources[index_ic * ppt->tp_size[pfo->index_md_scalars] + index_tp][index_tau * pfo->k_size + pfo->k_size - 1];
+    k_max = pfo->k[pfo->k_size-1];//WARNING we remove the imaginary part !!!
+    source_max = creal(sources[index_ic * ppt->tp_size[pfo->index_md_scalars] + index_tp][index_tau * pfo->k_size + pfo->k_size - 1]);
 
     /**
      * --> Get previous source and k, which are used in best methods
      */
     k_previous = pfo->k[pfo->k_size-2];
-    source_previous = sources[index_ic * ppt->tp_size[pfo->index_md_scalars] + index_tp][index_tau * pfo->k_size + pfo->k_size - 2];
+    source_previous = creal(sources[index_ic * ppt->tp_size[pfo->index_md_scalars] + index_tp][index_tau * pfo->k_size + pfo->k_size - 2]) ;
 
     switch(pfo->extrapolation_method){
       /**

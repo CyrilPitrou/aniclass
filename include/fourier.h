@@ -374,7 +374,7 @@ extern "C" {
                          int index_ic,
                          int index_tp,
                          int index_tau,
-                         double ** sources,
+                         __DOUBLE_OR_COMPLEX__ ** sources,
                          double * source);
 
   int fourier_pk_linear(

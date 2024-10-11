@@ -3370,6 +3370,83 @@ int array_interpolate_two_bis(
   return _SUCCESS_;
 }
 
+/**
+ * Same as array_interpolate_two, but with order of indices exchanged in array_y
+ */
+int array_interpolate_two_bis_complex(
+		   double * array_x,
+		   int n_columns_x,
+		   int index_x,   /** from 0 to (n_columns_x-1) */
+		   __DOUBLE_OR_COMPLEX__ * array_y,
+		   int n_columns_y,
+		   int n_lines,  /** must be the same for array_x and array_y */
+		   double x,
+		   __DOUBLE_OR_COMPLEX__ * result,
+		   int result_size, /** from 1 to n_columns_y */
+		   ErrorMsg errmsg) {
+
+  int inf,sup,mid,i;
+  double weight;
+
+  inf=0;
+  sup=n_lines-1;
+
+  if (array_x[inf*n_columns_x+index_x] < array_x[sup*n_columns_x+index_x]){
+
+    if (x < array_x[inf*n_columns_x+index_x]) {
+
+      class_sprintf(errmsg,"%s(L:%d) : x=%e < x_min=%e",__func__,__LINE__,x,array_x[inf*n_columns_x+index_x]);
+      return _FAILURE_;
+    }
+
+    if (x > array_x[sup*n_columns_x+index_x]) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e > x_max=%e",__func__,__LINE__,x,array_x[sup*n_columns_x+index_x]);
+      return _FAILURE_;
+    }
+
+    while (sup-inf > 1) {
+
+      mid=(int)(0.5*(inf+sup));
+      if (x < array_x[mid*n_columns_x+index_x]) {sup=mid;}
+      else {inf=mid;}
+
+    }
+
+  }
+
+  else {
+
+    if (x < *(array_x+sup*n_columns_x+index_x)) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e < x_min=%e",__func__,__LINE__,x,*(array_x+sup*n_columns_x+index_x));
+      return _FAILURE_;
+    }
+
+    if (x > *(array_x+inf*n_columns_x+index_x)) {
+      class_sprintf(errmsg,"%s(L:%d) : x=%e > x_max=%e",__func__,__LINE__,x,*(array_x+inf*n_columns_x+index_x));
+      return _FAILURE_;
+    }
+
+    while (sup-inf > 1) {
+
+      mid=(int)(0.5*(inf+sup));
+      if (x > *(array_x+mid*n_columns_x+index_x)) {sup=mid;}
+      else {inf=mid;}
+
+    }
+
+  }
+
+  weight=(x-*(array_x+inf*n_columns_x+index_x))/(*(array_x+sup*n_columns_x+index_x)-*(array_x+inf*n_columns_x+index_x));
+
+  for (i=0; i<result_size; i++) {
+    *(result+i) = *(array_y+inf*n_columns_y+i) * (1.-weight)
+      + weight * *(array_y+sup*n_columns_y+i) ;
+    printf("DEBUG *result+i %f %+fi \n",std::real(*(result+i)), std::imag(*(result+i)));
+  }
+
+  return _SUCCESS_;
+}
+
 
 /**
  * interpolate linearily to get y_i(x), when x and y_i are in two different arrays
