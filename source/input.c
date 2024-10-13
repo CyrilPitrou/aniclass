@@ -5040,6 +5040,66 @@ int input_read_parameters_spectra(struct file_content * pfc,
     }
   }
 
+  /** 4.) Nature of perturbations (FL stochastic or non-stochastic large modes)*/
+  
+  class_call(parser_read_string(pfc,"statistics",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  
+  if (flag1 == _TRUE_) {
+    
+    if ((strcmp(string1,"stochastic") ==0) || (strcmp(string1,"STOCHASTIC") ==0)) {
+      ppt->statistics = stochastic;
+    }
+    
+    else if ((strcmp(string1,"non_stochastic") ==0) || (strcmp(string1,"Non_Stochastic") ==0) || (strcmp(string1,"NON_STOCHASTIC") ==0)) {
+      ppt->statistics = non_stochastic;
+      printf("Choosing non-stochastic perturbations !\n");
+    }
+  }
+  
+  /* Read non-stochastic type of perturbations. It can be a standard plane-wave perturbation, or a Bianchi type perturbation, as defined in 1909.13688, which corresponds to a pseudo-plane wave. */
+  class_call(parser_read_string(pfc,"non_stochastic_type",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  
+  if (flag1 == _TRUE_){
+    if ((strstr(string1,"bianchi") != NULL) || (strstr(string1,"BIANCHI") != NULL)){
+      ppt->non_stochastic_type = bianchi;
+      printf("Choosing Bianchi perturbations !\n");
+      class_test( ((ppt->has_vectors) && (pba->K>0)),
+		  errmsg,
+		  "Inconsistent perturbation type (vectors). Only tensor perturbations exist with positive curvature Bianchi (Bianchi IX type seen as a maximal perturbation around a closed FL)");
+      if (pba->K == 0.) {
+	pba->Omega0_k = 1e-8;
+	pba->K = -pba->Omega0_k*pow(pba->H0,2);
+	pba->sgnK = -1;
+	printf("WARNING. Flat background asked with Bianchi type non stochastic perturbations.\nHowever, the current implementation requires a non-vanishing curvature (but possibly very small). Therefore we have replaced Omega0_k = %e \n",pba->Omega0_k);
+      }
+      
+      class_test((ppt->hierarchy == optimal),
+                 errmsg,
+                 "Inconsistent hierarchy type. You asked for a non-stochastic perturbations with an optimal hierarchy. Only the TAM hierarchy is implemented in that case.\n");
+      class_test((__COMPLEX_CLASS_BOOL__ == _FALSE_),
+                 errmsg,
+                 "Inconsistent compilation. The flag __COMPLEX_CLASS__ was not defined in common.h at compilation and you asked for a non-stochastic Bianchi perturbation, which is impossible as this requires complex valued perturbations.\n");
+      class_test(ppt->has_scalars,
+                 errmsg,
+                 "Inconsistent scalar mode chosen. In principle this should be possible but scalar modes have not been fully implemented in CLASS for Bianchi.\n");
+      class_test(ppr->radiation_streaming_approximation < 3,
+		 errmsg,
+		 "Inconsistent radiation streaming approximation. When using non-stochastic Bianchi perturbations, it should be set to rsa_none, which is 3, either in your .pre or .ini file.\n");
+      //TODO Maybe this condition should be removed. Since naturally for large modes RSA will be turned off.
+    }
+    else if ((strstr(string1,"large_mode") != NULL) || (strstr(string1,"Large_Mode") != NULL)){
+      ppt->non_stochastic_type = large_mode;
+    }
+    else{
+      class_stop(errmsg,"You specified 'non_stochastic_type' as '%s'. It has to be one of {'bianchi','large_mode'}.",string1);
+    }
+  }
+
+  
   return _SUCCESS_;
 
 }
@@ -5519,6 +5579,45 @@ int input_read_parameters_output(struct file_content * pfc,
     }
   }
 
+    /* Read non-stochastic format parameters */
+  class_call(parser_read_string(pfc,"non_stochastic_format",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  /* Complete set of parameters */
+  if (flag1 == _TRUE_){
+    if ((strstr(string1,"class") != NULL) || (strstr(string1,"CLASS") != NULL)){
+      pop->non_stochastic_format = tam_alm;
+    }
+    else if ((strstr(string1,"healpix") != NULL) || (strstr(string1,"HEALPIX") != NULL)){
+      pop->non_stochastic_format = healpix_alm;
+    }
+    else{
+      class_stop(errmsg,"You specified 'non_stochastic_format' as '%s'. It has to be one of {'class','healpix'}.",string1);
+    }
+  }
+
+
+  
+  /* Read normalization of non-stochastic multipoles */
+  class_call(parser_read_string(pfc,"multipole_normalization",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  /* Complete set of parameters */
+  if (flag1 == _TRUE_){
+    if ((strstr(string1,"tam") != NULL) || (strstr(string1,"TAM") != NULL)){
+      ptr->output_multipole_normalization = tam_multipoles;
+      class_test(pop->non_stochastic_format == healpix_alm,
+		 errmsg,
+		 "you asked for Healpix alm's, hence the formatting of multipoles must be non_stochastic_format = healpix\n");
+    }
+    else if ((strstr(string1,"observable") != NULL) || (strstr(string1,"OBSERVABLE") != NULL)){
+      ptr->output_multipole_normalization = observable_multipoles;
+    }
+    else{
+      class_stop(errmsg,"You specified 'multipole_normalization' as '%s'. It has to be one of {'tam','observable'}.",string1);
+    }
+  }
+
   /** 1.d) Background quantities */
   /* Read */
   class_read_flag_or_deprecated("write_background","write background",pop->write_background);
@@ -5529,24 +5628,42 @@ int input_read_parameters_output(struct file_content * pfc,
 
   /** 1.f) Table of perturbations for certain wavenumbers k */
   /* Read */
-  class_call(parser_read_list_of_doubles(pfc,"k_output_values",&int1,&pointer1,&flag1,errmsg),
-             errmsg,
-             errmsg);
-  if (flag1 == _TRUE_) {
-    /* Test */
-    class_test(int1 > _MAX_NUMBER_OF_K_FILES_,
-               errmsg,
-               "you want to write some output for %d different values of k, hence you should increase _MAX_NUMBER_OF_K_FILES_ in include/perturbations.h to at least this number",
-               int1);
-    /* Complete set of parameters */
-    ppt->k_output_values_num = int1;
-    for (i=0; i<int1; i++) {
-      ppt->k_output_values[i] = pointer1[i];
-    }
-    free(pointer1);
-    qsort (ppt->k_output_values, ppt->k_output_values_num, sizeof(double), compare_doubles);     // Sort the k_array using qsort
+
+  
+  /* We separate the Bianchi case with positive curvature (Bianchi IX seen as perturbation around closed FL) */
+  if ((ppt->statistics == non_stochastic) && (ppt->non_stochastic_type == bianchi) && (pba->K>0)) {
+    ppt->k_output_values_num = 1;
+    ppt->k_output_values[0] = sqrt(6.*pba->K);
+    printf("Setting the k_value to %e as this is fixed to this unique value for Bianchi IX type non stochastic perturbation.\n",ppt->k_output_values[0]);
+    /* Only one value of k for Bianchi I. It is set by nu = 3 and q^2 = k^2 + 3 K. */
+    qsort (ppt->k_output_values, ppt->k_output_values_num, sizeof(double), compare_doubles);
     ppt->store_perturbations = _TRUE_;
     pop->write_perturbations = _TRUE_;
+  }
+  else {
+    class_call(parser_read_list_of_doubles(pfc,"k_output_values",&int1,&pointer1,&flag1,errmsg),
+	       errmsg,
+	       errmsg);
+    if (flag1 == _TRUE_) {
+      /* Test */
+      class_test(int1 > _MAX_NUMBER_OF_K_FILES_,
+		 errmsg,
+		 "you want to write some output for %d different values of k, hence you should increase _MAX_NUMBER_OF_K_FILES_ in include/perturbations.h to at least this number",
+		 int1);
+      ppt->k_output_values_num = int1;
+      for (i=0; i<int1; i++) {
+	ppt->k_output_values[i] = pointer1[i];
+      }
+      free(pointer1);
+      qsort (ppt->k_output_values, ppt->k_output_values_num, sizeof(double), compare_doubles);     // Sort the k_array using qsort
+      ppt->store_perturbations = _TRUE_;
+      pop->write_perturbations = _TRUE_;
+    }
+    else {
+      class_test(ppt->statistics == non_stochastic,
+		 errmsg,
+		 "you asked for non-stochastic perturbations, hence you must provide at least one value for k_output_values (which corresponds to Re[q] for Bianchi VIIh type perturbations)\n");
+    }
   }
 
   /** 1.g) Primordial spectra */
@@ -6166,6 +6283,10 @@ int input_default_params(struct background *pba,
   pop->z_pk[0] = 0.;
   /** 3.c) Maximum redshift */
   ppt->z_max_pk=0.;
+  /** 4) Nature of perturbations (FL stochastic or plane waves non_stochastic) */
+  ppt->statistics = stochastic;
+  /** If non_stochastic is chosen, it can either be a usual plane wave ('large_mode') or a pseudo plane wave representing a 'bianchi' space time as in 1909.13688 where the zeta_l^m constants of Eq. 3.34  are different from 1*/
+  ppt->non_stochastic_type = large_mode;
 
   /**
    * Default to input_read_parameters_lensing
@@ -6236,6 +6357,9 @@ int input_default_params(struct background *pba,
   pop->write_header = _TRUE_;
   /** 1.c) Format */
   pop->output_format = class_format;
+  /** Format of normalization of non-stochastic perturbations output */
+  pop->non_stochastic_format = tam_alm;
+  ptr->output_multipole_normalization = tam_multipoles;
   /** 1.d) Background quantities */
   pop->write_background = _FALSE_;
   /** 1.e) Thermodynamics quantities */

@@ -71,6 +71,10 @@
  * 'thermodynamics' and 'perturbation' structures.
  */
 
+/** Types of normalisation for alm output when considering non-stochastic perturbations */
+
+enum multipole_normalizations {tam_multipoles,observable_multipoles};
+
 struct transfer {
 
   /** @name - input parameters initialized by user in input module
@@ -211,6 +215,19 @@ struct transfer {
   short is_allocated; /**< flag is set to true if allocated */
 
   //@}
+
+  /** Parameters related to the non-stochastic transfer */
+  //@{
+
+  enum perturbation_statistics statistics;
+
+  enum non_stochastic_types non_stochastic_type; /**< large_mode or bianchi. TODO comment more.*/
+
+  enum multipole_normalizations output_multipole_normalization; /**< which format for output files (definitions, order of columns, etc.) */
+
+  //@}
+
+  
 };
 
 /**

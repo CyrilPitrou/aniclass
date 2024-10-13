@@ -20,6 +20,10 @@
  *
  */
 
+/** Formatting of output file for alm when considering non-stochastic perturbations */
+
+enum non_stochastic_file_format {tam_alm,healpix_alm};
+
 struct output {
 
   //@{
@@ -45,6 +49,8 @@ struct output {
 
   enum file_format output_format; /**< which format for output files (definitions, order of columns, etc.) */
 
+  enum non_stochastic_file_format non_stochastic_format; /**< which format for output files of non-stochastic (aka Bianchi) multipoles  */
+  
   short write_background; /**< flag for outputing background evolution in file */
   short write_thermodynamics; /**< flag for outputing thermodynamical evolution in file */
   short write_perturbations; /**< flag for outputing perturbations of selected wavenumber(s) in file(s) */
@@ -192,6 +198,42 @@ extern "C" {
                             double one_pk
                             );
 
+  /**
+   * Functions which are specific to the non-stochastic case (for large modes or Bianchi type perturbations)
+   */
+
+  int output_open_alm_file(
+			   struct background * pba,
+			   struct perturbations * ppt,
+			   struct transfer * ptr,
+			   struct output * pop,
+			   FILE * * clfile,
+			   FileName filename,
+			   char * first_line,
+			   int index_q
+			   );
+
+  int output_bianchi_multipoles(
+              struct background * pba,
+              struct perturbations * ppt,
+              struct transfer * ptr,
+	      struct harmonic * phr,
+              struct output * pop
+				);
+
+  int output_one_line_of_alm(
+                          struct background * pba,
+                          struct harmonic * phr,
+                          struct output * pop,
+                          FILE * clfile,
+                          double l,
+                          double * alm, /* array with argument cl[index_tt] */
+                          int tt_size,
+			  int m,
+			  int fill_with_zero
+			     );
+
+  
 #ifdef __cplusplus
 }
 #endif

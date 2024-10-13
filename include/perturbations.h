@@ -84,6 +84,25 @@ enum possible_gauges {
 
 enum hierarchies {optimal, tam};
 
+
+/**
+ * When compiling CLASS with complex types, we can then ask to compute Bianchi perturbations,
+ * or use the conventional FL stochasic perturbations, which should give the same results
+ * as in the usual real valued CLASS.
+ * These non-stochastic can be of Bianchi type (not exactly plane waves due to the zeta_l^m \neq 1 defined in Eq. 3.34 of 1909.13688)
+ * or of normal large mode type (in which zeta_l^m = 1).
+ */
+
+//@}
+
+//@{
+
+enum perturbation_statistics {stochastic, non_stochastic};
+enum non_stochastic_types {bianchi, large_mode};
+
+//@}
+
+
 //@{
 
 /**
@@ -238,6 +257,18 @@ struct perturbations
   //@{
 
   enum hierarchies hierarchy; /**< which version of the polarization Boltzmann hierarchy */
+
+  //@}
+
+  //@{
+  
+  enum perturbation_statistics statistics; /**< stochastic or non-stochastic perturbations */
+
+  //@}
+
+  //@{
+  
+  enum non_stochastic_types non_stochastic_type; /**< large_mode or bianchi. TODO comment more.*/
 
   //@}
 
@@ -1102,6 +1133,28 @@ extern "C" {
                                   void * parameters_and_workspace,
                                   ErrorMsg error_message
 				  );
+
+
+  /**
+   * Functions which are needed when we asl for non-stochastic perturbations and we wan the a_lm for some given k
+   * Needed when asking for Bianchi non-stochastic perturbation
+   */
+
+  int perturbations_find_complex_mode(
+				      struct background * pba,
+				      struct perturbations * ppt,
+				      int index_md,
+				      double k_real,
+				      __DOUBLE_OR_COMPLEX__ *k_complex,
+				      struct perturbations_workspace * ppw);
+  
+  int perturbations_get_k_list_non_stochastic(
+				       struct precision * ppr,
+				       struct background * pba,
+				       struct thermodynamics * pth,
+				       struct perturbations * ppt
+				       );
+
   
 #ifdef __cplusplus
 }
