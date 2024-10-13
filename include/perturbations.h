@@ -771,7 +771,8 @@ struct perturbations_workspace
   double * s_l;     /**< array of freestreaming coefficients \f$ s_l = \sqrt{1-K*(l^2-1)/k^2} \f$. They are dimensionless. */
   __DOUBLE_OR_COMPLEX__ * twokappam; /**< array of freestreaming coefficients \f$ {{}_s}\kappa^m_l = \sqrt{(l^2-m^2)(l^2-s^2)/l^2 * (q^2-K*l^2)} \f$ for s=2. They have dimension of k.*/
   __DOUBLE_OR_COMPLEX__ * zerokappam; /**< array of freestreaming coefficients \f$ {{}_0}\kappa^m_l = \sqrt{(l^2-m^2) * (q^2-K*l^2)} \f$. They have dimension of k.*/
-  double q_m; /**< Current value of q such that \f$ q^2 = k^2 + (1+m) K\f$ */
+  __DOUBLE_OR_COMPLEX__ * ratio_zetal_m;/**< Ratio of \f$ zeta_l^m / zeta_{l-1}^m \f$. Only for the tensor case m=2. Now extended soon to m=1 TODO put the correct comment if m=1 is done !*/
+  __DOUBLE_OR_COMPLEX__ q_m; /**< Current value of q such that \f$ q^2 = k^2 + (1+m) K\f$ */
   
   //@}
 

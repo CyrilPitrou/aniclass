@@ -1335,10 +1335,25 @@ int perturbations_indices(
   class_define_index(ppt->index_tp_perturbed_recombination_delta_temp,ppt->has_perturbed_recombination,index_type,1);
   class_define_index(ppt->index_tp_perturbed_recombination_delta_chi,ppt->has_perturbed_recombination,index_type,1);
 
-
-
-
   /** - define k values with perturbations_get_k_list() */
+
+  /*For non-stochastic perturbations we use only the list of k provided by the user.*/
+  if (ppt->statistics == non_stochastic) {
+    class_call(perturbations_get_k_list_non_stochastic(ppr,
+				   pba,
+				   pth,
+				   ppt),
+	       ppt->error_message,
+	       ppt->error_message);
+  }
+  else {
+    class_call(perturbations_get_k_list(ppr,
+				  pba,
+				  pth,
+				  ppt),
+	       ppt->error_message,
+	       ppt->error_message);
+  }
 
   class_call(perturbations_get_k_list(ppr,
                                       pba,
@@ -1577,6 +1592,10 @@ int perturbations_indices(
       class_define_index(ppt->index_ic_iso_v, ppt->has_iso_v, index_ic,1);
       class_define_index(ppt->index_ic_oct_v, ppt->has_oct_v, index_ic,1);
       ppt->ic_size[index_md] = index_ic;
+      
+      class_test( ((ppt->ic_size[index_md] > 1) && (ppt->statistics == non_stochastic)),
+		  ppt->error_message,
+		  "For non_stochastic modes one should consider only one initial conditions (I was lazy to implement the output for several initial conditions. Otherwise the rest works fine).");
 
     }
 
@@ -2864,6 +2883,11 @@ int perturbations_workspace_init(
     /* case s=2 and m=0,2 */
     class_alloc(ppw->twokappam, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
     class_alloc(ppw->zerokappam, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
+    class_alloc(ppw->ratio_zetal_m, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
+    ppw->ratio_zetal_m[0] = 0.;
+    for (l=1; l<=ppw->max_l_max; l++){
+      ppw->ratio_zetal_m[l] = 1.;
+    }
     break;
   }
 
@@ -3019,6 +3043,7 @@ int perturbations_workspace_free (
   case tam:
     free(ppw->twokappam);
     free(ppw->zerokappam);
+    free(ppw->ratio_zetal_m);
     break;
   }
   free(ppw->pvecback);
@@ -3088,17 +3113,29 @@ int perturbations_update_streaming_coefficients(
     if (_tensors_) m=2.;
 
     q2 = k*k+pba->K*(1.+m);
-    ppw->q_m = sqrt(MAX(std::real(q2),0.));
+    //We memorize q in order to save some computing time as it is called several times in the hierarchy
+    if ( (ppt->non_stochastic_type == bianchi) && (ppt->statistics == non_stochastic) )
+      ppw->q_m = std::sqrt(q2);
+    else
+      ppw->q_m = sqrt(MAX(std::real(q2),0.));
     
     ppw->twokappam[0] = 0.;
     ppw->twokappam[1] = 0.;
     ppw->twokappam[2] = 0.;
     for (l = 2; l<=ppw->max_l_max; l++){
-      argsqrt = MAX(std::real(q2)-pba->K*l*l,0.);
+      //We have to be careful because one day the bianchi option will stand for both K<0 and K>0 bianchi.
+      if ( (ppt->non_stochastic_type == bianchi) && (ppt->statistics == non_stochastic) ) 
+	argsqrt =q2-pba->K*l*l;
+      else 
+	//A security for positive curvature since we might consider k which are too small.
+	//In principle the hierarchy is automatically reduced because for any, there is an associated nu and a lmax = nu such that the coef at lmax is 0 by construction
+	//However since we have seet a given lmax in the hierarchy, the coefficients beyond that would be ill defined even though mathematically this wrong part of the hierarchy is isolated.
+	//By replacing all values beyond lmax by 0 we stay safe
+	argsqrt = MAX(std::real(q2)-pba->K*l*l,0.);
       if (l>2)
-	ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.)*argsqrt);
+	ppw->twokappam[l] = std::sqrt((1.-m*m/l/l)*(l*l-4.)*argsqrt);
       if (l>(int)m)
-	ppw->zerokappam[l] = sqrt((l*l-m*m)*argsqrt);
+	ppw->zerokappam[l] = std::sqrt((l*l-m*m)*argsqrt);
     }
     break;
   }
@@ -3398,8 +3435,24 @@ int perturbations_solve(
 
   free(interval_number_of);
 
-  // This is where we will put the find complex mode.
-  k_complex = (__DOUBLE_OR_COMPLEX__)k;
+  /** update k to its complex value in case of Bianchi non-stochastic space-time */
+  
+  /** This is where we will put the find complex mode.
+   * This is what we would simply do for stochastic perturbations
+   */
+  //k_complex = (__DOUBLE_OR_COMPLEX__)k;
+  
+  //printf("DEBUG k before update is %e \n",k);
+  class_call(perturbations_find_complex_mode(pba,
+					     ppt,
+					     index_md,
+					     k,
+					     &k_complex,
+					     ppw),
+	     ppt->error_message,
+             ppt->error_message);
+
+  //printf("DEBUG k after update is %e + i %e\n",creal(k_complex),cimag(k_complex));
   
   /** - fill the structure containing all fixed parameters, indices
       and workspaces needed by perturbations_derivs */
@@ -6883,23 +6936,29 @@ int perturbations_initial_conditions(struct precision * ppr,
         *
         */
 
-    if (index_ic == ppt->index_ic_ten) {
-      ppw->pv->y[ppw->pv->index_pt_gw] = ppr->gw_ini/_SQRT6_;
-    }
-
     k2 = k*k;
 
-    if (pba->sgnK != 0) {
-      ppw->pv->y[ppw->pv->index_pt_gw] *= sqrt(k2*(k2-pba->K)/(k2+3.*pba->K)/(k2+2.*pba->K));
+    if (ppt->statistics == stochastic) {
+      if (index_ic == ppt->index_ic_ten) {
+	ppw->pv->y[ppw->pv->index_pt_gw] = ppr->gw_ini/_SQRT6_;
+      }
+      
+      if (pba->sgnK != 0) {
+	ppw->pv->y[ppw->pv->index_pt_gw] *= sqrt(k2*(k2-pba->K)/(k2+3.*pba->K)/(k2+2.*pba->K));
+      }
+      
+      if (pba->sgnK == -1) {
+	if (std::real(k*k)+3*pba->K >= 0.) {
+	  ppw->pv->y[ppw->pv->index_pt_gw] *= sqrt(tanh(_PI_/2.*sqrt(k2+3*pba->K)/sqrt(-pba->K)));
+	}
+	else {
+	  ppw->pv->y[ppw->pv->index_pt_gw] = 0.;
+	}
+      }
     }
-
-    if (pba->sgnK == -1) {
-      if (std::real(k*k)+3*pba->K >= 0.) {
-        ppw->pv->y[ppw->pv->index_pt_gw] *= sqrt(tanh(_PI_/2.*sqrt(k2+3*pba->K)/sqrt(-pba->K)));
-      }
-      else {
-        ppw->pv->y[ppw->pv->index_pt_gw] = 0.;
-      }
+    else {
+      //For non-stochastic perturbations we set the GW to unity initially. 
+      ppw->pv->y[ppw->pv->index_pt_gw] = 1.;
     }
 
     /** Corrections which are of order (k*tau)^2 for h, but order (k*tau) for h'.
@@ -12721,6 +12780,60 @@ int perturbations_print_variables_recast(double tau,
 				       error_message);
 }
 
+
+
+/**                                                                                                                                                                                              
+ * Functions which are used for non-stochastic perturbatioms
+ * For Bianchi type perturbations, we must also ensure that CLASS is compiled with complex values.
+ * CLASS complex compilation requires (-D__COMPLEX_CLASS__ flag for compiler).   
+ *
+ * Define the number of comoving wavenumbers using the list output provided in the *.ini file by the user.
+ * This function is used when the Bianchi perturbations are selected
+ *
+ * @param ppr        Input: pointer to precision structure
+ * @param pba        Input: pointer to background structure
+ * @param pth        Input: pointer to thermodynamics structure
+ * @param ppt        Input: pointer to perturbation structure
+ * @return the error status
+ */
+
+int perturbations_get_k_list_non_stochastic(
+                       struct precision * ppr,
+                       struct background * pba,
+                       struct thermodynamics * pth,
+                       struct perturbations * ppt
+                       ) {
+  int index_k, index_md;
+
+  class_test(ppt->k_output_values_num == 0.,
+             ppt->error_message,
+             "No mode k was asked. At least one is needed if the statistics is set to non_stochastic. We stop here.\n");
+
+  class_alloc(ppt->k,
+              ppt->md_size*sizeof(double*),
+              ppt->error_message);
+  
+  class_alloc(ppt->k_size,
+              ppt->md_size*sizeof(int),
+              ppt->error_message);
+  
+  class_alloc(ppt->index_k_output_values,sizeof(int)*ppt->md_size*ppt->k_output_values_num,ppt->error_message);
+
+  for (index_md=0; index_md<ppt->md_size ; index_md++) {
+    class_alloc(ppt->k[index_md],sizeof(double)*ppt->k_output_values_num,ppt->error_message);
+    ppt->k_size[index_md] = ppt->k_output_values_num;
+    //printf("DEBUG ppt->k_size[index_md] = %d \n",ppt->k_size[index_md]);
+    for (index_k=0; index_k<ppt->k_output_values_num; index_k++){
+      ppt->k[index_md][index_k] = ppt->k_output_values[index_k];
+      ppt->index_k_output_values[index_md*ppt->k_output_values_num + index_k] = index_k;
+    }
+  }
+
+  return _SUCCESS_;
+
+}
+
+
 /**
  * This function computes the complex q and the complex k (related by q^2 = k^2 + (1+m) K) from the Re[q] which is provided in k_output_values in the *.ini file.
  * In the process it also updates the \f$ {}_s \kappa_l^m \f$ for the coupling in the hierarchy
@@ -12732,3 +12845,57 @@ int perturbations_print_variables_recast(double tau,
  * @param newk                         Output: complex valued k
  * @param parameters_and_workspace     Input: curvature and the mode (index_md) considered.
  */
+//TODO revoir commentaire
+
+int perturbations_find_complex_mode(struct background * pba,
+				    struct perturbations * ppt,
+				    int index_md,
+				    double k_real,
+				    __DOUBLE_OR_COMPLEX__ *k_complex,
+				    struct perturbations_workspace * ppw) {
+
+  double sqrt_absK, mq_real;
+  __DOUBLE_OR_COMPLEX__ k, k2, q_loc, zetaratio;//TODO remove useless variables
+  int l, m;
+  std::complex<double> I(0.0, 1.0);
+  
+  /** - rename the fields of the input structure (just to avoid heavy notations) */
+  sqrt_absK = sqrt(fabs(pba->K));
+  
+  if ( (__COMPLEX_CLASS_BOOL__) && (ppt->statistics == non_stochastic) && (ppt->non_stochastic_type == bianchi) && (pba->K <= 0) ) {
+    if (_tensors_) {
+      m = 2;
+      mq_real = k_real;
+    }
+    if (_vectors_) {
+      m = 1;
+      mq_real = k_real;
+    }
+    if (_scalars_) {
+      m=0;
+      mq_real = 1e-7;//TODO put a correct epsilon here.
+      }
+    // q = m/ls + i/lc. Hence q^2 = (m/ls)^2 -1/lc^2 + 2im/ls/lc. Since q^2 = k^2 + (1+|m|)K = k^2 - (1+|m|)/lc^2 because
+    // we consider only here K<0 types, this gives k^2 = (m/ls)^2+m/lc^2 + 2im/ls/lc   and mq_real stands for m/ls.
+    k2 = mq_real*mq_real + 2.*I*mq_real*sqrt_absK + m * sqrt_absK*sqrt_absK;//complex ugly.
+    k = std::sqrt(k2);
+    //q_loc = mq_real + I*sqrt_absK;
+    /*for (l = m +1; l<=ppw->max_l_max; l++){
+      ppw->twokappam[l] = sqrt( (1.-m*m/l/l)*(l*l-4.) ) * sqrt( q_loc*q_loc - pba->K*l*l ) ;
+      ppw->zerokappam[l] = sqrt( l*l-m*m ) * sqrt( q_loc*q_loc - pba->K*l*l ) ;
+      }*/
+    /** we update the ratios of zetas */
+    if (__DEBUG__)
+      printf("DEBUG we update the zetas up to %d \n",ppw->max_l_max);
+    for (l = m+1; l<=ppw->max_l_max; l++){
+      zetaratio =  - I * sqrt( (l-1. +I*mq_real/sqrt_absK) / (l+1. - I*mq_real/sqrt_absK) );
+      ppw->ratio_zetal_m[l] = zetaratio;
+    }
+  }
+  else {
+    k = k_real;
+  }
+
+  (*k_complex)=k;
+  return _SUCCESS_;
+}

@@ -17,7 +17,7 @@
 #include <cmath>
 #include <complex>
 #ifdef __COMPLEX_CLASS__
-// Does not work to use C. We must siwtch to full C++
+// Does not work to use C. We must switch to full C++
 #define __DOUBLE_OR_COMPLEX__ std::complex<double>
 //#define __DOUBLE_OR_COMPLEX__ _Complex double
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
