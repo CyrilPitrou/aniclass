@@ -366,6 +366,32 @@ int harmonic_free(
 
 }
 
+int harmonic_free_non_stochastic(
+                  struct harmonic * phr
+                  ) {
+
+  int index_md;
+  if (phr->md_size > 0) {
+    if (phr->ct_size > 0) {
+      free(phr->l);
+      free(phr->l_size);
+    }
+
+    for (index_md=0; index_md < phr->md_size; index_md++){
+      free(phr->alm[index_md]);
+      }
+
+    free(phr->is_non_zero);
+    free(phr->ic_size);
+    free(phr->ic_ic_size);
+    free(phr->alm);//Check if this freeing is correct
+  }
+
+  return _SUCCESS_;
+
+}
+
+
 /**
  * This routine defines indices and allocates tables in the harmonic structure
  *

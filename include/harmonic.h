@@ -174,6 +174,10 @@ extern "C" {
                     struct harmonic * phr
                     );
 
+  int harmonic_free_non_stochastic(
+                  struct harmonic * phr
+                  );
+  
   int harmonic_indices(
                        struct background * pba,
                        struct perturbations * ppt,
