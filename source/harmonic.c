@@ -461,8 +461,9 @@ int harmonic_indices(
       phr->has_ee = _FALSE_;
     }
 
-    if ((ppt->has_cl_cmb_temperature == _TRUE_) &&
-        (ppt->has_cl_cmb_polarization == _TRUE_)) {
+       if ((ppt->has_cl_cmb_temperature == _TRUE_) &&
+        (ppt->has_cl_cmb_polarization == _TRUE_) &&
+	(ptr->statistics == stochastic)) {
       phr->has_te = _TRUE_;
       phr->index_ct_te=index_ct;
       index_ct++;
@@ -1873,7 +1874,7 @@ int harmonic_alms(
     /** - --> (b) allocate arrays where results will be stored */
 
     class_alloc(phr->alm[index_md],sizeof(__DOUBLE_OR_COMPLEX__)*ptr->q_size*phr->l_size[index_md]*phr->ct_size*phr->ic_size[index_md],phr->error_message);
-    alm_k_num_columns = 1+phr->ct_size; /* one for k, ct_size for each type */
+    alm_k_num_columns = 1+phr->ct_size; /* one for l, ct_size for each type */
 
     /** - --> (c) loop over initial conditions */
     //printf("DEBUG harmonic_alms 3\n");

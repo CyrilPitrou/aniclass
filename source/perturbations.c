@@ -26,7 +26,7 @@
 
 #include "perturbations.h"
 #include "parallel.h"
-
+#include "unistd.h"
 
 /**
  * Source function \f$ S^{X} (k, \tau) \f$ at a given conformal time tau.
@@ -1009,7 +1009,7 @@ int perturbations_init(
             printf("\n");
           }
 
-          struct perturbations_workspace pw;
+	  struct perturbations_workspace pw;
           class_call(perturbations_workspace_init(ppr,
                                                   pba,
                                                   pth,
@@ -1019,7 +1019,7 @@ int perturbations_init(
                      ppt->error_message,
                      ppt->error_message);
 
-          class_call(perturbations_solve(ppr,
+	  class_call(perturbations_solve(ppr,
                                          pba,
                                          pth,
                                          ppt,
@@ -2880,12 +2880,15 @@ int perturbations_workspace_init(
     /* case s=2 and m=0,2 */
     class_alloc(ppw->twokappam, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
     class_alloc(ppw->zerokappam, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
-    class_alloc(ppw->ratio_zetal_m, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
-    ppw->ratio_zetal_m[0] = 0.;
-    for (l=1; l<=ppw->max_l_max; l++){
-      ppw->ratio_zetal_m[l] = 1.;
-    }
     break;
+  }
+
+  /*We allocate the ratio of zeta_l^m (for Bianchi case ) in both hierarchies because it is needed for the initial conditions */
+  /* By default we put 1, hence it will have only an effect for Bianchi. */
+  class_alloc(ppw->ratio_zetal_m, sizeof(__DOUBLE_OR_COMPLEX__)*(ppw->max_l_max+1),ppt->error_message);
+  ppw->ratio_zetal_m[0] = 0.;
+  for (l=1; l<=ppw->max_l_max; l++){
+    ppw->ratio_zetal_m[l] = 1.;
   }
 
 
@@ -3040,9 +3043,9 @@ int perturbations_workspace_free (
   case tam:
     free(ppw->twokappam);
     free(ppw->zerokappam);
-    free(ppw->ratio_zetal_m);
     break;
   }
+  free(ppw->ratio_zetal_m);
   free(ppw->pvecback);
   free(ppw->pvecthermo);
   free(ppw->pvecmetric);
@@ -3115,6 +3118,8 @@ int perturbations_update_streaming_coefficients(
       ppw->q_m = std::sqrt(q2);
     else
       ppw->q_m = sqrt(MAX(std::real(q2),0.));
+
+    //printf("DEBUG q_m is %e + i %e\n ",std::real(ppw->q_m),std::imag(ppw->q_m));
     
     ppw->twokappam[0] = 0.;
     ppw->twokappam[1] = 0.;
@@ -3196,7 +3201,7 @@ int perturbations_solve(
   int tau_actual_size;
 
   /* running index over types (temperature, etc) */
-  int index_tp;
+  int index_tp, i;
 
   /* Fourier mode */
   double k;
@@ -3438,7 +3443,7 @@ int perturbations_solve(
    * This is what we would simply do for stochastic perturbations
    */
   //k_complex = (__DOUBLE_OR_COMPLEX__)k;
-  
+
   //printf("DEBUG k before update is %e \n",k);
   class_call(perturbations_find_complex_mode(pba,
 					     ppt,
@@ -3505,7 +3510,7 @@ int perturbations_solve(
     class_call(perturbations_update_streaming_coefficients(pba,
 						    ppt,
 						    index_md,
-						    k,//WARNING we must put k_complex for Bianchi case
+						    k_complex,//WARNING we must put k_complex for Bianchi case
 						    ppw),
 	       ppt->error_message,
 	       ppt->error_message);
@@ -3643,8 +3648,8 @@ int perturbations_prepare_k_output(struct background * pba,
   int n_ncdm,l,lmax_ten_out,lmax_vec_out;
   char tmp[40];
 
-  lmax_ten_out = MIN(ppr->l_max_g_ten+2,ppr->l_max_pol_g_ten+2);
-  lmax_vec_out = MIN(ppr->l_max_g_vec+2,ppr->l_max_pol_g_vec+2);
+  lmax_ten_out = MIN(6, MIN(ppr->l_max_g_ten+2,ppr->l_max_pol_g_ten+2));
+  lmax_vec_out = MIN(6, MIN(ppr->l_max_g_vec+2,ppr->l_max_pol_g_vec+2));
 
   ppt->scalar_titles[0]='\0';
   ppt->vector_titles[0]='\0';
@@ -3767,7 +3772,7 @@ int perturbations_prepare_k_output(struct background * pba,
 	  class_store_columntitle(ppt->vector_titles,"Re@B_2",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"Im@B_2",_TRUE_);
 	  //This is to print all multipoles, but should be commented out as this wastes memeory and time.
-	  /*for(l=3; l <= lmax_vec_out; l++){
+	   for(l=3; l <= lmax_vec_out; l++){
 	    class_sprintf(tmp,"Re@T_%d",l);
 	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
 	    class_sprintf(tmp,"Im@T_%d",l);
@@ -3780,7 +3785,7 @@ int perturbations_prepare_k_output(struct background * pba,
 	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
 	    class_sprintf(tmp,"Im@B_%d",l);
 	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
-	    }*/
+	  }
 	}
 	else {
 	  class_store_columntitle(ppt->vector_titles,"V (vec. mod.)",_TRUE_);
@@ -3792,6 +3797,14 @@ int perturbations_prepare_k_output(struct background * pba,
 	  class_store_columntitle(ppt->vector_titles,"T_2",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"E_2",_TRUE_);
 	  class_store_columntitle(ppt->vector_titles,"B_2",_TRUE_);
+	  for(l=3; l <= lmax_vec_out; l++){
+	    class_sprintf(tmp,"T_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    class_sprintf(tmp,"E_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	    class_sprintf(tmp,"B_%d",l);
+	    class_store_columntitle(ppt->vector_titles,tmp,_TRUE_);
+	  }	  
 	}
 	break;
       }
@@ -3828,7 +3841,7 @@ int perturbations_prepare_k_output(struct background * pba,
 	  class_store_columntitle(ppt->tensor_titles,"Re@B_2",_TRUE_);
 	  class_store_columntitle(ppt->tensor_titles,"Im@B_2",_TRUE_);
 	  //This is to print all multipoles, but should be commented out as this wastes memeory and time.
-	  /*for(l=3; l <= lmax_ten_out; l++){
+	  for(l=3; l <= lmax_ten_out; l++){
 	    class_sprintf(tmp,"Re@T_%d",l);
 	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
 	    class_sprintf(tmp,"Im@T_%d",l);
@@ -3841,7 +3854,7 @@ int perturbations_prepare_k_output(struct background * pba,
 	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
 	    class_sprintf(tmp,"Im@B_%d",l);
 	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
-	    }*/
+	    }
 	}
 	else {
 	  class_store_columntitle(ppt->tensor_titles,"H (gw)",_TRUE_);
@@ -3849,6 +3862,14 @@ int perturbations_prepare_k_output(struct background * pba,
 	  class_store_columntitle(ppt->tensor_titles,"Theta_2",_TRUE_);
 	  class_store_columntitle(ppt->tensor_titles,"E_2",_TRUE_);
 	  class_store_columntitle(ppt->tensor_titles,"B_2",_TRUE_);
+	  for(l=3; l <= lmax_ten_out; l++){
+	    class_sprintf(tmp,"T_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    class_sprintf(tmp,"E_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	    class_sprintf(tmp,"B_%d",l);
+	    class_store_columntitle(ppt->tensor_titles,tmp,_TRUE_);
+	  }
 	}
         break;
       }
@@ -4519,7 +4540,7 @@ int perturbations_vector_init(
   }
 
   if (_vectors_) {
-    
+
     /* Vector baryon velocity: v_b^{(1)}. */
     class_define_index(ppv->index_pt_theta_b,_TRUE_,index_pt,1);
     
@@ -5022,7 +5043,7 @@ int perturbations_vector_init(
                                                 ppw),
                ppt->error_message,
                ppt->error_message);
-
+    
   }
 
   /** - case of switching approximation while a wavenumber is being integrated */
@@ -5832,6 +5853,7 @@ int perturbations_vector_init(
     
     if (_vectors_) {
       
+
       //We shall need the R quantity, hence we need to call the background.
       class_call(background_at_tau(pba,
 				   tau,
@@ -6980,51 +7002,12 @@ int perturbations_initial_conditions(struct precision * ppr,
 
     /** We correct the initial condition for h and h'. It is crucial for h' since it is of order tau. We could however omit the correction in h. */
     h_corr_2 = - ppw->pv->y[ppw->pv->index_pt_gw] *(k2+2*pba->K)/(6 + 8./5.*rho_fs/rho_r) *tau*tau;
+    //printf("DEBUG h_corr_2= %e + i %e",std::real(h_corr_2),std::imag(h_corr_2));
     ppw->pv->y[ppw->pv->index_pt_gw] += h_corr_2;
     ppw->pv->y[ppw->pv->index_pt_gwdot] = 2.*h_corr_2/tau;
-    
-    /**We also set the quadrupoles (aka F_0^(2) in optimal hierarchy) to their order tau^2 value so that the equation start being correct
-    We use the fact that F_0^(2)' = sqrt(6)*h' +... as seen in Eq 2.35 of 1305.3261
-    If one wishes one day to use the TAM hierarchy, we shall use here Theta_2^(2) = -1/sqrt(6) F_0^(2) since the F_2^(2) and F_4^(2) are subdominant for initial conditions. */
-    if (ppt->evolve_tensor_ur == _TRUE_) {
-      switch (ppt->hierarchy) {
-      case optimal:
-        ppw->pv->y[ppw->pv->index_pt_l0_ur] = _SQRT6_ *h_corr_2;
-        break;
-      case tam:
-        ppw->pv->y[ppw->pv->index_pt_l2_ur] = -h_corr_2;
-        break;
-      }
-    }
-    
-    /** Idem for non-cold dark matter. TBC. */
-    if (ppt->evolve_tensor_ncdm == _TRUE_){
-      
-      idx = ppw->pv->index_pt_psi0_ncdm1;
-      
-      for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
-	for (index_q=0; index_q < ppw->pv->q_size_ncdm[n_ncdm]; index_q ++) {
-	  
-	  //TBC ! I have guessed from the hierarchy this condition by asking it is the same as for ur species.
-	  ppw->pv->y[idx] = _SQRT6_*h_corr_2* (-0.25 * pba->dlnf0_dlnq_ncdm[n_ncdm][index_q]);
-	  
-	  // jump to next momentum
-	  idx+=(ppw->pv->l_max_ncdm[n_ncdm]+1);
-	}
-      }
-    }
+    //printf("DEBUG ppw->pv->y[ppw->pv->index_pt_gw] =%e + i %e \n",std::real(ppw->pv->y[ppw->pv->index_pt_gw]),std::imag(ppw->pv->y[ppw->pv->index_pt_gw]));
+    //printf("DEBUG ppw->pv->y[ppw->pv->index_pt_gwdot] =%e + i %e \n",std::real(ppw->pv->y[ppw->pv->index_pt_gwdot]),std::imag(ppw->pv->y[ppw->pv->index_pt_gwdot]));
 
-    /** - --> ncdm contribution to 3*P_fs */
-    if (pba->has_ncdm == _TRUE_) {
-      for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++) {
-	rho_fs += 3.*ppw->pvecback[pba->index_bg_p_ncdm1+n_ncdm];
-      }
-    }
-        
-    /** We correct the initial condition for h and h'. It is crucial for h' since it is of order tau. We could however omit the correction in h. */
-    h_corr_2 = - ppw->pv->y[ppw->pv->index_pt_gw] *(k2+2*pba->K)/(6 + 8./5.*rho_fs/rho_r) *tau*tau;
-    ppw->pv->y[ppw->pv->index_pt_gw] += h_corr_2;
-    ppw->pv->y[ppw->pv->index_pt_gwdot] = 2.*h_corr_2/tau;
     
     /**We also set the quadrupoles (aka F_0^(2) in optimal hierarchy) to their order tau^2 value so that the equation start being correct
     We use the fact that F_0^(2)' = sqrt(6)*h' +... as seen in Eq 2.35 of 1305.3261
@@ -8479,6 +8462,12 @@ int perturbations_total_stress_energy(
     ppw->gw_source = 0.0;
 
     /** - --> photon contribution to gravitational wave source: */
+    /* gw_source stand for (8piG) a2 p Pi = (8piG/3 rho) a2 Pi,
+       with Pi = -4 sqrt(6) [1/15 F_0^(2)/15 + 2/21 F_2(2) + 1/35 F_4^(2)] of 1305.3261, and shear_g = 1/2 F_2(2) (optimal)
+       or Pi = 4 (2/5) Theta_2^(2) of astro-ph/9709066, and shear_g = (2/5) Theta_2^(2) (tam)
+       One can use (B27) of 1305.3261 to relate both methods: \Theta_2^(2) = -sqrt(6)/2 [1/3 F_0^(2) + 10/21 F_2^(2) + 1/7 F_4^(2)]
+    */
+
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
 
@@ -9432,7 +9421,7 @@ int perturbations_print_variables(double tau,
 
   /** - define local variables */
   __DOUBLE_OR_COMPLEX__ k;
-  int index_md;
+  int index_md, l, lmax_ten_out, lmax_vec_out;
 
   struct precision * ppr;
   struct background * pba;
@@ -9493,8 +9482,11 @@ int perturbations_print_variables(double tau,
   pvecthermo = ppw->pvecthermo;
   pvecmetric = ppw->pvecmetric;
 
+  lmax_ten_out = MIN(6, MIN(ppr->l_max_g_ten+2,ppr->l_max_pol_g_ten+2));
+  lmax_vec_out = MIN(6, MIN(ppr->l_max_g_vec+2,ppr->l_max_pol_g_vec+2));
+  
   /** - update background/thermo quantities in this point */
-
+  
   class_call(background_at_tau(pba,
                                tau,
                                normal_info,
@@ -10130,7 +10122,7 @@ int perturbations_print_variables(double tau,
 	class_store_double(dataptr, std::real(B2), _TRUE_, storeidx);
 	class_store_double(dataptr, std::imag(B2), _TRUE_, storeidx);
 	//This for loop must be commented or the output file is way too large as it outputs al multipoles. This is used only to check the quality of the line of sight method.
-	/*for(l=3; l <= lmax_vec_out; l++){
+	for(l=3; l <= lmax_vec_out; l++){
 	  if ((ppw->approx[ppw->index_ap_tca]==(int)tca_off) && (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off)) {//A bit of dirty coding here for Bianchi
 	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_l1_g+l-1]), _TRUE_, storeidx);
 	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_l1_g+l-1]), _TRUE_, storeidx);
@@ -10147,7 +10139,7 @@ int perturbations_print_variables(double tau,
 	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
 	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
 	  }
-	  }*/
+	  }
 
       }
       else {
@@ -10160,6 +10152,19 @@ int perturbations_print_variables(double tau,
 	class_store_double(dataptr, std::real(l2_g), _TRUE_, storeidx);
 	class_store_double(dataptr, std::real(E2), _TRUE_, storeidx);
 	class_store_double(dataptr, std::real(B2), _TRUE_, storeidx);
+	for(l=3; l <= lmax_vec_out; l++){
+	  if ((ppw->approx[ppw->index_ap_tca]==(int)tca_off) && (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off)) {//A bit of dirty coding here for Bianchi
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_l1_g+l-1]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_E2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_B2+l-2]), _TRUE_, storeidx);
+	  }
+	  else {
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	  }
+	}
+	
       }
       break;
     }
@@ -10305,7 +10310,7 @@ int perturbations_print_variables(double tau,
 	class_store_double(dataptr, std::real(B2), _TRUE_, storeidx);
 	class_store_double(dataptr, std::imag(B2), _TRUE_, storeidx);
 	//This for loop must be commented or the output file is way too large as it outputs al multipoles. This is used only to check the quality of the line of sight method.
-	/*for(l=3; l <= lmax_ten_out; l++){
+	for(l=3; l <= lmax_ten_out; l++){
 	  if ((ppw->approx[ppw->index_ap_tca]==(int)tca_off) && (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off)) {//A bit of dirty coding here for Bianchi	  
 	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_l2_g+l-2]), _TRUE_, storeidx);
 	    class_store_double(dataptr, std::imag(y[ppw->pv->index_pt_l2_g+l-2]), _TRUE_, storeidx);
@@ -10322,7 +10327,7 @@ int perturbations_print_variables(double tau,
 	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
 	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
 	  }
-	  }*/
+	}
       }
       else {
 	class_store_double(dataptr, std::real(y[ppw->pv->index_pt_gw]), _TRUE_, storeidx);
@@ -10330,6 +10335,19 @@ int perturbations_print_variables(double tau,
 	class_store_double(dataptr, std::real(l2_g), _TRUE_, storeidx);
         class_store_double(dataptr, std::real(E2), _TRUE_, storeidx);
 	class_store_double(dataptr, std::real(B2), _TRUE_, storeidx);
+	for(l=3; l <= lmax_ten_out; l++){
+	  if ((ppw->approx[ppw->index_ap_tca]==(int)tca_off) && (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off)) {//A bit of dirty coding here for Bianchi	  
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_l2_g+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_E2+l-2]), _TRUE_, storeidx);
+	    class_store_double(dataptr, std::real(y[ppw->pv->index_pt_B2+l-2]), _TRUE_, storeidx);
+	    	  }
+	  else {
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	    class_store_double(dataptr, 0. , _TRUE_, storeidx);
+	  }
+	}
+
       }
       break;
     }
@@ -10518,6 +10536,7 @@ int perturbations_derivs(double tau,
   sqrt_absK = sqrt(std::abs(pba->K));
 
   s_l = ppw->s_l;
+  ratio_zetal_m = ppw->ratio_zetal_m;//We need it in both hierarchy to set the IC correctly.
   
   switch (ppt->hierarchy) {
   case optimal:
@@ -10525,7 +10544,6 @@ int perturbations_derivs(double tau,
   case tam:
     twokappam = ppw->twokappam;
     zerokappam = ppw->zerokappam;
-    ratio_zetal_m = ppw->ratio_zetal_m;
     q_m = ppw->q_m; 
     break;
   }
@@ -12893,6 +12911,7 @@ int perturbations_find_complex_mode(struct background * pba,
     for (l = m+1; l<=ppw->max_l_max; l++){
       zetaratio =  - Imaginary * sqrt( (l-1. +Imaginary*mq_real/sqrt_absK) / (l+1. - Imaginary*mq_real/sqrt_absK) );
       ppw->ratio_zetal_m[l] = zetaratio;
+      //printf("DEBUG l=%d zeta=%e + i %e\n",l,std::real(ppw->ratio_zetal_m[l]),std::imag(ppw->ratio_zetal_m[l]));
     }
   }
   else {

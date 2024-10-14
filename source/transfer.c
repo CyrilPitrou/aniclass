@@ -5484,7 +5484,7 @@ int transfer_get_q_list_ns(
   class_alloc(ptr->q_complex,ppt->k_output_values_num*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
 
   ptr->q_size = ppt->k_output_values_num;
-  printf("DEBUG ptr->q_size=%d \n",(int)ptr->q_size);
+  //printf("DEBUG ptr->q_size=%d \n",(int)ptr->q_size);
   
   class_alloc(ptr->k_complex,ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
 

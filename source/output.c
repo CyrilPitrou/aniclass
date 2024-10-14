@@ -2198,6 +2198,7 @@ int output_one_line_of_alm(
     fprintf(almfile," ");
     fprintf(almfile,"%4d ",(int)l);
   }
+  //printf("DEBUG ctsize=%d \n",ct_size);
   for (index_ct=0; index_ct < ct_size; index_ct++) {
     //printf("DEBUG write tt=%d value=%f\n",index_tt,alm[index_tt]);
     if (fill_with_zero == _TRUE_) {

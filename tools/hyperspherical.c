@@ -2076,7 +2076,7 @@ int hyperspherical_backwards_recurrence_complex(int lmax,
 
   //printf("DEBUG result of continuous fraction was %f %+fi \n",std::real(phipr1),std::imag(phipr1));
   phi1 = departure*((double)isign_r+ Imaginary* (double)isign_i); //this is Phi at lmax expect for a multiplication factor, \Phi^\nu_l = \pm 1 \pm i*1
-  //The type cast stdMMreql(__DOUBLE_OR_COMPLEX__) is only there to allow compilation when Complex is not used. Since in that case this whole section of functions is not used. TODO cleaner method ?
+
   //To avoid overflow toward positive value we should start from a small one here. Pitrou.
   phipr1 *=phi1;
   PhiL[lmax] = phi1;

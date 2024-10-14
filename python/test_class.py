@@ -361,6 +361,7 @@ class TestClass(unittest.TestCase):
     @attr('test_scenario')
     def test_scenario(self, inputdict):
         """Test scenario"""
+        print(inputdict)
         self.scenario.update(inputdict)
         self.name = self._testMethodName
         self.cosmo.set(dict(itertools.chain(self.verbose.items(), self.scenario.items())))
