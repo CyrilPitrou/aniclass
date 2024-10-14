@@ -6127,7 +6127,8 @@ int perturbations_initial_conditions(struct precision * ppr,
   __DOUBLE_OR_COMPLEX__ velocity_tot;
   __DOUBLE_OR_COMPLEX__ s2_squared, ssqrt3;
   //For vector initial conditions :
-  double Phi0,R,om,cH;
+  double Phi0,R,om;
+  __DOUBLE_OR_COMPLEX__ cH;
   __DOUBLE_OR_COMPLEX__ V_init, theta_b, l1_ur, l2_ur, l4_ur;
   //for tensor initial conditions
   __DOUBLE_OR_COMPLEX__ k2, q2, h_corr_2;
@@ -6743,22 +6744,22 @@ int perturbations_initial_conditions(struct precision * ppr,
        a = [H(t_0)^2 Omega_m(t_0) a(t_0)^3 / 4] x [tau^2 + 4 tau / omega]
     */
     om = a*rho_m/sqrt(rho_r);
-    cH= om *15.*rho_r/(30.*rho_r + 8.*rho_nu);
+    cH= om *15.*rho_r/(30.*rho_r + 8.*rho_nu *ppw->ratio_zetal_m[2]);
     
     //Initial conditions in the isocurvature case
     if ((ppt->has_iso_v == _TRUE_) && (index_ic == ppt->index_ic_iso_v)) {
       Phi0 = 1.;
       V_init = Phi0 * (1.- cH*tau);
-      l1_ur = -Phi0 * (5.*rho_r + 4.*rho_nu) / (4.*rho_nu);
-      theta_b = Phi0/(1.+R) * (5.*rho_r + 4.*rho_nu) / (4.*rho_g);
+      l1_ur = -Phi0* (5.*rho_r/ppw->ratio_zetal_m[2] + 4.*rho_nu) / (4.*rho_nu) ;
+      theta_b = Phi0/(1.+R) * (5.*rho_r/ppw->ratio_zetal_m[2] + 4.*rho_nu) / (4.*rho_g);
       //If not synchronous gauge we must add V to the velocities
       if (ppt->gauge == newtonian) { 
 	l1_ur += V_init;
 	theta_b += V_init;
       }
-      l2_ur = -Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
+      l2_ur = -Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*ppw->ratio_zetal_m[2]*tau*tau);
       if ( !((pba->K>0)&&(std::real(k*k) -7.*pba->K<=0)) )//l=3 is not excited for small k corresponding to q/sqrt(K) = 3, since in that case l_max = 2.
-	l3_ur = -Phi0 /(2.*sqrt(6.)) * sqrt((k*k -2.*pba->K) * (k*k -7.*pba->K)) *rho_r/rho_nu *tau*tau;
+	l3_ur = -Phi0 /(2.*sqrt(6.)) * sqrt((k*k -2.*pba->K) * (k*k -7.*pba->K)) *rho_r/rho_nu*ppw->ratio_zetal_m[3] *tau*tau;
       l4_ur =0.;
     }
     //Initial conditions in the octupole case
@@ -6772,12 +6773,12 @@ int perturbations_initial_conditions(struct precision * ppr,
 	l1_ur += V_init;
 	theta_b += V_init;
       }
-      l2_ur = -Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*tau*tau);
+      l2_ur = -Phi0 *k*sqrt(3.)*ssqrt3 *(5./12*rho_r/rho_nu*tau+ cH/6.*ppw->ratio_zetal_m[2]*tau*tau);
       if ( !((pba->K>0)&&(std::real(k*k) -7.*pba->K<=0)) )//l=3 is not excited for small k corresponding to q/sqrt(K) = 3, since in that case l_max = 2.
 	l3_ur = Phi0 * 7./3. * sqrt(3./8.) *sqrt((k*k -2.*pba->K) / (k*k -7.*pba->K))
-	  * (5.*rho_r + 4.*rho_nu) / (4.*rho_nu);
+	  * (5.*rho_r + 4.*rho_nu*ppw->ratio_zetal_m[2]) / (4.*rho_nu) *ppw->ratio_zetal_m[3];
       if ( !((pba->K>0)&&(std::real(k*k) -14.*pba->K<=0)) )//l=4 is not excited for small k corresponding to q/sqrt(K) = 4, since in that case l_max = 3.
-	l4_ur = Phi0*(5.*rho_r+4.*rho_nu)/rho_nu /8.*sqrt(5./2.)*sqrt((k*k -2.*pba->K) * (k*k -14.*pba->K) / (k*k -7.*pba->K))*tau;
+	l4_ur = Phi0*(5.*rho_r+4.*rho_nu*ppw->ratio_zetal_m[2])/rho_nu /8.*sqrt(5./2.)*sqrt((k*k -2.*pba->K) * (k*k -14.*pba->K) / (k*k -7.*pba->K))*ppw->ratio_zetal_m[4]*ppw->ratio_zetal_m[3]*tau;
     }
 
     ppw->pv->y[ppw->pv->index_pt_V] = V_init;
@@ -9281,7 +9282,7 @@ int perturbations_sources(
 	
 	_set_source_(ppt->index_tp_t1_v) =pvecthermo[pth->index_th_g]*theta_b;
 	
-	_set_source_(ppt->index_tp_t2) =k*sqrt(3.)*ssqrt3 /3. *y[ppw->pv->index_pt_V]*pvecthermo[pth->index_th_exp_m_kappa]
+	_set_source_(ppt->index_tp_t2) =k*sqrt(3.)*ssqrt3 /3.*ppw->ratio_zetal_m[2] *y[ppw->pv->index_pt_V]*pvecthermo[pth->index_th_exp_m_kappa]
 	  +pvecthermo[pth->index_th_g] * P;
 	
       }
@@ -10445,6 +10446,7 @@ int perturbations_derivs(double tau,
   __DOUBLE_OR_COMPLEX__ * pvecmetric;
   double * s_l;
   __DOUBLE_OR_COMPLEX__ * twokappam = NULL;
+  __DOUBLE_OR_COMPLEX__ * ratio_zetal_m = NULL;
   __DOUBLE_OR_COMPLEX__ * zerokappam = NULL;
   struct perturbations_vector * pv;
 
@@ -10496,7 +10498,7 @@ int perturbations_derivs(double tau,
   double f_dr, fprime_dr;
 
   /* For the TAM hierarchy */
-  __DOUBLE_OR_COMPLEX__ q_m, zerokappam2;
+  __DOUBLE_OR_COMPLEX__ q_m, zerokappam2, zetaratio;
 
   //if (__DEBUG__)
   //  printf("DEBUG start _derivs \n");
@@ -10523,6 +10525,7 @@ int perturbations_derivs(double tau,
   case tam:
     twokappam = ppw->twokappam;
     zerokappam = ppw->zerokappam;
+    ratio_zetal_m = ppw->ratio_zetal_m;
     q_m = ppw->q_m; 
     break;
   }
@@ -11616,71 +11619,74 @@ int perturbations_derivs(double tau,
 	  }
 	  
 	  P1 = 1./10.*(y[pv->index_pt_l1_g+1] - _SQRT6_*y[pv->index_pt_E2]);
-	  
+
 	  //l=1
 	  if (ppt->gauge == synchronous) {
-	    dy[pv->index_pt_l1_g] = -zerokappam[2] /5.*y[pv->index_pt_l1_g+1]
+	    dy[pv->index_pt_l1_g] = -zerokappam[2] /ratio_zetal_m[2] /5.*y[pv->index_pt_l1_g+1]
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g]-y[pv->index_pt_theta_b]);
 	    
 	  }
 	  else if (ppt->gauge == newtonian) {
-	    dy[pv->index_pt_l1_g] = -zerokappam[2] /5.*y[pv->index_pt_l1_g+1]
+	    dy[pv->index_pt_l1_g] = -zerokappam[2] /ratio_zetal_m[2] /5.*y[pv->index_pt_l1_g+1]
 	      + pvecmetric[ppw->index_mt_V_prime]
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g]-y[pv->index_pt_theta_b]);
 	  }
 	  
 	  //l=2
+	  //printf("DEBUG equations l=2\n");
 	  if (ppt->gauge == synchronous) {
-	    dy[pv->index_pt_l1_g+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_g+2]
-	      + zerokappam[2] /3.*(y[pv->index_pt_l1_g] + y[pv->index_pt_V])
+	    dy[pv->index_pt_l1_g+1] = -zerokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_l1_g+2]
+	      + zerokappam[2] *ratio_zetal_m[2] /3.*(y[pv->index_pt_l1_g] + y[pv->index_pt_V])
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g+1]-P1);
 	  }
 	  else if (ppt->gauge == newtonian) {
-	    dy[pv->index_pt_l1_g+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_g+2]
-	      + zerokappam[2] /3.*y[pv->index_pt_l1_g]
+	    dy[pv->index_pt_l1_g+1] = -zerokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_l1_g+2]
+	      + zerokappam[2] *ratio_zetal_m[2] /3.*y[pv->index_pt_l1_g]
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g+1]-P1);
 	  }
 
 	  dy[pv->index_pt_E2] = -q_m*2./2./3.*y[pv->index_pt_B2]
-             -twokappam[3] /7.*y[pv->index_pt_E2+1]
+             -twokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_E2+1]
 	     -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+_SQRT6_ * P1);
 
           dy[pv->index_pt_B2] = q_m*2./2./3.*y[pv->index_pt_E2]
-	    -twokappam[3] /7.*y[pv->index_pt_B2+1]
+	    -twokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_B2+1]
 	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
 	  
 	  //l>=3
+	  //printf("DEBUG equations l>=3\n");
 	  for (l=3; l < pv->l_max_g; l++) {
-	    dy[pv->index_pt_l1_g+l-1] = -zerokappam[l+1] /(2.*l+3.)*y[pv->index_pt_l1_g+l]
-	      + zerokappam[l] /(2.*l-1.) *y[pv->index_pt_l1_g+l-2]
+	    dy[pv->index_pt_l1_g+l-1] = -zerokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3.)*y[pv->index_pt_l1_g+l]
+	      + zerokappam[l] *ratio_zetal_m[l]  /(2.*l-1.) *y[pv->index_pt_l1_g+l-2]
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l1_g+l-1]);
 	  }
 
           for (l=3; l < pv->l_max_pol_g; l++) {	  
-	    dy[pv->index_pt_E2+l-2] = twokappam[l] /(2.*l-1.)*y[pv->index_pt_E2+l-3]
+	    dy[pv->index_pt_E2+l-2] = twokappam[l] * ratio_zetal_m[l] /(2.*l-1.)*y[pv->index_pt_E2+l-3]
 	      -q_m*2./(l+0.)/(l+1.)*y[pv->index_pt_B2+l-2]
-	      -twokappam[l+1] /(2.*l+3.)*y[pv->index_pt_E2+l-1]
+	      -twokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3.)*y[pv->index_pt_E2+l-1]
 	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
 	    
-            dy[pv->index_pt_B2+l-2] = twokappam[l] /(2.*l-1.)*y[pv->index_pt_B2+l-3]
+            dy[pv->index_pt_B2+l-2] = twokappam[l] *ratio_zetal_m[l]  /(2.*l-1.)*y[pv->index_pt_B2+l-3]
 	      +q_m*2./(l+0.)/(l+1.)*y[pv->index_pt_E2+l-2]
-	      -twokappam[l+1] /(2.*l+3.)*y[pv->index_pt_B2+l-1]
+	      -twokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3.)*y[pv->index_pt_B2+l-1]
 	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
 	  }
 	  
 	  /* l=lmax */
-	  l = pv->l_max_g;
-          dy[pv->index_pt_l1_g+l-1] = zerokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_g+l-2]
+	  //printf("DEBUG equations closure \n");
+          l = pv->l_max_g;
+          dy[pv->index_pt_l1_g+l-1] = zerokappam[l] * ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_g+l-2]
             -(l+2.)*kcotKgen*y[pv->index_pt_l1_g+l-1]
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l1_g+l-1];
 	  
 	  l = pv->l_max_pol_g;
-          dy[pv->index_pt_E2+l-2] = twokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_E2+l-3]
+          dy[pv->index_pt_E2+l-2] = twokappam[l] *ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_E2+l-3]
 	    +q_m*2./(l+0.)*y[pv->index_pt_B2+l-2]
 	    -(l+2.)*kcotKgen*y[pv->index_pt_E2+l-2]
 	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
 	  
-          dy[pv->index_pt_B2+l-2] = twokappam[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_B2+l-3]
+          dy[pv->index_pt_B2+l-2] = twokappam[l] *ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_B2+l-3]
 	    -q_m*2./(l+0.)*y[pv->index_pt_E2+l-2]
 	    -(l+2.)*kcotKgen*y[pv->index_pt_B2+l-2]
 	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
@@ -11715,26 +11721,22 @@ int perturbations_derivs(double tau,
 	  break;
 	case tam:
 	  if (ppt->gauge == synchronous) {
-
-	    ppw->tca_T2_vector = 4./9.* zerokappam[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b] + y[pv->index_pt_V]);
-	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*y[pv->index_pt_theta_b] - zerokappam[2]/5.*ppw->tca_T2_vector);
+	    ppw->tca_T2_vector = 4./9.* zerokappam[2]*ratio_zetal_m[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b] + y[pv->index_pt_V]);
+	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*y[pv->index_pt_theta_b] - zerokappam[2]/ratio_zetal_m[2]/5.*ppw->tca_T2_vector);
 	    //We have added the correction to the slip coming from the first order quadrupole. This is second order in tight coupling,
 	    //but the leading term when initial condition have a vanishing initial baryon/photon fluid velocity (in synchronous gauge)
 
 	    //We only integrate the baryons which stand for the tight-coupled fluid of baryons and photons.
 	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
-	      -zerokappam[2]/5./(1.+R)*ppw->tca_T2_vector;
-
+	      -zerokappam[2]/ratio_zetal_m[2]/5./(1.+R)*ppw->tca_T2_vector;
 	  }
 	  else if (ppt->gauge == newtonian) {
-
-	    ppw->tca_T2_vector = 4./9.* zerokappam[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]);
-	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*(y[pv->index_pt_theta_b]-y[pv->index_pt_V]) - zerokappam[2]/5.*ppw->tca_T2_vector);
+	    ppw->tca_T2_vector = 4./9.* zerokappam[2]*ratio_zetal_m[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]);
+	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*(y[pv->index_pt_theta_b]-y[pv->index_pt_V]) - zerokappam[2]/ratio_zetal_m[2]/5.*ppw->tca_T2_vector);
 
 	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
 	      + pvecmetric[ppw->index_mt_V_prime] +a_prime_over_a*R/(1.+R)*y[pv->index_pt_V]
-	      -zerokappam[2]/5./(1.+R)*ppw->tca_T2_vector;
-
+	      -zerokappam[2]/ratio_zetal_m[2]/5./(1.+R)*ppw->tca_T2_vector;
 	  }
 	  break;
 	}
@@ -11796,31 +11798,33 @@ int perturbations_derivs(double tau,
 	case tam:
 	  
 	  if (ppt->gauge == synchronous) {
-	    dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1];
+	    dy[pv->index_pt_l1_ur] = -zerokappam[2] /ratio_zetal_m[2] /5.*y[pv->index_pt_l1_ur+1];
 	  }
 	  else if (ppt->gauge == newtonian) {
-	    dy[pv->index_pt_l1_ur] = -zerokappam[2] /5.*y[pv->index_pt_l1_ur+1]
+	    dy[pv->index_pt_l1_ur] = -zerokappam[2] /ratio_zetal_m[2] /5.*y[pv->index_pt_l1_ur+1]
 	      + pvecmetric[ppw->index_mt_V_prime];
 	  }
 	  //l=2
+	  //printf("DEBUG starting derivs for vectors equations for neutrinos  l=2 \n ");
 	  if (ppt->gauge == synchronous) {
-	    dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
-	      + zerokappam[2] /3.*(y[pv->index_pt_l1_ur] + y[pv->index_pt_V]);
+	    dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_l1_ur+2]
+	      + zerokappam[2] *ratio_zetal_m[2] /3.*(y[pv->index_pt_l1_ur] + y[pv->index_pt_V]);
 	  }
 	  else if (ppt->gauge == newtonian) {
-	    dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /7.*y[pv->index_pt_l1_ur+2]
-	      + zerokappam[2] /3.*y[pv->index_pt_l1_ur];
+	    dy[pv->index_pt_l1_ur+1] = -zerokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_l1_ur+2]
+	      + zerokappam[2] *ratio_zetal_m[2] /3.*y[pv->index_pt_l1_ur];
 	  }
 	  
 	  //l>=3
+	  //printf("DEBUG starting derivs for vectors equations for neutrinos  l>=3 \n ");
 	  for (l=3; l < pv->l_max_ur; l++) {
-	    
-	    dy[pv->index_pt_l1_ur+l-1] = -zerokappam[l+1] /(2.*l+3.)*y[pv->index_pt_l1_ur+l]
-	      + zerokappam[l] /(2.*l-1.)*y[pv->index_pt_l1_ur+l-2];
+	    dy[pv->index_pt_l1_ur+l-1] = -zerokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3.)*y[pv->index_pt_l1_ur+l]
+	      + zerokappam[l] *ratio_zetal_m[l]  /(2.*l-1.)*y[pv->index_pt_l1_ur+l-2];
 	  }
 	  /* l=lmax */
+	  //printf("DEBUG starting derivs for vectors equations for neutrinos  lmax \n ");
 	  l = pv->l_max_ur;
-	  dy[pv->index_pt_l1_ur+l-1] = zerokappam[l] * (2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_ur+l-2]
+	  dy[pv->index_pt_l1_ur+l-1] = zerokappam[l] * ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-1.)*y[pv->index_pt_l1_ur+l-2]
 	    -(l+2.)*kcotKgen*y[pv->index_pt_l1_ur+l-1];
 	  
 	  break;
@@ -11977,59 +11981,59 @@ int perturbations_derivs(double tau,
           /* Temperature hierarchy for photons using (33) of astro-ph/9709066 with m=2 */
 	  
           /* derivative of Theta_2^(2) using (33) of astro-ph/9709066 with l=2 m=2 */
-          dy[pv->index_pt_l2_g] = -zerokappam[3]/7.*y[pv->index_pt_l2_g+1]
-            -photon_scattering_rate*(y[pv->index_pt_l2_g] - P2)
+          dy[pv->index_pt_l2_g] = -zerokappam[3] /ratio_zetal_m[3]  /7.*y[pv->index_pt_l2_g+1]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l2_g] - P2)
             -y[pv->index_pt_gwdot];
 
 	  /* derivative of Theta_l^(2) using (33) of astro-ph/9709066 with l>2 m=2 */
           for (l=3; l < pv->l_max_g; l++)
-            dy[pv->index_pt_l2_g+l-2] = -zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_l2_g+l-1]
-               +zerokappam[l]/(2.*l-1)*y[pv->index_pt_l2_g+l-3]
-	       -photon_scattering_rate*y[pv->index_pt_l2_g+l-2];
+            dy[pv->index_pt_l2_g+l-2] = -zerokappam[l+1] /ratio_zetal_m[l+1]  /(2.*l+3)*y[pv->index_pt_l2_g+l-1]
+               +zerokappam[l] *ratio_zetal_m[l]  /(2.*l-1)*y[pv->index_pt_l2_g+l-3]
+	       -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l2_g+l-2];
 
-          /* Closure relation using (9) of 2005.12119 */
+          /* Closure relation using (9) of 2005.xxxxx */
           l = pv->l_max_g;
-          dy[pv->index_pt_l2_g+l-2] = zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_l2_g+l-3]
+          dy[pv->index_pt_l2_g+l-2] = zerokappam[l] * ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_l2_g+l-3]
             -(l+3.)*kcotKgen*y[pv->index_pt_l2_g+l-2]
-            -photon_scattering_rate*y[pv->index_pt_l2_g+l-2];
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l2_g+l-2];
 
           /* Polarisation hierarchy for photons using (34) of astro-ph/9709066 with m=2 */
 
           /* derivative of E_2^(2), B_2^(2) using (34) of astro-ph/9709066 with l=2 m=2 */
           dy[pv->index_pt_E2] = -q_m*4./2./3.*y[pv->index_pt_B2]
-             -twokappam[3]/7.*y[pv->index_pt_E2+1]
-	     -photon_scattering_rate*(y[pv->index_pt_E2]+_SQRT6_ * P2);
+             -twokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_E2+1]
+	     -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+_SQRT6_ * P2);
 
           dy[pv->index_pt_B2] = q_m*4./2./3.*y[pv->index_pt_E2]
-             -twokappam[3]/7.*y[pv->index_pt_B2+1]
-	     -photon_scattering_rate*y[pv->index_pt_B2];
+             -twokappam[3] /ratio_zetal_m[3] /7.*y[pv->index_pt_B2+1]
+	     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
 
           /* derivative of E_l^(2), B_l^(2) using (34) of astro-ph/9709066 with l>2 m=2 */
           for (l=3; l < pv->l_max_pol_g; l++) {
 
-            dy[pv->index_pt_E2+l-2] = twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]
+            dy[pv->index_pt_E2+l-2] = twokappam[l] *ratio_zetal_m[l] /(2.*l-1.)*y[pv->index_pt_E2+l-3]
 	      -q_m*4./(l+0.)/(l+1.)*y[pv->index_pt_B2+l-2]
-               -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_E2+l-1]
-	       -photon_scattering_rate*y[pv->index_pt_E2+l-2];
+               -twokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3.)*y[pv->index_pt_E2+l-1]
+	       -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
 
-            dy[pv->index_pt_B2+l-2] = twokappam[l]/(2.*l-1.)*y[pv->index_pt_B2+l-3]
+            dy[pv->index_pt_B2+l-2] = twokappam[l] *ratio_zetal_m[l] /(2.*l-1.)*y[pv->index_pt_B2+l-3]
 	      +q_m*4./(l+0.)/(l+1.)*y[pv->index_pt_E2+l-2]
-               -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_B2+l-1]
-	       -photon_scattering_rate*y[pv->index_pt_B2+l-2];
+               -twokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3.)*y[pv->index_pt_B2+l-1]
+	       -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
           }
 
-          /* Pitrou-Riazuelo closure relation using (10) of 2005.12119 */
+          /* Pitrou-Riazuelo closure relation using (10) of 2005.xxxxx */
           l = pv->l_max_pol_g;
-	  
-          dy[pv->index_pt_E2+l-2] = twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
-	    +q_m*2./(l+0.)*y[pv->index_pt_B2+l-2]
-	    -(l+3.)*kcotKgen*y[pv->index_pt_E2+l-2]
-	    -photon_scattering_rate*y[pv->index_pt_E2+l-2];
-	  
-          dy[pv->index_pt_B2+l-2] = twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
-	    -q_m*2./(l+0.)*y[pv->index_pt_E2+l-2]
-	    -(l+3.)*kcotKgen*y[pv->index_pt_B2+l-2]
-	    -photon_scattering_rate*y[pv->index_pt_B2+l-2];
+
+          dy[pv->index_pt_E2+l-2] = twokappam[l] *ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
+	                             +q_m*2./(l+0.)*y[pv->index_pt_B2+l-2]
+                                     -(l+3.)*kcotKgen*y[pv->index_pt_E2+l-2]
+                                     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
+
+          dy[pv->index_pt_B2+l-2] = twokappam[l] *ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
+	                             -q_m*2./(l+0.)*y[pv->index_pt_E2+l-2]
+                                     -(l+3.)*kcotKgen*y[pv->index_pt_B2+l-2]
+                                     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
           break;
         }
       }
@@ -12065,20 +12069,22 @@ int perturbations_derivs(double tau,
         break;
 	
       case tam:
-	
+
         /* Temperature hierarchy for ultra-relativistic species using (33) of astro-ph/9709066 with m=2 */
-	
+
         /* derivative of Theta_2^(2) using (33) of astro-ph/9709066 with l=2 m=2 */
-        dy[pv->index_pt_l2_ur] = -zerokappam[3]/7. *y[pv->index_pt_l2_ur+1]
+        dy[pv->index_pt_l2_ur] = -zerokappam[3] /ratio_zetal_m[3] /7. *y[pv->index_pt_l2_ur+1]
           -y[pv->index_pt_gwdot];
-	
+
         /* derivative of Theta_l^(2) using (33) of astro-ph/9709066 with l>2 m=2 */
         for (l=3; l < pv->l_max_ur; l++)
-          dy[pv->index_pt_l2_ur+l-2] = -zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_l2_ur+l-1] +zerokappam[l]/(2.*l-1)*y[pv->index_pt_l2_ur+l-3];
-	
-        /* Closure relation using (9) of 2005.12119 */
+          dy[pv->index_pt_l2_ur+l-2] = -zerokappam[l+1] /ratio_zetal_m[l+1] /(2.*l+3)*y[pv->index_pt_l2_ur+l-1]
+	    +zerokappam[l] *ratio_zetal_m[l] /(2.*l-1)*y[pv->index_pt_l2_ur+l-3];
+
+        /* Closure relation using (9) of 2005.xxxxx */
         l = pv->l_max_ur;
-        dy[pv->index_pt_l2_ur+l-2] = zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_l2_ur+l-3] -(l+3.)*k*cotKgen*y[pv->index_pt_l2_ur+l-2];
+        dy[pv->index_pt_l2_ur+l-2] = zerokappam[l] *ratio_zetal_m[l] *(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_l2_ur+l-3]
+	   -(l+3.)*kcotKgen*y[pv->index_pt_l2_ur+l-2];
         break;
       }
     }
