@@ -2041,7 +2041,7 @@ int get_CFcomplex(int l,
         {
             *isign_i *= -1;
         }
-	//printf("DEBUG fj in continuous fraction %f %+fi \n",creal(fj),cimag(fj));
+	//printf("DEBUG fj in continuous fraction %f %+fi \n",std::real(fj),std::imag(fj));
 	if (std::abs(Delj-1.0)<reltol)
     {
         *CF = fj;
@@ -2074,8 +2074,9 @@ int hyperspherical_backwards_recurrence_complex(int lmax,
 
   get_CFcomplex(lmax,beta,cotK, &phipr1, &isign_r, &isign_i);//getting the continued fraction
 
-  //printf("DEBUG result of continuous fraction was %f %+fi \n",creal(phipr1),cimag(phipr1));
-  phi1 = departure*((double)isign_r+ I* (double)isign_i); //this is Phi at lmax expect for a multiplication factor, \Phi^\nu_l = \pm 1 \pm i*1
+  //printf("DEBUG result of continuous fraction was %f %+fi \n",std::real(phipr1),std::imag(phipr1));
+  phi1 = departure*((double)isign_r+ Imaginary* (double)isign_i); //this is Phi at lmax expect for a multiplication factor, \Phi^\nu_l = \pm 1 \pm i*1
+  //The type cast stdMMreql(__DOUBLE_OR_COMPLEX__) is only there to allow compilation when Complex is not used. Since in that case this whole section of functions is not used. TODO cleaner method ?
   //To avoid overflow toward positive value we should start from a small one here. Pitrou.
   phipr1 *=phi1;
   PhiL[lmax] = phi1;

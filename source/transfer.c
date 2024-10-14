@@ -5469,7 +5469,6 @@ int transfer_get_q_list_ns(
 
   int index_q, index_md;
   double sqrt_absK, m, q_Re, k_Re, nu_red_int, nu_int;
-  std::complex<double> I(0.0, 1.0);
   
   sqrt_absK = sqrt(fabs(K));
   
@@ -5494,7 +5493,11 @@ int transfer_get_q_list_ns(
 	//	   "Bug in transfer_get_q_list_ns. Curvature is positive and it is implemented only for negative curvature");
  	q_Re = ppt->k[0][index_q];
 	//For Bianchi the list in k_output_values set in the *.ini file is used as a list of Re[q] and the same for all modes (vector when this will be possible, and tensors)
-	ptr->q_complex[index_q] = q_Re + I*sqrt_absK;
+
+	//We recast the type as (__DOUBLE_OR_COMPLEX__) because this part SHOULD NEVER be used if CLASS is not compiled with Complex (it is for BIanchi which works only with complex)
+	//The type cast is only for the compilation to work in all cases (I could put a compiler flag alternatively, this would be cleaner TODO)
+	
+	ptr->q_complex[index_q] = q_Re + Imaginary*sqrt_absK;
 	ptr->k_complex[index_md][index_q] = std::sqrt(ptr->q_complex[index_q]*ptr->q_complex[index_q]-K*(m+1.));
       }
       else {
@@ -5899,8 +5902,6 @@ int transfer_compute_for_each_l_ns(
   /* whether to use the Limber approximation */
   short use_limber;
 
-  std::complex<double> I(0.0, 1.0);
-
   if (__DEBUG__)
     printf("DEBUG entering each_l_ns\n");
   /** - return zero transfer function if l is above l_max */
@@ -5959,7 +5960,7 @@ int transfer_compute_for_each_l_ns(
     convention_factor *= (2.*l+1.);
     break;
   case observable_multipoles:
-    convention_factor *= pow(I,l)*sqrt(4*_PI_*(2.*l+1.));//Eq. 6.8 of 1909.13688 combined with the (2l+1) of Eq. 6.4.
+    convention_factor *= pow(Imaginary,l)*sqrt(4*_PI_*(2.*l+1.));//Eq. 6.8 of 1909.13688 combined with the (2l+1) of Eq. 6.4.
     if ( (index_tt == ptr->index_tt_b) || (index_tt == ptr->index_tt_b_v) )
       convention_factor *= -1.;//Extra minus sign for B modes because parity rule is (-1)^l for T and E but (-1)^(l+1) for B modes.
     break;
@@ -6183,7 +6184,6 @@ int transfer_zeta_lm(struct transfer * ptr,
   int i;
   __DOUBLE_OR_COMPLEX__ res;
   double Re_nu;
-  std::complex<double> I(0.0, 1.0);
   double ireal;
   
   if (ptr->non_stochastic_type == bianchi)
@@ -6196,7 +6196,7 @@ int transfer_zeta_lm(struct transfer * ptr,
       res = 1.;
       for (i= m+1; i<=l; i++) {
 	ireal = (double)i;
-	res *= -1.* I * sqrt( ireal*ireal + nu * nu) / ((ireal+1.) - I * Re_nu);
+	res *= -1.* Imaginary * sqrt( ireal*ireal + nu * nu) / ((ireal+1.) - Imaginary * Re_nu);
       }
       //printf("DEBUG value of zeta_l^m for l=%d m=%d is %f %f+i \n",l,m,std::real(res),std::imag(res));
 

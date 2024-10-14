@@ -8,7 +8,7 @@
 #include <stdarg.h>
 
 //To choose a complex valued CLASS code. comment to switch to usual real valued CLASS code.
-#define __COMPLEX_CLASS__
+//#define __COMPLEX_CLASS__
 
 //Define a type which can be double for usual class, or complex when studying Bianchi as a non-stochastic perturbation.
 //Aslo, this header is laded by all the modules of CLASS. Some are in C, and others in C++ hence we must distinguish them
@@ -21,9 +21,11 @@
 //#define __DOUBLE_OR_COMPLEX__ _Complex double
 #define __DOUBLE_OR_COMPLEX__ std::complex<double>
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
+#define Imaginary std::complex<double>(0.,1.)
 #else
 #define __DOUBLE_OR_COMPLEX__ double
 #define __COMPLEX_CLASS_BOOL__ _FALSE_
+#define Imaginary 0.
 #endif
 
 #else

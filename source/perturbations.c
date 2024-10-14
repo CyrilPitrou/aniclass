@@ -12857,7 +12857,6 @@ int perturbations_find_complex_mode(struct background * pba,
   double sqrt_absK, mq_real;
   __DOUBLE_OR_COMPLEX__ k, k2, q_loc, zetaratio;//TODO remove useless variables
   int l, m;
-  std::complex<double> I(0.0, 1.0);
   
   /** - rename the fields of the input structure (just to avoid heavy notations) */
   sqrt_absK = sqrt(fabs(pba->K));
@@ -12877,7 +12876,7 @@ int perturbations_find_complex_mode(struct background * pba,
       }
     // q = m/ls + i/lc. Hence q^2 = (m/ls)^2 -1/lc^2 + 2im/ls/lc. Since q^2 = k^2 + (1+|m|)K = k^2 - (1+|m|)/lc^2 because
     // we consider only here K<0 types, this gives k^2 = (m/ls)^2+m/lc^2 + 2im/ls/lc   and mq_real stands for m/ls.
-    k2 = mq_real*mq_real + 2.*I*mq_real*sqrt_absK + m * sqrt_absK*sqrt_absK;//complex ugly.
+    k2 = mq_real*mq_real + 2.*Imaginary*mq_real*sqrt_absK + m * sqrt_absK*sqrt_absK;//complex ugly.
     k = std::sqrt(k2);
     //q_loc = mq_real + I*sqrt_absK;
     /*for (l = m +1; l<=ppw->max_l_max; l++){
@@ -12888,7 +12887,7 @@ int perturbations_find_complex_mode(struct background * pba,
     if (__DEBUG__)
       printf("DEBUG we update the zetas up to %d \n",ppw->max_l_max);
     for (l = m+1; l<=ppw->max_l_max; l++){
-      zetaratio =  - I * sqrt( (l-1. +I*mq_real/sqrt_absK) / (l+1. - I*mq_real/sqrt_absK) );
+      zetaratio =  - Imaginary * sqrt( (l-1. +Imaginary*mq_real/sqrt_absK) / (l+1. - Imaginary*mq_real/sqrt_absK) );
       ppw->ratio_zetal_m[l] = zetaratio;
     }
   }
