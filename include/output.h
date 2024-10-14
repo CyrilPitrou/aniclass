@@ -207,31 +207,31 @@ extern "C" {
 			   struct perturbations * ppt,
 			   struct transfer * ptr,
 			   struct output * pop,
-			   FILE * * clfile,
+			   FILE * * almfile,
 			   FileName filename,
 			   char * first_line,
 			   int index_q
 			   );
 
-  int output_bianchi_multipoles(
-              struct background * pba,
-              struct perturbations * ppt,
-              struct transfer * ptr,
-	      struct harmonic * phr,
-              struct output * pop
-				);
-
   int output_one_line_of_alm(
                           struct background * pba,
                           struct harmonic * phr,
                           struct output * pop,
-                          FILE * clfile,
+                          FILE * almfile,
                           double l,
                           double * alm, /* array with argument cl[index_tt] */
                           int tt_size,
 			  int m,
 			  int fill_with_zero
 			     );
+
+  int output_alm(
+              struct background * pba,
+              struct perturbations * ppt,
+              struct transfer * ptr,
+	      struct harmonic * phr,
+              struct output * pop
+				);
 
   
 #ifdef __cplusplus

@@ -137,9 +137,16 @@ int output_init(
 
   if (ppt->has_cls == _TRUE_) {
 
-    class_call(output_cl(pba,ppt,phr,ple,pop),
-               pop->error_message,
-               pop->error_message);
+    if (ppt->statistics == stochastic) {
+      class_call(output_cl(pba,ppt,phr,ple,pop),
+		 pop->error_message,
+		 pop->error_message);
+    }
+    if (ppt->statistics == non_stochastic) {
+      class_call(output_alm(pba,ppt,ptr,phr,pop),
+		 pop->error_message,
+		 pop->error_message);
+    }
   }
 
   /** - deal with all Fourier matter power spectra P(k)'s */
@@ -1853,6 +1860,355 @@ int output_one_line_of_pk(
   class_fprintf_double(pkfile,one_pk,_TRUE_);
   fprintf(pkfile,"\n");
 
+  return _SUCCESS_;
+
+}
+
+/********************************************************************/
+/** We now add the functions which are specific to the Bianchi case */
+/********************************************************************/
+
+/**
+ * For bianchi only we can output the transfer functions, in the form of list of T_lm or E_lm and B_lm
+ * (with m=2 only as Bianchi is only implemented with tensor modes)
+ *
+ * @param pba Input: pointer to background structure (needed for \f$ T_{cmb}\f$)
+ * @param ppt Input: pointer perturbation structure
+ * @param ptr Input: pointer to transfers structure
+ * @param pop Input: pointer to output structure
+ */
+
+int output_alm(
+              struct background * pba,
+              struct perturbations * ppt,
+              struct transfer * ptr,
+	      struct harmonic *phr,
+              struct output * pop
+              ) {
+
+  /** Summary: */
+  /** - define local variables */
+
+  FILE ** out_md;     /* array of pointers to files with argument
+                         out_md[index_md]
+                         (will contain cl's for each mode, summed eventually over ic's) */
+
+  __DOUBLE_OR_COMPLEX__ ** alm_md;    /* array with argument
+                         alm_md[index_md][index_ct] */
+
+  int index_md,index_m, m_computed;
+  int index_ic=0;//We should investigate all initial conditions !!! TODO. For the moment the code only allows one IC.
+  int index_tt;
+  int index_q=0;
+  int index_l,m,l,index_low_l;
+  int c_factor;
+  //double * alm_zero;
+
+  FileName file_name;
+  char first_line[_LINE_LENGTH_MAX_];
+
+  //A factor which is 2 if complex compiled and 1 otherwise.
+  if (__COMPLEX_CLASS_BOOL__)
+    c_factor = 2;
+  else
+    c_factor = 1;
+  
+  /** We nest everything in a loop of the k values asked to be output */
+  for (index_q=0; index_q<ptr->q_size; index_q++){
+
+    class_alloc(out_md,
+		ptr->md_size*sizeof(FILE *),
+		pop->error_message);
+    
+    class_alloc(alm_md,
+		ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__ *),
+		pop->error_message);
+
+    
+    /** - second, open only the relevant files, and write a heading in each of them */
+    
+    for (index_md = 0; index_md < ptr->md_size; index_md++) {
+      
+      if (_scalars_) {
+	
+        sprintf(file_name,"%s%s%d%s",pop->root,"alm_q",index_q,"_s.dat");
+	switch (ptr->output_multipole_normalization) {
+	case tam_multipoles:
+	  strcpy(first_line,"TAM a_lm's for scalar mode");
+	  break;
+	case observable_multipoles:
+	  strcpy(first_line,"observed a_lm's for scalar mode");
+	  break;
+	}
+      }
+
+      if (_vectors_) {
+
+	sprintf(file_name,"%s%s%d%s",pop->root,"alm_q",index_q,"_v.dat");
+	switch (ptr->output_multipole_normalization) {
+	case tam_multipoles:
+	  strcpy(first_line,"TAM a_lm's for vector mode");
+	  break;
+	case observable_multipoles:
+	  strcpy(first_line,"observed a_lm's for vector mode");
+	  break;
+	}
+	
+      }
+
+      
+      if (_tensors_) {
+
+	sprintf(file_name,"%s%s%d%s",pop->root,"alm_q",index_q,"_t.dat");
+	switch (ptr->output_multipole_normalization) {
+	case tam_multipoles:
+	  strcpy(first_line,"TAM a_lm's for tensor mode");
+	  break;
+	case observable_multipoles:
+	  strcpy(first_line,"observed a_lm's for tensor mode");
+	  break;
+	}
+	
+      }
+      
+      class_call(output_open_alm_file(pba,
+				      ppt,
+				      ptr,
+				      pop,
+				      &(out_md[index_md]),
+				      file_name,
+				      first_line,
+				      index_q
+				      ),
+                 pop->error_message,
+                 pop->error_message);
+      
+      class_alloc(alm_md[index_md],
+                  phr->ct_size*sizeof(__DOUBLE_OR_COMPLEX__),//For complex types
+                  pop->error_message);
+    }
+
+    switch (pop->non_stochastic_format) {
+    case tam_alm:
+      /** - third, perform loop over l. For each multipole, get all \f$ a_lm\f$'s*/
+
+      for (index_md = 0; index_md < ptr->md_size; index_md++) {
+	for (index_l = 0; index_l < ptr->l_size_max; index_l++) {
+
+	  if (ptr->l[index_l] <= phr->l_max[index_md]) {
+	    class_call(harmonic_alm_at_l(ptr,phr,index_md,index_l,index_q,index_ic,alm_md),
+		       ptr->error_message,
+		       pop->error_message);
+	    
+	    /*class_call(output_one_line_of_alm(pba,ptr,pop,out_md[index_md],ptr->l[index_l],alm_md[index_md],2*ptr->tt_size[index_md],0,_FALSE_),
+	      pop->error_message,
+	      pop->error_message);*/
+
+	    class_call(output_one_line_of_alm(pba,phr,pop,out_md[index_md],ptr->l[index_l],(double *)alm_md[index_md],c_factor*phr->ct_size,0,_FALSE_),
+		       pop->error_message,
+		       pop->error_message);
+	  }
+	}
+      }
+      break;
+    case healpix_alm:
+      //class_calloc(alm_zero,ptr->tt_size[index_md],sizeof(double)*2,pop->error_message); 
+
+      for (index_md = 0; index_md < ptr->md_size; index_md++) {
+	
+	if (_scalars_)
+	  m_computed = 0;
+	if (_vectors_)
+	  m_computed = 1;
+	if (_tensors_)
+	  m_computed = 2;
+
+	/*class_test(ptr->l[0]!=m_computed,
+		 pop->error_message,
+		 "You asked for healpix output but for mode %d, we have l_min = %d, hence this is impossible\n",m_computed,ptr->l[0]);*/
+	for (index_m = 0; index_m <= phr->l_max[index_md]; index_m++) {
+	  if (index_m == m_computed) {
+	    //In case m<2 e.g. with scalar or vector modes with must also fill with 0s.
+	    for (index_low_l=index_m; index_low_l<ptr->l[0];index_low_l++) {
+	      class_call(output_one_line_of_alm(pba,phr,pop,out_md[index_md],index_low_l,(double *)alm_md[index_md],c_factor*phr->ct_size,m_computed,_TRUE_),
+			 pop->error_message,
+			 pop->error_message);
+	    }
+	    for (index_l = 0; index_l < ptr->l_size_max; index_l++) {
+	      if (ptr->l[index_l] <= phr->l_max[index_md]) {
+		class_call(harmonic_alm_at_l(ptr,phr,index_md,index_l,index_q,index_ic,alm_md),
+			   ptr->error_message,
+			   pop->error_message);
+		
+		class_call(output_one_line_of_alm(pba,phr,pop,out_md[index_md],ptr->l[index_l],(double *)alm_md[index_md],c_factor*phr->ct_size,m_computed,_FALSE_),
+			   pop->error_message,
+			   pop->error_message);
+	      }
+	    }
+	  }
+	  else {
+	    for (l = index_m; l <= phr->l_max[index_md]; l++) {
+	      class_call(output_one_line_of_alm(pba,phr,pop,out_md[index_md],l,(double *)alm_md[index_md],c_factor*phr->ct_size,index_m,_TRUE_),
+			 pop->error_message,
+			 pop->error_message);
+	    }
+	  }
+	}
+      }
+      //free(alm_zero);
+      break;
+    }
+      
+    for (index_md = 0; index_md < ptr->md_size; index_md++) {
+      /** - finally, close files and free arrays of files and \f$ C_l\f$'s */
+      fclose(out_md[index_md]);
+      free(alm_md[index_md]);
+    }
+    
+    
+    free(out_md);
+    free(alm_md);
+    
+  }//end of loop on all index_q
+  
+  return _SUCCESS_;
+
+}
+
+
+
+/**
+ * This routine opens one file where some \f$ C_l\f$'s will be written, and writes
+ * a heading with some general information concerning its content.
+ *
+ * @param psp        Input: pointer to spectra structure
+ * @param pop        Input: pointer to output structure
+ * @param clfile     Output: returned pointer to file pointer
+ * @param filename   Input: name of the file
+ * @param first_line Input: text describing the content (mode, initial condition..)
+ * @return the error status
+ */
+
+int output_open_alm_file(
+			 struct background * pba,
+			 struct perturbations * ppt,
+			 struct transfer * ptr,
+			 struct output * pop,
+			 FILE * * almfile,
+			 FileName filename,
+			 char * first_line,
+			 int index_q
+                        ) {
+  /** Summary */
+  //Only for tensor modes remember !
+
+  int index_d1,index_d2;
+  int colnum = 1;
+  char tmp[60]; //A fixed number here is ok, since it should just correspond to the largest string which is printed to tmp.
+  __DOUBLE_OR_COMPLEX__ q, nu;
+
+  q = ptr->q_complex[index_q];
+
+  
+  class_open(*almfile,filename,"w",pop->error_message);
+
+  if (pop->write_header == _TRUE_) {
+    fprintf(*almfile,"# dimensionless %s\n",first_line);
+
+    
+    if (pba->K == 0) {
+      if (__COMPLEX_CLASS_BOOL__)
+	fprintf(*almfile,"# The mode solved is q = %.8e %.8+ei Mpc^-1 \n",creal(q),cimag(q));
+      else
+	fprintf(*almfile,"# The mode solved is q = %.8e Mpc^-1 \n",q);
+    }
+    else {
+      nu = q/sqrt(fabs(pba->K));
+      if (__COMPLEX_CLASS_BOOL__)
+	fprintf(*almfile,"# The mode solved is q = %.8e %.8+ei Mpc^-1  or nu = %.8e %.8+ei\n",creal(q),cimag(q),creal(nu),cimag(nu));
+      else
+	fprintf(*almfile,"# The mode solved is q = %.8e Mpc^-1  or nu = %.8e \n",q,nu);
+    }
+
+    if (pop->non_stochastic_format == healpix_alm) {
+      fprintf(*almfile,"# 1:m ");
+      colnum++;
+      fprintf(*almfile,"# 2:l ");
+      colnum++;
+    }
+    else {
+      fprintf(*almfile,"# 1:l ");
+      colnum++;
+    }
+    if (__COMPLEX_CLASS_BOOL__) {
+      class_fprintf_columntitle(*almfile,"Re@T",ppt->has_cl_cmb_temperature,colnum);
+      class_fprintf_columntitle(*almfile,"Im@T",ppt->has_cl_cmb_temperature,colnum);
+      class_fprintf_columntitle(*almfile,"Re@E",ppt->has_cl_cmb_polarization,colnum);
+      class_fprintf_columntitle(*almfile,"Im@E",ppt->has_cl_cmb_polarization,colnum);
+      class_fprintf_columntitle(*almfile,"Re@B",ppt->has_cl_cmb_polarization,colnum);
+      class_fprintf_columntitle(*almfile,"Im@B",ppt->has_cl_cmb_polarization,colnum);
+    } else {
+      class_fprintf_columntitle(*almfile,"T",ppt->has_cl_cmb_temperature,colnum);
+      class_fprintf_columntitle(*almfile,"E",ppt->has_cl_cmb_polarization,colnum);
+      class_fprintf_columntitle(*almfile,"B",ppt->has_cl_cmb_polarization,colnum);
+    }
+    fprintf(*almfile,"\n");
+  }
+
+  return _SUCCESS_;
+
+}
+
+
+
+/**
+ * This routine writes one line with l and all \f$ C_l\f$'s for all types (TT, TE...)
+ *
+ * @param pba          Input: pointer to background structure (needed for \f$ T_{cmb}\f$)
+ * @param ptr          Input: pointer to transfers structure
+ * @param pop          Input: pointer to output structure
+ * @param almfile       Input: file pointer
+ * @param l            Input: multipole
+ * @param alm          Input: \f$ a_lm\f$'s for all types
+ * @param tt_size      Input: number of types
+ * @param fill_wth_zero Input: boolean to fill with zeros if true
+ * @return the error status
+ */
+
+int output_one_line_of_alm(
+                          struct background * pba,
+                          struct harmonic * phr,
+                          struct output * pop,
+                          FILE * almfile,
+                          double l,
+                          double * alm, /* array with argument alm[index_ct] */
+                          int ct_size,
+			  int m,
+			  int fill_with_zero
+                          ) {
+  int index_ct;
+
+  if (pop->non_stochastic_format == healpix_alm) {
+    fprintf(almfile," ");
+    fprintf(almfile,"%4d ",m);
+    fprintf(almfile," ");
+    fprintf(almfile,"%4d ",(int)l);
+  }
+  else {
+    fprintf(almfile," ");
+    fprintf(almfile,"%4d ",(int)l);
+  }
+  for (index_ct=0; index_ct < ct_size; index_ct++) {
+    //printf("DEBUG write tt=%d value=%f\n",index_tt,alm[index_tt]);
+    if (fill_with_zero == _TRUE_) {
+      class_fprintf_double(almfile, 0., _TRUE_);
+    }
+    else {
+      class_fprintf_double(almfile, alm[index_ct], _TRUE_);
+    }
+  }
+  fprintf(almfile,"\n");
+  
   return _SUCCESS_;
 
 }

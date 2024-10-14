@@ -293,7 +293,7 @@ int harmonic_init(
              phr->error_message,
              phr->error_message);
 
-  printf("DEBUG end of harmonic_indices \n");
+  //printf("DEBUG end of harmonic_indices \n");
   /** - deal with \f$ C_l\f$'s, if any */
 
   if (ppt->has_cls == _TRUE_) {

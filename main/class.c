@@ -59,21 +59,21 @@ int main(int argc, char **argv) {
     }
   }
 
-  printf("DEBUG end of perturbations \n");
+  //printf("DEBUG end of perturbations \n");
     
   if (transfer_init(&pr,&ba,&th,&pt,&fo,&tr) == _FAILURE_) {
     printf("\n\nError in transfer_init \n=>%s\n",tr.error_message);
     return _FAILURE_;
   }
 
-  printf("DEBUG end of transfer \n");
+  //printf("DEBUG end of transfer \n");
   
   if (harmonic_init(&pr,&ba,&pt,&pm,&fo,&tr,&hr) == _FAILURE_) {
     printf("\n\nError in harmonic_init \n=>%s\n",hr.error_message);
     return _FAILURE_;
   }
 
-  printf("DEBUG end of harmonic \n");
+  //printf("DEBUG end of harmonic \n");
 
   /* In Bianchi case we do not use some modules */
   if (pt.statistics == stochastic) {
