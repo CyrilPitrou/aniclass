@@ -5484,7 +5484,8 @@ int transfer_get_q_list_ns(
   class_alloc(ptr->q_complex,ppt->k_output_values_num*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
 
   ptr->q_size = ppt->k_output_values_num;
-
+  printf("DEBUG ptr->q_size=%d \n",(int)ptr->q_size);
+  
   class_alloc(ptr->k_complex,ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
 
   for (index_md = 0; index_md <  ptr->md_size; index_md++) {
@@ -5508,10 +5509,10 @@ int transfer_get_q_list_ns(
 	ptr->q_complex[index_q] = q_Re + Imaginary*sqrt_absK;
 	ptr->k_complex[index_md][index_q] = std::sqrt(ptr->q_complex[index_q]*ptr->q_complex[index_q]-K*(m+1.));
       }
-      else {
+      else {//Here the stochastic type can only be large_mode
 	k_Re = ppt->k[0][index_q];
 	class_test(k_Re*k_Re + (1+m)* K <  0.,ptr->error_message,
-        "The k chosen does not satisfy k^2 + (1+m)K >=0 since it is %e",k_Re*k_Re + (1+m)* K);
+		   "The k chosen does not satisfy k^2 + (1+m)K >=0 since it is %e",k_Re*k_Re + (1+m)* K);
 	ptr->k_complex[index_md][index_q] = k_Re;
 	ptr->q_complex[index_q] = sqrt(k_Re*k_Re + (1+m)* K) ;
 

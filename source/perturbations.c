@@ -1355,13 +1355,6 @@ int perturbations_indices(
 	       ppt->error_message);
   }
 
-  class_call(perturbations_get_k_list(ppr,
-                                      pba,
-                                      pth,
-                                      ppt),
-             ppt->error_message,
-             ppt->error_message);
-
   /** - loop over modes. Initialize flags and indices which are specific to each mode. */
 
   for (index_md = 0; index_md < ppt->md_size; index_md++) {
@@ -2275,7 +2268,7 @@ int perturbations_get_k_list(
 
     /** - --> test that result for k_min, k_max make sense */
 
-    printf("DEBUG kmin in ppt is %e \n",k_min);
+    //printf("DEBUG kmin in ppt is %e \n",k_min);
     
     class_test(k_min<0.,
                ppt->error_message,
@@ -2772,7 +2765,7 @@ int perturbations_get_k_list(
     ppt->k_max = MAX(ppt->k_max,ppt->k[ppt->index_md_tensors][ppt->k_size[ppt->index_md_tensors]-1]); /* last value, inferred from perturbations structure */
   }
 
-  printf("DEBUG ppt->k[ppt->index_md_scalars][0]=%e in ppt \n",ppt->k[ppt->index_md_scalars][0]);
+  //printf("DEBUG ppt->k[ppt->index_md_scalars][0]=%e in ppt \n",ppt->k[ppt->index_md_scalars][0]);
 
   free(k_max_cmb);
   free(k_max_cl);
@@ -12826,9 +12819,10 @@ int perturbations_get_k_list_non_stochastic(
   for (index_md=0; index_md<ppt->md_size ; index_md++) {
     class_alloc(ppt->k[index_md],sizeof(double)*ppt->k_output_values_num,ppt->error_message);
     ppt->k_size[index_md] = ppt->k_output_values_num;
-    //printf("DEBUG ppt->k_size[index_md] = %d \n",ppt->k_size[index_md]);
+    //printf("DEBUG index_md=%d ppt->k_size[index_md] = %d \n",index_md,ppt->k_size[index_md]);
     for (index_k=0; index_k<ppt->k_output_values_num; index_k++){
       ppt->k[index_md][index_k] = ppt->k_output_values[index_k];
+      //printf("DEBUG index_md=%d index_k=%d ppt->k[index_md][index_k] = %e \n",index_md,index_k,ppt->k[index_md][index_k]);
       ppt->index_k_output_values[index_md*ppt->k_output_values_num + index_k] = index_k;
     }
   }
