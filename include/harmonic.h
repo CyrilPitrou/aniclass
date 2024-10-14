@@ -114,6 +114,9 @@ struct harmonic {
   double ** cl;   /**< table of anisotropy spectra for each mode, multipole, pair of initial conditions and types, cl[index_md][(index_l * phr->ic_ic_size[index_md] + index_ic1_ic2) * phr->ct_size + index_ct] */
   double ** ddcl; /**< second derivatives of previous table with respect to l, in view of spline interpolation */
 
+  //specific for non-stochastic perturbations since we then output the alm, not the Cls
+  __DOUBLE_OR_COMPLEX__ ** alm;   /**< table of alm for each mode m, multipole l, initial condition and types, alm[index_md][(index_l * phr->ic_size[index_md] + index_ic) * phr->ct_size + index_ct] */
+  
   //@}
 
   /** @name - technical parameters */

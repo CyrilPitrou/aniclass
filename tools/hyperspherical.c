@@ -1782,3 +1782,430 @@ int hyperspherical_Hermite6_interpolation_vector_PhidPhid2Phi(HyperInterpStruct 
   return _SUCCESS_;
 }
 
+/**************************************************************************/
+  /** 
+   * This module computes Hyperspherical Bessel functions with complex order for K = -1.
+   * Currently working for orders with module >= 10^{-3}.
+   * For values outside this scope, the error becomes comparable with the
+   * output. TODO put more comments on this section
+   * 
+   */
+
+   /** This function fills Phi and the derivative of Phi arrays. 
+    * In the case K=0 or K=1, we call the methods developed for real arguments in hyperspherical.c.
+    * ****************************************************************************************************
+    * Parameters:
+    * 
+    * K: Curvature parameter, (-1,0,1);
+    * nl: Number of points in lvec;
+    * lvec: array containing all the values of l wanted. It must be set in ascending order.
+    * xmin and xmax: The minimum and the maximum of x, the independent variable of Phi;
+    * sampling: Number of x-points in one wavelenght ;
+    * pHIS: Pointer to the structure containing the variables related;
+    */
+
+int hyperspherical_CHIS_create(int K,
+                           __DOUBLE_OR_COMPLEX__ beta,
+                           int nl,
+                           int *lvec,
+                           double xmin,
+                           double xmax,
+                           double sampling,
+                           int l_WKB,
+                           double phiminabs,
+                           HyperInterpStruct *pHIS,
+                           ErrorMsg error_message)
+{
+  
+  int lmax = lvec[nl-1];
+  //printf("DEBUG lmax in CHIS_create is %d \n",lmax);
+  //printf("DEBUG l_size_max in CHIS_create is %d\n",nl);
+  
+  /* If beta is real, we use the method for it*/
+  if(std::imag(beta)==0)
+    {
+      //printf("DEBUG for information there is no imaginary part, which is suspicious. We fall back to usual functions.\n");
+      class_call(hyperspherical_HIS_create(K,std::real(beta),nl,lvec,xmin,xmax,sampling,l_WKB,phiminabs,pHIS, 
+					   error_message),error_message,error_message);
+      
+      //We also overwrite the xmin because we really want even the tinest values
+      int ind_l;
+      for (ind_l=0; ind_l<nl; ind_l++){
+	pHIS->chi_at_phimin[ind_l] = xmin;
+      }
+      
+      return _SUCCESS_;
+    }
+
+    /*Setting beta*/
+    __DOUBLE_OR_COMPLEX__ beta2 = beta*beta;
+
+    /*Variables related to l*/
+    __DOUBLE_OR_COMPLEX__ *sqrtK;
+    __DOUBLE_OR_COMPLEX__ *one_over_sqrtK;
+    class_alloc(sqrtK, sizeof(__DOUBLE_OR_COMPLEX__)*(lmax+3), error_message);
+    class_alloc(one_over_sqrtK, sizeof(__DOUBLE_OR_COMPLEX__ )*(lmax+3), error_message);
+
+    /* Variables related to x*/
+    double deltax; //spacing between x points
+    double x_value; //auxiliary variable to calculate xvec
+    double xfwd; //turning point
+    double lambda_Re, lambda_Im, lambda; //wavelenght
+    double *xvec; //array of x
+    double *sinK; //array of sinh(x)
+    double *cotK; //array of coth(x)
+    int nx, k; //number of x points
+    lambda_Re = 2*_PI_/std::real(beta);
+    lambda_Im = 2*_PI_/std::imag(beta);
+    lambda = MIN(lambda_Re,lambda_Im);
+    nx = (int) ((xmax-xmin)*sampling/lambda);
+    nx = MAX(nx,100);//Add a minimum of 100 points otherwise it detected less than an oscillation, hence very few points.
+    //printf("DEBUG number of points to compute the bessel function is %d \n",nx);
+    deltax = (double) (xmax-xmin)/(nx-1.0); 
+    class_alloc(sinK, sizeof(double)*nx, error_message); 
+    class_alloc(cotK, sizeof(double)*nx, error_message); 
+    class_alloc(xvec, sizeof(double)*nx, error_message);
+    xfwd = asinh(sqrt(lmax*(lmax+1.0))/std::abs(beta));//complex should we put |beta| or Re(beta) to estimate the turning point ?
+        
+    /*Variables in pHIS*/
+    pHIS->K = K;
+    pHIS->beta = beta;
+    pHIS->l_size = nl;
+    pHIS->x_size = nx;
+    pHIS->delta_x= deltax;
+    class_alloc(pHIS->l, sizeof(int)*nl,error_message);
+    class_alloc(pHIS->chi_at_phimin,sizeof(double)*nl,error_message);
+    class_alloc(pHIS->x, sizeof(double)*nx, error_message);
+    class_alloc(pHIS->phi, sizeof(__DOUBLE_OR_COMPLEX__) *nx*nl, error_message );
+    class_alloc(pHIS->dphi, sizeof(__DOUBLE_OR_COMPLEX__) *nx*nl, error_message );
+    class_alloc(pHIS->sinK,  sizeof(double)*nx, error_message);
+    class_alloc(pHIS->cotK,  sizeof(double)*nx, error_message);
+
+    /*Initializing variables related to x*/
+    for(int i = 0; i<nx; i++)
+    {
+        x_value = xmin + i*deltax;
+        xvec[i] = x_value;
+	//printf("DEBUG xi =%f \n",x_value);
+        pHIS->x[i] = (double) x_value; 
+        sinK[i] = sinhl(x_value);
+        pHIS->sinK[i] = (double) sinK[i];
+        cotK[i] = 1.0/tanhl(x_value);
+        pHIS->cotK[i] = (double) cotK[i];
+    }
+    for(int i = 0; i<=(lmax+2); i++)
+    {
+      sqrtK[i] = std::sqrt(beta2 + pow(i,2));
+        one_over_sqrtK[i] = 1.0/sqrtK[i];
+    }
+   
+   /*Creating space for PhiL */
+   __DOUBLE_OR_COMPLEX__ *PhiL; //auxiliary array that is filled with Phi for a fixed x and variable l.
+   class_alloc(PhiL, sizeof(__DOUBLE_OR_COMPLEX__)*(lmax+2), error_message);
+   
+   if(lmax<0)
+   {
+     printf("DEBUG using explicit expressions for bessel functions since lmax=%d \n",lmax);
+       for(int i = 0; i<nx; i++)
+   	{
+      		hyperspherical_explicit_complex(lmax+1, beta, xvec[i], PhiL);
+   		for(int j = 0; j<nl; j++)
+   		{
+   			int l = lvec[j];
+   			pHIS->l[j] = l;
+			hyperspherical_explicit_complex(l, beta, xvec[i], PhiL);
+			pHIS->phi[j*nx + i] =  (__DOUBLE_OR_COMPLEX__) PhiL[l]; //setting Phi for l and x
+			pHIS->dphi[j*nx + i] = (__DOUBLE_OR_COMPLEX__) l*cotK[i]*PhiL[l]-sqrtK[l+1]*PhiL[l+1]; //setting the derivative
+			//The results are wrong in the case of vector modes. So something is fishy about these explicit expressions. But what ?
+		}
+	}
+    return _SUCCESS_;
+   }
+
+    /*Calculating Phi/dPhi and storing them in the structure*/
+    for(int i = 0; i<nx; i++)
+    {
+      /*If x is in the exponential region, we use backwards recursion*/
+      if(xvec[i] < xfwd)
+        {
+            hyperspherical_backwards_recurrence_complex(lmax+1,beta,xvec[i], sinK[i], cotK[i],sqrtK, 
+            one_over_sqrtK, PhiL);
+            for(int j = 0; j<nl; j++)
+            {
+                int l = lvec[j];
+                pHIS->l[j] = l;
+                if(l<0)
+		  {
+		    //printf("DEBUG compute explicit complex with l=%d instead of backward recurrence \n",l);
+		    hyperspherical_explicit_complex(l, beta, xvec[i], PhiL);
+		  }
+                pHIS->phi[j*nx + i] =  (__DOUBLE_OR_COMPLEX__) PhiL[l]; //setting Phi for l and x
+                pHIS->dphi[j*nx + i] = (__DOUBLE_OR_COMPLEX__) l*cotK[i]*PhiL[l]-sqrtK[l+1]*PhiL[l+1]; //setting the derivative
+		/*if (i <= 30)
+		  printf("DEBUG for xvec[i]=%.10f at l=%d, Phi=%.18f %.18+fi \n",xvec[i],l,std::real(pHIS->phi[j*nx + i] ), std::imag(pHIS->phi[j*nx + i] ));*/
+            }
+	    
+        }
+        else
+        {
+            hyperspherical_forwards_recurrence_complex(lmax+1,beta,xvec[i], sinK[i], cotK[i],sqrtK, 
+            one_over_sqrtK, PhiL);
+            for(int j = 0; j<nl; j++)
+            {
+                int l = lvec[j];
+                pHIS->l[j] = l;
+                if(l<0)
+		  {
+		    //printf("DEBUG compute explicit complex with l=%d instead of forward recurrence \n",l);
+		    hyperspherical_explicit_complex(l, beta, xvec[i], PhiL);
+		  }
+                pHIS->phi[j*nx + i] =(__DOUBLE_OR_COMPLEX__) PhiL[l];//setting Phi for l and x
+                pHIS->dphi[j*nx + i] = (__DOUBLE_OR_COMPLEX__) l*cotK[i]*PhiL[l]-sqrtK[l+1]*PhiL[l+1];//setting the derivative
+            }
+        }
+    }
+
+     for (k=0; k<nl; k++){
+       //hyperspherical_get_xmin_from_approx(K,lvec[k],abs(beta),0.,phiminabs,pHIS->chi_at_phimin+k,NULL);
+      pHIS->chi_at_phimin[k] = xmin;
+     }
+    
+    free(sqrtK);
+    free(one_over_sqrtK);
+    free(sinK);
+    free(cotK);
+    free(xvec);
+    free(PhiL);
+    return _SUCCESS_;
+}
+
+int get_CFcomplex(int l, 
+                  __DOUBLE_OR_COMPLEX__ beta, 
+                  double cotK, 
+                  __DOUBLE_OR_COMPLEX__ *CF, 
+                  int *isign_r, 
+                  int *isign_i
+		  )
+{
+    /*This function calculates the continued fraction \Phi^\nu_l'/Phi^nu_l through the modified Lentz algorithm */
+    int maxiter = 1000000; //limit of iterations
+    /* Parameters for the modified Lentz algorithm*/
+    double tiny = 1e-100; 
+    //double reltol = 1e-72;
+    double reltol = DBL_EPSILON;//complex To avoid endless for loop we put a larger value.
+    //This avoids issues with -O2 or -O3 optimization flags which jitter
+    __DOUBLE_OR_COMPLEX__ aj,bj,fj,Cj,Dj,Delj;
+    __DOUBLE_OR_COMPLEX__ beta2 = beta*beta;
+    __DOUBLE_OR_COMPLEX__ sqrttmp;
+    int j;
+    int K = -1;
+    bj = l*cotK; //This is b_0
+    fj = bj;
+    //printf("DEBUG inside CFcomplex l=%d beta=%f %fi and cotK=%f \n",l,std::real(beta),std::imag(beta),cotK);
+    //printf("DEBUG fj init in continuous fraction %f %+fi \n",std::real(fj),std::imag(fj));
+    Cj = bj;
+    Dj = 0.0;
+    *isign_r = 1;
+    if(std::imag(beta)==0.0)
+    {
+        *isign_i = 0;
+    }
+    else{*isign_i = 1;}
+    for(j=1; j<=maxiter; j++)
+    {
+      sqrttmp = std::sqrt(beta2 - K*(l+j+1.)*(l+j+1.) );
+      aj = -std::sqrt(beta2- (double)(K*(l+j)*(l+j)) )/sqrttmp;
+        if (j==1)
+        {
+	  aj = std::sqrt(beta2-K*(l+1.)*(l+1.))*aj;
+        }
+        bj = (2.*(l+j)+1.)/sqrttmp*cotK;
+        Dj = bj+aj*Dj;
+        if (std::abs(Dj)==0.0)
+        {
+            Dj = tiny;
+        }
+        Cj = bj+aj/Cj;
+        if (std::abs(Cj)==0.0)
+        {
+            Cj = tiny;
+        }
+        Dj = 1.0/Dj;
+        Delj = Cj*Dj;
+        fj = fj*Delj;
+        if (std::real(Dj)<0)
+        {
+            *isign_r *= -1;
+        }
+        if (std::imag(Dj)<0)
+        {
+            *isign_i *= -1;
+        }
+	//printf("DEBUG fj in continuous fraction %f %+fi \n",creal(fj),cimag(fj));
+	if (std::abs(Delj-1.0)<reltol)
+    {
+        *CF = fj;
+        return _SUCCESS_;
+    }
+    }
+    return _FAILURE_;
+}
+
+int hyperspherical_backwards_recurrence_complex(int lmax,
+						__DOUBLE_OR_COMPLEX__ beta,
+						double x,
+						double sinK,
+						double cotK,
+						__DOUBLE_OR_COMPLEX__ *__restrict__ sqrtK,
+						__DOUBLE_OR_COMPLEX__ *__restrict__ one_over_sqrtK,
+						__DOUBLE_OR_COMPLEX__ *__restrict__ PhiL
+						){
+
+    /*Auxiliary variables for this function*/
+  __DOUBLE_OR_COMPLEX__ phi0, phi1, phipr1, phi, phi_plus_1_times_sqrtK, phi_minus_1, scaling, departure;
+  int l, k, isign_r, isign_i;
+  int funcreturn = _FAILURE_;
+  double normphi, invnormphi;
+  std::complex<double> I(0.0, 1.0);
+  
+  phi0 = std::sin(beta*x)/(beta*sinK);
+  departure = MAX(MIN(pow(x/2.,lmax),1.), _ONE_OVER_HYPER_OVERFLOW_);
+  //printf("DEBUG departure at x=%.12e is %.14e \n",x,departure);
+
+  get_CFcomplex(lmax,beta,cotK, &phipr1, &isign_r, &isign_i);//getting the continued fraction
+
+  //printf("DEBUG result of continuous fraction was %f %+fi \n",creal(phipr1),cimag(phipr1));
+  phi1 = departure*((double)isign_r+ I* (double)isign_i); //this is Phi at lmax expect for a multiplication factor, \Phi^\nu_l = \pm 1 \pm i*1
+  //To avoid overflow toward positive value we should start from a small one here. Pitrou.
+  phipr1 *=phi1;
+  PhiL[lmax] = phi1;
+  phi = phi1;
+  phi_plus_1_times_sqrtK = lmax*cotK*phi1-phipr1;
+  
+  /*We use backwards relation to bring the sequence to l = 0*/
+  int l_ini, l_align;
+  l_align = lmax-lmax%_HYPER_BLOCK_;
+  
+  // Bring l down to _HYPER_BLOCK_ aligned region:
+  for (l=lmax; l>l_align; l--)
+    {
+      phi_minus_1 = ( (2*l+1)*cotK*phi-phi_plus_1_times_sqrtK )*one_over_sqrtK[l];
+      phi_plus_1_times_sqrtK = phi*sqrtK[l];
+      phi = phi_minus_1;
+      //printf("DEBUG phi at l=%d is %.10e %.10+ei\n",l,creal(phi),cimag(phi));
+      PhiL[l-1] = phi;
+    }
+  for (l_ini=l_align; l_ini>0; l_ini -= _HYPER_BLOCK_)
+    {   
+      for (l=l_ini; l>(l_ini-_HYPER_BLOCK_); l--)
+        {
+	  phi_minus_1 = ( (2*l+1)*cotK*phi-phi_plus_1_times_sqrtK )*one_over_sqrtK[l];
+	  phi_plus_1_times_sqrtK = phi*sqrtK[l];
+	  phi = phi_minus_1;
+	  //printf("DEBUG phi at l=%d is %.10e %.10ei\n",l,creal(phi),cimag(phi));
+	  PhiL[l-1] = phi;
+        }
+      /*In case of overflow we reescale the whole sequence*/
+      if (std::abs(phi)>_HYPER_OVERFLOW_)
+        {
+	  phi *=(__DOUBLE_OR_COMPLEX__) _ONE_OVER_HYPER_OVERFLOW_;
+	  //printf("DEBUG we rescale and phi=%.12e %.12+ei  \n",creal(phi),cimag(phi));
+	  phi_plus_1_times_sqrtK *= (__DOUBLE_OR_COMPLEX__) _ONE_OVER_HYPER_OVERFLOW_;
+	  for (k=l; k<=lmax; k++)
+            {
+	      PhiL[k] *= (__DOUBLE_OR_COMPLEX__) _ONE_OVER_HYPER_OVERFLOW_;
+            }
+        }
+    }
+  
+  scaling =phi0/phi;
+  //printf("DEBUG for l=%d scaling=%.14e %.14+ei and phi0=%.14e %+.14ei\n",l,creal(scaling),cimag(scaling),creal(phi0),creal(phi0));
+  
+  for (k=0; k<=lmax; k++)
+    {
+      PhiL[k] *= scaling;
+    }
+  return _SUCCESS_;
+}
+
+int hyperspherical_forwards_recurrence_complex(int lmax,
+                                       __DOUBLE_OR_COMPLEX__ beta,
+                                       double x,
+                                       double sinK,
+                                       double cotK,
+                                       __DOUBLE_OR_COMPLEX__ *__restrict__ sqrtK,
+                                       __DOUBLE_OR_COMPLEX__ *__restrict__ one_over_sqrtK,
+                                       __DOUBLE_OR_COMPLEX__ *__restrict__ PhiL)
+{
+    /*This function finds the sequence by forwards recursion*/
+    int l;
+    PhiL[0] = std::sin(beta*x)/(beta*sinK);
+    PhiL[1] = PhiL[0]*(cotK-beta/std::tan(beta*x))*one_over_sqrtK[1];
+    for (l=2; l<=lmax; l++)
+    {
+        PhiL[l] = ((2*l-1.)*cotK*PhiL[l-1]-PhiL[l-2]*sqrtK[l-1])*one_over_sqrtK[l];
+    }
+    return _SUCCESS_;
+}
+
+int hyperspherical_explicit_complex(int l, __DOUBLE_OR_COMPLEX__ beta,double x, __DOUBLE_OR_COMPLEX__ *Phi){
+   /** Explicit formulae for the Hyperspherical Besselfunctions of order
+l<=9.
+       phi_tilde = gam * beta * cos(x*beta) + delta * sin(x*beta),
+       and Phi = phi_tilde *cscK/sqrt(NK). Gamma and delta are
+polynomials in
+       beta and cscK, containing only even powers.
+   */
+   __DOUBLE_OR_COMPLEX__ NK,xbeta,gamma,delta;
+   double CotK;
+   __DOUBLE_OR_COMPLEX__ beta2,beta4,beta6,beta8,beta12,beta16;
+   double CscK,CscK2,CscK4,CscK6,CscK8;
+   int K = -1;
+   CotK = 1.0/tanh(x);
+   CscK = 1.0/sinh(x);
+   //NK = prod(beta^2-K*(0:l).^2);
+   beta2 = std::pow(beta,2);
+   xbeta = x*beta;
+
+   //Calculate polynomials:
+   switch (l){
+   case 0:
+     gamma = 0;
+     delta = 1.;
+     NK = beta2;
+     break;
+   case 1:
+     gamma = -1;
+     delta = CotK;
+     NK = beta2*(beta2 - 1.0*K);
+     break;
+   case 2:
+     beta4 =std::pow(beta,4);
+     CscK2 =CscK*CscK;
+     gamma = -3.*CotK;
+     delta = -beta2 + 3.*CscK2 - 2.*K;
+     NK = beta2*(4.0 + beta4 - 5.0*beta2* (double)K);
+     break;
+   case 3:
+     beta4 =std::pow( beta,4);
+     CscK2 =CscK*CscK;
+     gamma = beta2-15.*CscK2+11.*K;
+     delta = CotK*(-6.*beta2 + 15.*CscK2 - 6.*K);
+     NK = beta2*(49.*beta2 + beta2*beta4 - 36.*K - 14.*beta4*(double)K);
+     break;
+   default:
+     Phi[l] = 0.0;
+     //Failure
+     return _FAILURE_;
+   }
+   beta2 = beta*beta;
+   NK = beta*beta;
+   int n;
+   for (n=1; n<=l; n++)
+     NK *=(beta2- (double)(K*n*n));
+
+   Phi[l] = (gamma*beta*std::cos(xbeta)+delta*std::sin(xbeta))*CscK/std::sqrt(NK);
+   return _SUCCESS_;
+}
+
+/**********************************************************************************************/

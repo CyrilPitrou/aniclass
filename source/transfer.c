@@ -164,7 +164,10 @@ int transfer_init(
   HyperInterpStruct BIS;
   double xmax;
 
-
+  /** check the type of perturbations (stochastic or non-stochastic) and use the same for the transfer module. */
+  ptr->statistics = ppt->statistics;
+  ptr->non_stochastic_type = ppt->non_stochastic_type;
+  
   /** - check whether any spectrum in harmonic space (i.e., any \f$C_l\f$'s) is actually requested */
 
   if (ppt->has_cls == _FALSE_) {
@@ -231,10 +234,13 @@ int transfer_init(
               ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__**),
               ptr->error_message);
 
-  class_call(transfer_perturbation_source_spline(ppt,ptr,sources,sources_spline),
-             ptr->error_message,
-             ptr->error_message);
-
+  /** For the non-stochastic case we will not sum on k modes, hence non need to spline */
+  if (ppt->statistics == stochastic) {
+    class_call(transfer_perturbation_source_spline(ppt,ptr,sources,sources_spline),
+	       ptr->error_message,
+	       ptr->error_message);
+  }
+    
   /** - allocate and fill array describing the correspondence between perturbation types and transfer types */
 
   class_alloc(tp_of_tt,
@@ -255,7 +261,15 @@ int transfer_init(
 
   /** - compute flat spherical bessel functions */
 
-  xmax = ptr->q[ptr->q_size-1]*tau0;
+  switch (ptr->statistics) {
+  case stochastic:
+    xmax = ptr->q[ptr->q_size-1]*tau0;
+    break;
+  case non_stochastic:
+    xmax = std::abs(ptr->q_complex[ptr->q_size-1])*tau0;
+    break;
+  }
+  
   if (pba->sgnK == -1)
     xmax *= (ptr->l[ptr->l_size_max-1]/ppr->hyper_flat_approximation_nu)/asinh(ptr->l[ptr->l_size_max-1]/ppr->hyper_flat_approximation_nu)*1.01;
 
@@ -321,32 +335,65 @@ int transfer_init(
       if (index_q < ptr->q_size) {
 
         if (ptr->transfer_verbose > 2)
-        printf("Compute transfer for wavenumber [%d/%zu]\n",index_q,ptr->q_size-1);
+	  printf("Compute transfer for wavenumber [%d/%zu]\n",index_q,ptr->q_size-1);
 
         /* Update interpolation structure: */
-        class_call(transfer_update_HIS(ppr,
-                                       ptr,
-                                       ptw,
-                                       index_q,
-                                       tau0),
-                   ptr->error_message,
-                   ptr->error_message);
+	switch (ptr->statistics) {
+	case non_stochastic:
+	  class_call(transfer_update_HIS_ns(ppr,
+						     ptr,
+						     ptw,
+						     index_q,
+						     tau0),
+			      ptr->error_message,
+			      ptr->error_message);
+	  
+	  class_call(transfer_compute_for_each_q_ns(ppr,
+							     pba,
+							     ppt,
+							     ptr,
+							     tp_of_tt,
+							     index_q,
+							     tau_size_max,
+							     tau_rec,
+							     sources,
+							     sources_spline,
+							     window,
+							     ptw),
+			      ptr->error_message,
+			      ptr->error_message);
+	  break;
+	case stochastic:
+	  if (__DEBUG__)
+	    printf("DEBUG call transfer_update_HIS \n");
+	  
+	  class_call(transfer_update_HIS(ppr,
+					 ptr,
+					 ptw,
+					 index_q,
+					 tau0),
+		     ptr->error_message,
+		     ptr->error_message);
 
-        class_call(transfer_compute_for_each_q(ppr,
-                                               pba,
-                                               ppt,
-                                               ptr,
-                                               tp_of_tt,
-                                               index_q,
-                                               tau_size_max,
-                                               tau_rec,
-                                               sources,
-                                               sources_spline,
-                                               window,
-                                               ptw,
-                                               _FALSE_),
-                   ptr->error_message,
-                   ptr->error_message);
+	  if (__DEBUG__)
+	    printf("DEBUG call transfer_compute for_each_q \n");
+	  class_call(transfer_compute_for_each_q(ppr,
+						 pba,
+						 ppt,
+						 ptr,
+						 tp_of_tt,
+						 index_q,
+						 tau_size_max,
+						 tau_rec,
+						 sources,
+						 sources_spline,
+						 window,
+						 ptw,
+						 _FALSE_),
+		     ptr->error_message,
+		     ptr->error_message);
+	  break;
+	}
       }
 
       /* compute the transfer functions in the full Limber case (if
@@ -384,10 +431,13 @@ int transfer_init(
   /** - finally, free arrays allocated outside parallel zone */
   free(window);
 
-  class_call(transfer_perturbation_sources_spline_free(ppt,ptr,sources_spline),
-             ptr->error_message,
-             ptr->error_message);
-
+  //We splined only in the stochastic case.
+  if (ppt->statistics == stochastic) {
+    class_call(transfer_perturbation_sources_spline_free(ppt,ptr,sources_spline),
+	       ptr->error_message,
+	       ptr->error_message);
+  }
+    
   class_call(transfer_perturbation_sources_free(ppt,pfo,ptr,sources),
              ptr->error_message,
              ptr->error_message);
@@ -401,6 +451,8 @@ int transfer_init(
              ptr->error_message);
 
   ptr->is_allocated = _TRUE_;
+    if (__DEBUG__)
+    printf("DEBUG end transfer_init\n");
   return _SUCCESS_;
 }
 
@@ -425,7 +477,14 @@ int transfer_free(
     for (index_md = 0; index_md < ptr->md_size; index_md++) {
       free(ptr->l_size_tt[index_md]);
       free(ptr->transfer[index_md]);
-      free(ptr->k[index_md]);
+      switch (ptr->statistics) {
+      case stochastic:
+	free(ptr->k[index_md]);
+	break;
+      case non_stochastic:
+	free(ptr->k_complex[index_md]);
+	break;
+      }
       if (ptr->do_lcmb_full_limber == _TRUE_) {
         free(ptr->transfer_limber[index_md]);
         free(ptr->k_limber[index_md]);
@@ -438,6 +497,9 @@ int transfer_free(
     free(ptr->l);
     free(ptr->q);
     free(ptr->k);
+    if (ptr->statistics == non_stochastic) {
+      free(ptr->q_complex);
+    }
     free(ptr->transfer);
     if (ptr->do_lcmb_full_limber == _TRUE_) {
       free(ptr->q_limber);
@@ -584,9 +646,23 @@ int transfer_indices(
 
   /** - get q values using transfer_get_q_list() */
 
-  class_call(transfer_get_q_list(ppr,ppt,ptr,q_period,K,sgnK),
-             ptr->error_message,
-             ptr->error_message);
+  switch (ppt->statistics) {
+  case stochastic:
+    class_call(transfer_get_q_list(ppr,ppt,ptr,q_period,K,sgnK),
+	       ptr->error_message,
+	       ptr->error_message);
+    
+    /** - get k values using transfer_get_k_list() */
+    class_call(transfer_get_k_list(ppt,ptr,K),
+	       ptr->error_message,
+	       ptr->error_message);
+    break;
+  case non_stochastic:
+    class_call(transfer_get_q_list_ns(ppr,ppt,ptr,K,sgnK),
+	       ptr->error_message,
+	       ptr->error_message);
+    break;
+  }
 
   /** - get q values in full Limber case using transfer_get_q_limber_list() */
 
@@ -598,12 +674,6 @@ int transfer_indices(
   else {
     ptr->q_size_limber=0;
   }
-
-  /** - get k values using transfer_get_k_list() */
-
-  class_call(transfer_get_k_list(ppt,ptr,K),
-             ptr->error_message,
-             ptr->error_message);
 
   /* for testing, it can be useful to print the q list in a file: */
 
@@ -626,9 +696,17 @@ int transfer_indices(
   */
 
   /** - get l values using transfer_get_l_list() */
-  class_call(transfer_get_l_list(ppr,ppt,ptr),
-             ptr->error_message,
-             ptr->error_message);
+  switch (ppt->statistics) {
+  case stochastic:
+    class_call(transfer_get_l_list(ppr,ppt,ptr),
+	       ptr->error_message,
+	       ptr->error_message);
+    break;
+  case non_stochastic:
+    class_call(transfer_get_l_list_ns(ppr,ppt,ptr),
+	       ptr->error_message,
+	       ptr->error_message);
+  }
 
   /** - loop over modes (scalar, etc). For each mode: */
 
@@ -5359,3 +5437,1188 @@ int transfer_f_evo(
 
   return _SUCCESS_;
 }
+
+
+/**
+  * Functions which are used when CLASS is used with non_stochastic perturbations
+  * Bianchi perturbations also require to compile with complex valued perturbations,
+  * and the Bianchi type perturbations are required.
+  * CLASS complex compilation requires (-D__COMPLEX_CLASS__ flag for compiler).
+  * Or this flag can also be defined directly in the include/common.h file.
+  */
+
+/**
+ * This routine defines the number and values of wavenumbers q_complex for
+ * each mode, they are simply deduced from the Re[q] given in k_output_values in the *.ini file.
+ *
+ * @param ppr     Input: pointer to precision structure
+ * @param ppt     Input: pointer to perturbation structure
+ * @param ptr     Input/Output: pointer to transfer structure containing q's
+ * @param K        Input: spatial curvature (in absolute value)
+ * @param sgnK     Input: spatial curvature sign (open/closed/flat)
+ * @return the error status
+ */
+
+int transfer_get_q_list_ns(
+                        struct precision * ppr,
+			struct perturbations * ppt,
+                        struct transfer * ptr,
+			double K,
+                        int sgnK
+                        ) {
+
+  int index_q, index_md;
+  double sqrt_absK, m, q_Re, k_Re, nu_red_int, nu_int;
+  std::complex<double> I(0.0, 1.0);
+  
+  sqrt_absK = sqrt(fabs(K));
+  
+  //printf("DEBUG K = %.14f \n",K);
+  class_alloc(ptr->q_complex,ppt->k_output_values_num*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
+
+  ptr->q_size = ppt->k_output_values_num;
+
+  class_alloc(ptr->k_complex,ptr->md_size*sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
+
+  for (index_md = 0; index_md <  ptr->md_size; index_md++) {
+
+    class_alloc(ptr->k_complex[index_md],ptr->q_size*sizeof(__DOUBLE_OR_COMPLEX__),ptr->error_message);
+
+    if (_scalars_) m=0.;
+    if (_vectors_) m=1.;
+    if (_tensors_) m=2.;
+
+    for (index_q=0; index_q < ptr->q_size; index_q++) {
+      if ((ppt->non_stochastic_type == bianchi) && (K <0)) {
+	//class_test(K >= 0.,ptr->error_message,
+	//	   "Bug in transfer_get_q_list_ns. Curvature is positive and it is implemented only for negative curvature");
+ 	q_Re = ppt->k[0][index_q];
+	//For Bianchi the list in k_output_values set in the *.ini file is used as a list of Re[q] and the same for all modes (vector when this will be possible, and tensors)
+	ptr->q_complex[index_q] = q_Re + I*sqrt_absK;
+	ptr->k_complex[index_md][index_q] = std::sqrt(ptr->q_complex[index_q]*ptr->q_complex[index_q]-K*(m+1.));
+      }
+      else {
+	k_Re = ppt->k[0][index_q];
+	class_test(k_Re*k_Re + (1+m)* K <  0.,ptr->error_message,
+        "The k chosen does not satisfy k^2 + (1+m)K >=0 since it is %e",k_Re*k_Re + (1+m)* K);
+	ptr->k_complex[index_md][index_q] = k_Re;
+	ptr->q_complex[index_q] = sqrt(k_Re*k_Re + (1+m)* K) ;
+
+	if (K>0) {//We adjust on integer values of nu
+	  //printf("DEBUG adjusting values of q to integers\n ");
+	  nu_red_int = MAX(1., (int)(std::real(ptr->q_complex[index_q])/sqrt(K) + 0.2));
+	  nu_int = nu_red_int*sqrt(K);
+	  //printf("We should adujst %e to %e \n",(double)ptr->q_complex[index_q],nu_int);
+	  //printf("That is %e to %e \n",(double)ptr->q_complex[index_q]/sqrt(K),nu_red_int);
+	  if (std::abs(nu_red_int -(std::real(ptr->q_complex[index_q]))/sqrt(K) )  > 1e-4 ) {
+	    printf("We have adjusted %e to %e \n",std::real(ptr->q_complex[index_q]),nu_int);
+	    printf("That is for nu, we have replaced %e by %e \n",std::real(ptr->q_complex[index_q])/sqrt(K),nu_red_int);
+	    ptr->q_complex[index_q] = nu_int;
+	    ptr->k_complex[index_md][index_q] = std::sqrt(nu_int*nu_int - (1.+m)*K); 
+	  }
+	}
+      }
+    }
+  }
+  //For the non_stochastic type we never want to use the flat sky approximation, hence we make sure this never happens.
+  ptr->index_q_flat_approximation = ptr->q_size;
+  
+  return _SUCCESS_;
+}
+
+
+//TODO comment on this functions
+
+int transfer_compute_for_each_q_ns(
+                                struct precision * ppr,
+                                struct background * pba,
+                                struct perturbations * ppt,
+                                struct transfer * ptr,
+                                int ** tp_of_tt,
+                                int index_q,
+                                int tau_size_max,
+                                double tau_rec,
+                                __DOUBLE_OR_COMPLEX__ *** pert_sources,
+                                __DOUBLE_OR_COMPLEX__ *** pert_sources_spline,
+                                double * window,
+                                struct transfer_workspace * ptw
+                                ) {
+
+  /** Summary: */
+
+  /** - define local variables */
+
+  /* running index for modes */
+  int index_md;
+  /* running index for initial conditions */
+  int index_ic;
+  /* running index for transfer types */
+  int index_tt;
+  /* running index for multipoles */
+  int index_l;
+
+  /** - we deal with workspaces, i.e. with contiguous memory zones (one
+      per thread) containing various fields used by the integration
+      routine */
+
+  /* - first workspace field: perturbation source interpolated from perturbation structure */
+  __DOUBLE_OR_COMPLEX__ * interpolated_sources;
+
+  /* - second workspace field: list of tau0-tau values, tau0_minus_tau[index_tau] */
+  double * tau0_minus_tau;
+
+  /* - third workspace field: list of trapezoidal weights for integration over tau */
+  double * w_trapz;
+
+  /* - fourth workspace field, containing just a double: number of time values */
+  int * tau_size;
+
+  /* - fifth workspace field, identical to above interpolated sources:
+     sources[index_tau] */
+  __DOUBLE_OR_COMPLEX__ * sources;
+
+  /** - for a given l, maximum value of k such that we can convolve
+      the source with Bessel functions j_l(x) without reaching x_max */
+  double q_max_bessel;
+
+  /* a value of index_type */
+  int previous_type;
+
+  double l;
+
+  short neglect;
+
+  radial_function_type radial_type;
+
+  /** - store the sources in the workspace and define all
+      fields in this workspace */
+  interpolated_sources = ptw->interpolated_sources;
+  tau0_minus_tau = ptw->tau0_minus_tau;
+  w_trapz  = ptw->w_trapz;
+  tau_size = &(ptw->tau_size);
+  sources = ptw->sources;
+
+  /** - loop over all modes. For each mode */
+
+  for (index_md = 0; index_md < ptr->md_size; index_md++) {
+    
+    /** - loop over initial conditions. */
+    /* For each of them: */
+    
+    for (index_ic = 0; index_ic < ppt->ic_size[index_md]; index_ic++) {
+
+      if (__DEBUG__)
+	printf("DEBUG index md and ic are %d and %d .\n",index_md,index_ic);
+      /* initialize the previous type index */
+      previous_type=-1;
+      
+      /* - loop over types. For each of them: */
+      
+      for (index_tt = 0; index_tt < ptr->tt_size[index_md]; index_tt++) {
+	
+	/** - check if we must now deal with a new source with a
+	    new index ppt->index_type. If yes, interpolate it at the
+	    right values of k. */
+	if (__DEBUG__)
+	  printf("DEBUG index_tt=%d  tp_of_tt=%d\n",index_tt,tp_of_tt[index_md][index_tt]);
+	
+	if (tp_of_tt[index_md][index_tt] != previous_type) {
+	  
+	  /* For Bianchi, we do not need interpolation of sources because the index_q is exactly the index_k at which perturbations were solved.
+	   The function transfer_interpolate_sources_bianchi only copies the pert_sources into the interpolated_sources.
+	   This needs to be done because the ordering of data in pert_sources is different from interpolated_sources.
+	   pert_sources uses sources[index_tau*ppt->k_size[index_md]+index_k], whereas interpolated sources uses interpolated_sources[index_q*ppt->tau_size+index_tau]*/
+	  if (__DEBUG__)
+	    printf("DEBUG call interpolate_source_ns index_md=%d  index_ic=%d  tpsize=%d index_tt=%d tp_of_tt=%d\n ",index_md,index_ic,ppt->tp_size[index_md],index_tt,tp_of_tt[index_md][index_tt]);
+	  class_call(transfer_interpolate_sources_ns(ppt,
+						     ptr,
+						     index_q,
+						     index_md,
+						     index_ic,
+						     tp_of_tt[index_md][index_tt],
+						     pert_sources[index_md][index_ic * ppt->tp_size[index_md] + tp_of_tt[index_md][index_tt]],
+						     //pert_sources_spline[index_md][index_ic * ppt->tp_size[index_md] + tp_of_tt[index_md][index_tt]],
+						     interpolated_sources),
+		     ptr->error_message,
+		     ptr->error_message);
+	}
+
+	previous_type = tp_of_tt[index_md][index_tt];
+	
+	/* the code makes a distinction between "perturbation
+	   sources" (e.g. gravitational potential) and "transfer
+	   sources" (e.g. total density fluctuations, obtained
+	   through the Poisson equation, and observed with a given
+	   selection function).
+	   
+	   The next routine computes the transfer source given the
+	   interpolated perturbation source, and copies it in the
+	   workspace. */
+
+	if (__DEBUG__)
+	  printf("DEBUG call transfer_sources\n");
+	class_call(transfer_sources(ppr,
+				    pba,
+				    ppt,
+				    ptr,
+				    interpolated_sources,
+				    tau_rec,
+				    index_q,
+				    index_md,
+				    index_tt,
+				    sources,
+                                      window,
+				    tau_size_max,
+				    tau0_minus_tau,
+				    w_trapz,
+				    tau_size),
+		   ptr->error_message,
+		   ptr->error_message);
+
+	if (__DEBUG__)
+	  printf("DEBUG call radial_coordinates_ns\n");
+	
+	/* now that the array of times tau0_minus_tau is known, we can
+	   infer the array of radial coordinates r(tau0_minus_tau) as well as a
+	   few other quantities related by trigonometric functions */
+
+	class_call(transfer_radial_coordinates_ns(ptr,ptw,index_md,index_q),
+		   ptr->error_message,
+		   ptr->error_message);
+
+	if (__DEBUG__)
+	  printf("DEBUG select radial function \n");
+	/* - Select radial function type */
+	class_call(transfer_select_radial_function(
+						   ppt,
+						   ptr,
+						   index_md,
+						   index_tt,
+						   &radial_type),
+		   ptr->error_message,
+		   ptr->error_message);
+
+	if (__DEBUG__)
+	  printf("DEBUG before the loop on l, lmax is %d .\n",(ptr->l_size[index_md]));
+	for (index_l = 0; index_l < ptr->l_size[index_md]; index_l++) {
+	  
+	  l = (double)ptr->l[index_l];
+
+	  if ((ptw->sgnK == 1) && (ptr->l[index_l] >= (int)(std::real(ptr->q_complex[index_q])/sqrt(ptw->K)+0.2))) {
+
+	    if (ptr->transfer_verbose > 1)
+	      printf("We neglect the transfer for l=%e nu=%e since it should vanish for such positive curvature. \n",l,std::real(ptr->q_complex[index_q])/sqrt(ptw->K));
+	    ptr->transfer[index_md][((index_ic * ptr->tt_size[index_md] + index_tt)
+				     * ptr->l_size[index_md] + index_l)
+				    * ptr->q_size + index_q] = 0.;
+	  }
+	  else {
+
+	    /* compute the transfer function for this l */
+	    if (__DEBUG__)
+	      printf("DEBUG call compute_for_each_l at  l=%d\n",(int)l);
+	    class_call(transfer_compute_for_each_l_ns(
+						      ptw,
+						      ppr,
+						      ppt,
+						      ptr,
+						      index_q,
+						      index_md,
+						      index_ic,
+						      index_tt,
+						      index_l,
+						      l,
+						      //q_max_bessel,
+						      radial_type
+						      ),
+		       ptr->error_message,
+		       ptr->error_message);
+	  }//End condition on closed space-times
+	} /* end of loop over l */
+      } /* end of loop over type */
+    } /* end of loop over initial condition */
+  } /* end of loop over mode */
+  return _SUCCESS_;
+  
+}
+
+
+
+
+int transfer_radial_coordinates_ns(
+				   struct transfer * ptr,
+				   struct transfer_workspace * ptw,
+				   int index_md,
+				   int index_q
+				   ) {
+
+  int index_tau;
+  double sqrt_absK=0.;
+
+  switch (ptw->sgnK){
+  case 1:
+    sqrt_absK = sqrt(ptw->K);
+    for (index_tau=0; index_tau < ptw->tau_size; index_tau++) {
+      ptw->chi[index_tau] = sqrt_absK*ptw->tau0_minus_tau[index_tau];
+      ptw->cscKgen[index_tau] = sqrt_absK/ptr->k_complex[index_md][index_q]/sin(ptw->chi[index_tau]);
+      ptw->cotKgen[index_tau] = ptw->cscKgen[index_tau]*cos(ptw->chi[index_tau]);
+    }
+    break;
+  case 0://k_complex is real in that case.
+    for (index_tau=0; index_tau < ptw->tau_size; index_tau++) {
+      ptw->chi[index_tau] = std::real(ptr->k_complex[index_md][index_q]) * ptw->tau0_minus_tau[index_tau];
+      ptw->cscKgen[index_tau] = 1.0/ptw->chi[index_tau];
+      ptw->cotKgen[index_tau] = 1.0/ptw->chi[index_tau];
+    }
+    break;
+  case -1:
+    //Only in this case we might have complex valued things because k is complex valued.
+    sqrt_absK = sqrt(-ptw->K);
+    for (index_tau=0; index_tau < ptw->tau_size; index_tau++) {
+      ptw->chi[index_tau] = sqrt_absK*ptw->tau0_minus_tau[index_tau];
+      ptw->cscKgen[index_tau] = sqrt_absK/ptr->k_complex[index_md][index_q]/sinh(ptw->chi[index_tau]);
+      ptw->cotKgen[index_tau] = ptw->cscKgen[index_tau]*cosh(ptw->chi[index_tau]);
+    }
+    break;
+  }
+
+  return _SUCCESS_;
+}
+
+
+
+/**
+ * This routine copies the perturbation sources \f$ S(k, \tau) \f$ for each mode
+ * into its corresponding transfer sources for the same k.
+ *
+ * @param ppt                   Input: pointer to perturbation structure
+ * @param ptr                   Input: pointer to transfer structure
+ * @param index_q               Input: index of wavenumber
+ * @param index_md              Input: index of mode
+ * @param index_ic              Input: index of initial condition
+ * @param index_type            Input: index of type of source (in perturbation module)
+ * @param pert_source           Input: array of sources
+ * @param transfer_sources      Output: array of transfer sources (filled here but allocated in transfer_init() to avoid numerous reallocation)
+ * @return the error status
+ */
+
+int transfer_interpolate_sources_ns(
+                                 struct perturbations * ppt,
+                                 struct transfer * ptr,
+                                 int index_q,
+                                 int index_md,
+                                 int index_ic,
+                                 int index_type,
+                                 __DOUBLE_OR_COMPLEX__ * pert_source,       /* array with argument pert_source[index_tau*ppt->k_size[index_md]+index_k] (must be allocated) */
+				 __DOUBLE_OR_COMPLEX__ * transfer_sources /* array with argument interpolated_sources[index_q*ppt->tau_size+index_tau] (must be allocated) */
+                                 ) {
+
+  /** Summary: */
+
+  /** - define local variables */
+
+  /* index running on k values in the original source array */
+  int index_k;
+
+  /* index running on time */
+  int index_tau;
+
+  //For Bianchi. since we are directly on the same grid the index_k is the index_q.
+  index_k = index_q;
+  //printf("DEBUG start interpolate_source_ns\n");
+  
+  for (index_tau = 0; index_tau < ppt->tau_size; index_tau++) {
+    //printf("DEBUG index_tau = %d\n",index_tau);
+    transfer_sources[index_tau] = pert_source[index_tau*ppt->k_size[index_md]+index_k];
+  }
+
+  //printf("DEBUG end interpolate_source_ns\n");
+  return _SUCCESS_;
+
+}
+
+
+/**
+ * For the Bianchi case
+ * This routine computes the transfer functions \f$ \Delta_l^{X} (k) \f$)
+ * as a function of wavenumber k for a given mode, initial condition,
+ * type and multipole l passed in input.                                                                                                                                                         
+ *
+ * For a given value of k, the transfer function is inferred from
+ * the source function (passed in input in the array interpolated_sources)
+ * and from Bessel functions (passed in input in the bessels structure),
+ * either by convolving them along tau, or by a Limber approximation.
+ * This elementary task is distributed either to transfer_integrate()
+ * or to transfer_limber(). The task of this routine is mainly to
+ * loop over k values, and to decide at which k_max the calculation can
+ * be stopped, according to some approximation scheme designed to find a
+ * compromise between execution time and precision. The approximation scheme
+ * is defined by parameters in the precision structure.
+ *
+ * @param ptw                   Input: pointer to transfer_workspace structure (allocated in transfer_init() to avoid numerous reallocation)
+ * @param ppr                   Input: pointer to precision structure
+ * @param ppt                   Input: pointer to perturbation structure
+ * @param ptr                   Input/output: pointer to transfer structure (result stored there)
+ * @param index_q               Input: index of wavenumber
+ * @param index_md              Input: index of mode
+ * @param index_ic              Input: index of initial condition
+ * @param index_tt              Input: index of type of transfer
+ * @param index_l               Input: index of multipole
+ * @param l                     Input: multipole
+ * @param q_max_bessel          Input: maximum value of argument q at which Bessel functions are computed
+ * @param radial_type           Input: type of radial (Bessel) functions to convolve with
+ * @return the error status
+ */
+
+int transfer_compute_for_each_l_ns(
+				   struct transfer_workspace * ptw,
+				   struct precision * ppr,
+				   struct perturbations * ppt,
+				   struct transfer * ptr,
+				   int index_q,
+				   int index_md,
+				   int index_ic,
+				   int index_tt,
+				   int index_l,
+				   double l,
+				   //double q_max_bessel,
+				   radial_function_type radial_type
+				   ){
+
+  /** Summary: */
+
+  /** - define local variables */
+  
+  /* current wavenumber value */
+   __DOUBLE_OR_COMPLEX__ k;
+
+  /* value of transfer function */
+  __DOUBLE_OR_COMPLEX__ transfer_function;
+  __DOUBLE_OR_COMPLEX__ convention_factor=1.;
+
+  /* whether to use the Limber approximation */
+  short use_limber;
+
+  std::complex<double> I(0.0, 1.0);
+
+  if (__DEBUG__)
+    printf("DEBUG entering each_l_ns\n");
+  /** - return zero transfer function if l is above l_max */
+  if (index_l >= ptr->l_size_tt[index_md][index_tt]) {
+
+    //printf("DEBUG I do not want to fill for index_l = %d \n",index_l);
+    ptr->transfer[index_md][((index_ic * ptr->tt_size[index_md] + index_tt)
+                             * ptr->l_size[index_md] + index_l)
+                            * ptr->q_size + index_q] = 0.;
+    return _SUCCESS_;
+  }
+
+  //q = ptr->q_complex[index_q];
+  k = ptr->k_complex[index_md][index_q];
+
+  //printf("DEBUG Re(k) amd Im(k) in each l Bianchi are %f and %f\n",std::real(k),std::imag(k));
+  //if (ptr->transfer_verbose > 3)
+  //printf("Compute transfer for l=%d type=%d\n",(int)l,index_tt);
+
+  //For non-stochastic we do not use Limber hence we directly invoke transfer_integrate_ns
+  if (__DEBUG__)
+    printf("DEBUG launching integrate_ns for index_l %d\n",index_l);
+  class_call(transfer_integrate_ns(
+				   ppt,
+				   ptr,
+				   ptw,
+				   index_q,
+				   index_md,
+				   index_tt,
+				   l,
+				   index_l,
+				   k,
+				   radial_type,
+				   &transfer_function
+				   ),
+	     ptr->error_message,
+	     ptr->error_message);
+  if (ptr->transfer_verbose > 3)
+    printf("Multipole for l=%d and type %d is %e + I*%e \n",(int)l,index_tt,std::real(transfer_function),std::imag(transfer_function));
+
+  /** We have to be careful with conventions */
+  /** First the global polarization has a wrong sign by convention */
+  /** Then if we have Healpix conventions we must add a factor (i)^l sqrt(4pi/(2l+1)) for T and E modes,*/
+  /** and an additional minus sign, hence -(i)^l sqrt(4pi/(2l+1)) for B modes */
+
+  //We revert polarization sign for tensors to compensate with the wrong convention in the perturbations_source (historical sign mistake)
+  if ( ((index_tt == ptr->index_tt_e) || (index_tt == ptr->index_tt_b)) && (_tensors_) )
+    convention_factor *= -1.;
+
+  //We revert polarization sign for vectors for the same reason
+  if ( ((index_tt == ptr->index_tt_e) || (index_tt == ptr->index_tt_b_v)) && (_vectors_) )
+    convention_factor *= -1.;
+  
+  switch (ptr->output_multipole_normalization) {
+  case tam_multipoles:
+    convention_factor *= (2.*l+1.);
+    break;
+  case observable_multipoles:
+    convention_factor *= pow(I,l)*sqrt(4*_PI_*(2.*l+1.));//Eq. 6.8 of 1909.13688 combined with the (2l+1) of Eq. 6.4.
+    if ( (index_tt == ptr->index_tt_b) || (index_tt == ptr->index_tt_b_v) )
+      convention_factor *= -1.;//Extra minus sign for B modes because parity rule is (-1)^l for T and E but (-1)^(l+1) for B modes.
+    break;
+  }
+  //printf("DEBUG convention_factor for type=%d, l=%f,  %f %fi \n",index_tt,l,std::real(convention_factor),std::imag(convention_factor));
+
+  if (__DEBUG__)
+    printf("DEBUG store results \n");
+  //printf("DEBUG store transfer result\n");
+  /** - store transfer function in transfer structure */
+  ptr->transfer[index_md][((index_ic * ptr->tt_size[index_md] + index_tt)
+                           * ptr->l_size[index_md] + index_l)
+                          * ptr->q_size + index_q]
+    = transfer_function * convention_factor;
+  /** The multipoles are those of the hierarchy if multipole_normalization = tam _multipoles */
+  /** Otherwise they are observed CMB multipoles if multipole_normalization = observable_multipoles */
+
+  if (__DEBUG__)
+    printf("DEBUG end for_each_l_ns\n");
+  return _SUCCESS_;
+
+}
+
+
+/**
+ * Non-stochastic case
+ * This routine computes the transfer functions \f$ \Delta_l^{X} (k) \f$)
+ * for each mode, initial condition, type, multipole l and wavenumber k,
+ * by convolving  the source function (passed in input in the array
+ * interpolated_sources) with Bessel functions (passed in input in the
+ * bessels structure).
+ *
+ * @param ppt            Input: pointer to perturbation structure
+ * @param ptr            Input: pointer to transfer structure
+ * @param ptw            Input: pointer to transfer_workspace structure (allocated in transfer_init() to avoid numerous reallocation)
+ * @param index_q        Input: index of wavenumber
+ * @param index_md       Input: index of mode
+ * @param index_tt       Input: index of type
+ * @param l              Input: multipole
+ * @param index_l        Input: index of multipole
+ * @param k              Input: wavenumber
+ * @param radial_type    Input: type of radial (Bessel) functions to convolve with
+ * @param trsf           Output: transfer function \f$ \Delta_l(k) \f$
+ * @return the error status
+ */
+
+
+int transfer_integrate_ns(
+			  struct perturbations * ppt,
+			  struct transfer * ptr,
+			  struct transfer_workspace *ptw,
+			  int index_q,
+			  int index_md,
+			  int index_tt,
+			  double l,
+			  int index_l,
+			  __DOUBLE_OR_COMPLEX__ k,
+			  radial_function_type radial_type,
+			  __DOUBLE_OR_COMPLEX__ * trsf
+			  ) {
+
+  /** Summary: */
+
+  /** - define local variables */
+
+  double * tau0_minus_tau = ptw->tau0_minus_tau;
+  double * w_trapz = ptw->w_trapz;
+  __DOUBLE_OR_COMPLEX__ * sources = ptw->sources;
+
+  /* minimum value of \f$ (\tau0-\tau) \f$ at which \f$ j_l(k[\tau_0-\tau]) \f$ is known, given that \f$ j_l(x) \f$ is sampled above some finite value \f$ x_{\min} \f$ (below which it can be approximated by zero) */
+  double tau0_minus_tau_min_bessel;
+
+  /* index in the source's tau list corresponding to the last point in the overlapping region between sources and bessels. Also the index of possible Bessel truncation. */
+  int index_tau_max, index_tau_max_Bessel,i;
+
+  __DOUBLE_OR_COMPLEX__ bessel, *radial_function;
+
+  double x_turning_point;
+
+  /** - find minimum value of (tau0-tau) at which \f$ j_l(k[\tau_0-\tau]) \f$ is known, given that \f$ j_l(x) \f$ is sampled above some finite value \f$ x_{\min} \f$ (below which it can be approximated by zero) */
+
+  //TODO check that when no overlap is detected it is indeed correct.
+  if (ptw->sgnK==0){//k is real in that case
+    tau0_minus_tau_min_bessel = ptw->pBIS->chi_at_phimin[index_l]/std::real(k); // segmentation fault impossible, checked before that k != 0
+  }
+  else {
+    tau0_minus_tau_min_bessel = ptw->HIS.chi_at_phimin[index_l]/sqrt(ptw->sgnK*ptw->K);
+  }
+  //printf("DEBUG for index_l=%d, ptw->HIS.chi_at_phimin[index_l] = %f and tau0-tau min = %f \n",index_l,ptw->HIS.chi_at_phimin[index_l],tau0_minus_tau_min_bessel);
+  // - if there is no overlap between the region in which bessels and sources are non-zero, return zero 
+  if (tau0_minus_tau_min_bessel >= tau0_minus_tau[0]) {
+    //if (__DEBUG__)
+    printf("DEBUG there is NO overlap. Good lord. tau0_minus_tau[0]=%e\n",tau0_minus_tau[0]);
+    *trsf = 0.;
+    return _SUCCESS_;
+  }
+  
+
+  /** - if there is an overlap: */
+
+  /** - --> trivial case: the source is a Dirac function and is sampled in only one point. This should never happen for Bianchi. */
+  if (ptw->tau_size == 1) {
+
+    //printf("DEBUG tausize is 1\n");
+    if (__DEBUG__)
+      printf("DEBUG call radial_function_ns dirac \n");
+    class_call(transfer_radial_function_ns(
+					ptw,
+					ppt,
+					ptr,
+					k,
+					index_q,
+					index_l,
+					1,
+					&bessel,
+					radial_type
+					),
+               ptr->error_message,
+               ptr->error_message);
+
+    *trsf = sources[0] * bessel;
+    return _SUCCESS_;
+  }
+
+  /** - --> other cases */
+
+  /** - ---> (a) find index in the source's tau list corresponding to the last point in the overlapping region. After this step, index_tau_max can be as small as zero, but not negative. */
+  index_tau_max = ptw->tau_size-1;
+  while (tau0_minus_tau[index_tau_max] < tau0_minus_tau_min_bessel) {
+    index_tau_max--;
+  }
+  /* Set index so we know if the truncation of the convolution integral is due to Bessel and not                                                                                 
+     due to the source. */
+  index_tau_max_Bessel = index_tau_max;
+
+  /** - ---> (b) the source function can vanish at large \f$ \tau \f$. Check if further points can be eliminated. After this step and if we did not return a null transfer function, index_tau_max can be as small as zero, but not negative. */
+  while (std::abs(sources[index_tau_max]) == 0.) {
+    index_tau_max--;
+    if (index_tau_max < 0) {
+      *trsf = 0.;
+      return _SUCCESS_;
+    }
+  }
+
+  
+  /** - Compute the radial function: */
+  class_alloc(radial_function,sizeof(__DOUBLE_OR_COMPLEX__)*(index_tau_max+1),ptr->error_message);
+
+  if (__DEBUG__)
+    printf("DEBUG call transfer_radial_function_ns\n");
+  class_call(transfer_radial_function_ns(
+                                      ptw,
+                                      ppt,
+                                      ptr,
+                                      k,
+                                      index_q,
+                                      index_l,
+                                      index_tau_max+1,
+                                      radial_function,
+                                      radial_type
+                                      ),
+             ptr->error_message,
+             ptr->error_message);
+
+  if ((ptr->transfer_verbose >4)&&(__DEBUG__)) {
+    for(i=0;i<index_tau_max+1;i++)
+      printf("DEBUG index_tau=%d, tau0-tau=%f, source=%e +I*%e, Phi=%e I*%e, weight=%f\n",i,tau0_minus_tau[i],std::real(sources[i]),std::imag(sources[i]),std::real(radial_function[i]),std::imag(radial_function[i]),w_trapz[i]);
+  }
+
+  if (__DEBUG__)
+    printf("DEBUG call trapezoidal convolution\n");
+
+  /** - Now we do most of the convolution integral: */
+  class_call(array_trapezoidal_convolution_complex(sources,
+					   radial_function,
+                                           index_tau_max+1,
+                                           w_trapz,
+                                           trsf,
+                                           ptr->error_message),
+             ptr->error_message,
+             ptr->error_message);
+
+  if (__DEBUG__)
+    printf("DEBUG end of convolution\n");
+  /** - This integral is correct for the case where no truncation has
+      occurred. If it has been truncated at some index_tau_max because
+      f[index_tau_max+1]==0, it is still correct. The 'mistake' in using
+      the wrong weight w_trapz[index_tau_max] is exactly compensated by the
+      triangle we miss. However, for the Bessel cut off, we must subtract the
+      wrong triangle and add the correct triangle. */
+  if ((index_tau_max!=(ptw->tau_size-1))&&(index_tau_max==index_tau_max_Bessel)){
+    //Bessel truncation
+    *trsf -= 0.5*(tau0_minus_tau[index_tau_max+1]-tau0_minus_tau_min_bessel)*
+      radial_function[index_tau_max]*sources[index_tau_max];
+      }
+  //TODO Check if this is needed or not
+  
+  free(radial_function);
+  return _SUCCESS_;
+}
+
+
+/**
+ * Bianchi case.
+ * This routine computes the \f$ \zeta_l^m \f$ coefficient which characterize a Bianchi perturbation
+ * See Eq. 5.9 and Table IV in 1909.13688. These are needed to modify the Boltzmann hierarchy (Eq. 6.5) amd the line of sight (Eq. 6.5)
+ *
+ * @param ptr          Input: pointer to transfer structure     
+ * @param l            Input: l
+ * @param m            Input: m
+ * @param reduced_nu   Input: nu =q*l_c = q/sqrt(K) is dimensionless
+ * @param zetalm       Output: zeta_l^m
+ */
+
+int transfer_zeta_lm(struct transfer * ptr,
+		     int l,
+		     int m,
+		     __DOUBLE_OR_COMPLEX__ nu,
+		     __DOUBLE_OR_COMPLEX__ * zetalm) {
+
+  int i;
+  __DOUBLE_OR_COMPLEX__ res;
+  double Re_nu;
+  std::complex<double> I(0.0, 1.0);
+  double ireal;
+  
+  if (ptr->non_stochastic_type == bianchi)
+    {
+      class_test(l<m,
+		 ptr->error_message,
+		 "ERROR, you cannot have l < m for zeta_l^m.\n ");
+      
+      Re_nu = std::real(nu);
+      res = 1.;
+      for (i= m+1; i<=l; i++) {
+	ireal = (double)i;
+	res *= -1.* I * sqrt( ireal*ireal + nu * nu) / ((ireal+1.) - I * Re_nu);
+      }
+      //printf("DEBUG value of zeta_l^m for l=%d m=%d is %f %f+i \n",l,m,std::real(res),std::imag(res));
+
+    }
+  else {
+    res = 1.;
+  }
+  
+  (*zetalm) = res;
+  return _SUCCESS_;
+}
+
+  
+int transfer_radial_function_ns(
+				struct transfer_workspace * ptw,
+				struct perturbations * ppt,
+				struct transfer * ptr,
+				__DOUBLE_OR_COMPLEX__ k,
+				int index_q,
+				int index_l,
+				int x_size,
+				__DOUBLE_OR_COMPLEX__ * radial_function,
+				radial_function_type radial_type
+				){
+  
+  HyperInterpStruct * pHIS;
+  double *chi = ptw->chi;
+  __DOUBLE_OR_COMPLEX__ *cscKgen = ptw->cscKgen;
+  __DOUBLE_OR_COMPLEX__ *cotKgen = ptw->cotKgen;
+  int j, l_int;
+  __DOUBLE_OR_COMPLEX__ *Phi, *dPhi, *d2Phi;
+  double *chireverse;
+  double K=0., sqrtK;
+  __DOUBLE_OR_COMPLEX__ sqrt_absK_over_k;
+  __DOUBLE_OR_COMPLEX__ absK_over_k2, k2=1.0;
+  double chi_tp=0.;
+  __DOUBLE_OR_COMPLEX__ factor, s0, s2, ssqrt3, si, ssqrt2, ssqrt2i, zeta_ratio=1., nu, zeta_source, zeta_obs;
+  double l = (double)ptr->l[index_l];
+  double rescale_argument;
+  double rescale_amplitude;
+  double * rescale_function;
+  int (*interpolate_Phi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_dPhi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_Phid2Phi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_PhidPhi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, char*);
+  int (*interpolate_PhidPhid2Phi)(HyperInterpStruct*, int, int, double*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, __DOUBLE_OR_COMPLEX__*, char*);
+  enum Hermite_Interpolation_Order HIorder;
+
+  K = ptw->K;
+  k2 = k*k;
+  l_int = ptr->l[index_l];
+
+  if (ptw->sgnK==0){
+    /* This is the choice consistent with chi=k*(tau0-tau) and nu=1 */
+    sqrt_absK_over_k = 1.0;
+  }
+  else {
+    K=ptw->K;
+    sqrt_absK_over_k = sqrt(ptw->sgnK*K)/k;
+  }
+  absK_over_k2 =sqrt_absK_over_k*sqrt_absK_over_k;
+
+  sqrtK = sqrt(fabs(K));
+  
+  nu = ptr->q_complex[index_q]/sqrtK;
+  //printf("DEBUG nu in transfer_radial_function_bianchi is %f %+fi \n",std::real(nu),std::imag(nu));
+  
+  class_alloc(Phi,sizeof(__DOUBLE_OR_COMPLEX__)*x_size,ptr->error_message);
+  class_alloc(dPhi,sizeof(__DOUBLE_OR_COMPLEX__)*x_size,ptr->error_message);
+  class_alloc(d2Phi,sizeof(__DOUBLE_OR_COMPLEX__)*x_size,ptr->error_message);
+  class_alloc(chireverse,sizeof(double)*x_size,ptr->error_message);
+  class_alloc(rescale_function,sizeof(double)*x_size,ptr->error_message);
+
+  if (ptw->sgnK == 0) {
+    pHIS = ptw->pBIS;
+    rescale_argument = 1.;
+    rescale_amplitude = 1.;
+    HIorder = HERMITE4;
+  }
+  else {
+    pHIS = &(ptw->HIS);
+    rescale_argument = 1.;
+    rescale_amplitude = 1.;
+    HIorder = HERMITE6;
+  }
+  
+  switch (HIorder){
+  case HERMITE3:
+    interpolate_Phi = hyperspherical_Hermite3_interpolation_vector_Phi;
+    interpolate_dPhi = hyperspherical_Hermite3_interpolation_vector_dPhi;
+    interpolate_PhidPhi = hyperspherical_Hermite3_interpolation_vector_PhidPhi;
+    interpolate_Phid2Phi = hyperspherical_Hermite3_interpolation_vector_Phid2Phi;
+    interpolate_PhidPhid2Phi = hyperspherical_Hermite3_interpolation_vector_PhidPhid2Phi;
+    break;
+  case HERMITE4:
+    interpolate_Phi = hyperspherical_Hermite4_interpolation_vector_Phi;
+    interpolate_dPhi = hyperspherical_Hermite4_interpolation_vector_dPhi;
+    interpolate_PhidPhi = hyperspherical_Hermite4_interpolation_vector_PhidPhi;
+    interpolate_Phid2Phi = hyperspherical_Hermite4_interpolation_vector_Phid2Phi;
+    interpolate_PhidPhid2Phi = hyperspherical_Hermite4_interpolation_vector_PhidPhid2Phi;
+    break;
+  case HERMITE6:
+    interpolate_Phi = hyperspherical_Hermite6_interpolation_vector_Phi;
+    interpolate_dPhi = hyperspherical_Hermite6_interpolation_vector_dPhi;
+    interpolate_PhidPhi = hyperspherical_Hermite6_interpolation_vector_PhidPhi;
+    interpolate_Phid2Phi = hyperspherical_Hermite6_interpolation_vector_Phid2Phi;
+    interpolate_PhidPhid2Phi = hyperspherical_Hermite6_interpolation_vector_PhidPhid2Phi;
+    break;
+  }
+
+  //Reverse chi
+  for (j=0; j<x_size; j++) {
+    chireverse[j] = chi[x_size-1-j]*rescale_argument;
+    if (rescale_amplitude == 1.) {
+      rescale_function[j] = 1.;
+    }
+  }
+
+  /*
+    class_test(pHIS->x[0] > chireverse[0],
+    ptr->error_message,
+    "Bessels need to be interpolated at %e, outside the range in which they have been computed (>%e). Decrease their x_min.",
+    chireverse[0],
+    pHIS->x[0]);
+  */
+
+  //printf("DEBUG pHIS->x_size %d \n",pHIS->x_size);
+  
+  class_test((pHIS->x[pHIS->x_size-1] < chireverse[x_size-1]) && (ptw->sgnK != 1),
+             ptr->error_message,
+             "Bessels need to be interpolated at %e, outside the range in which they have been computed (<%e). Increase their x_max.",
+             chireverse[x_size-1],
+             pHIS->x[pHIS->x_size-1]
+             );
+
+  //Bianchi. TODO put the zeta ratios also for vector modes and scalar modes for whatever  that means.
+  switch (radial_type){
+  case SCALAR_TEMPERATURE_0:
+    class_call(interpolate_Phi(pHIS, x_size, index_l, chireverse, Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, NULL);
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = Phi[j]*rescale_function[j];
+    break;
+  case SCALAR_TEMPERATURE_1:
+    class_call(interpolate_dPhi(pHIS, x_size, index_l, chireverse, dPhi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, NULL, dPhi, NULL);
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = sqrt_absK_over_k*dPhi[j]*rescale_argument*rescale_function[j];
+    break;
+  case SCALAR_TEMPERATURE_2:
+    class_call(interpolate_Phid2Phi(pHIS, x_size, index_l, chireverse, Phi, d2Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, d2Phi);
+    s2 = sqrt(1.0-3.0*K/k2);
+    factor = 1.0/(2.0*s2);
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*(3.*absK_over_k2*d2Phi[j]*rescale_argument*rescale_argument+Phi[j])*rescale_function[j];
+    break;
+  case SCALAR_POLARISATION_E:
+    class_call(interpolate_Phi(pHIS, x_size, index_l, chireverse, Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, NULL);
+    s2 = sqrt(1.0-3.0*K/k2);
+    factor = sqrt(3.0/8.0*(l+2.0)*(l+1.0)*l*(l-1.0))/s2;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*cscKgen[x_size-1-j]*Phi[j]*rescale_function[j];
+    break;
+    //For vector modes there were many occurences of cotKgen[j] which I have replaced by cotKgen[x_size-1-j]. What a vicuous type !
+  case VECTOR_TEMPERATURE_1:
+    transfer_zeta_lm(ptr,l_int,1,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,1,1,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    class_call(interpolate_Phi(pHIS, x_size, index_l, chireverse, Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, NULL);
+    s0 = sqrt(1.0+K/k2);
+    factor = sqrt(0.5*l*(l+1))/s0 *zeta_ratio;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*Phi[j]*rescale_function[j];
+    break;
+  case VECTOR_TEMPERATURE_2:
+    transfer_zeta_lm(ptr,l_int,1,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,2,1,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    class_call(interpolate_PhidPhi(pHIS, x_size, index_l, chireverse, Phi, dPhi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, dPhi, NULL);
+    s0 = sqrt(1.0+K/k2);
+    ssqrt3 = sqrt(1.0-2.0*K/k2);
+    factor = sqrt(1.5*l*(l+1))/s0/ssqrt3 *zeta_ratio;
+    //printf("DEBUG l=%e factor=%e +i %e  zetaratio=%e +i%e \n",l,std::real(factor),std::imag(factor),std::real(zeta_ratio),std::imag(zeta_ratio));
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*(sqrt_absK_over_k*dPhi[j]*rescale_argument-cotKgen[x_size-1-j]*Phi[j])*rescale_function[j];
+    break;
+  case VECTOR_POLARISATION_E:
+    transfer_zeta_lm(ptr,l_int,1,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,2,1,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    class_call(interpolate_PhidPhi(pHIS, x_size, index_l, chireverse, Phi, dPhi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //    hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, dPhi, NULL);
+    s0 = sqrt(1.0+K/k2);
+    ssqrt3 = sqrt(1.0-2.0*K/k2);
+    factor = 0.5*sqrt((l-1.0)*(l+2.0))/s0/ssqrt3 *zeta_ratio;
+    //printf("DEBUG l=%e factor=%e +i %e  zetaratio=%e +i%e \n",l,std::real(factor),std::imag(factor),std::real(zeta_ratio),std::imag(zeta_ratio));
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*(cotKgen[x_size-1-j]*Phi[j]+sqrt_absK_over_k*dPhi[j]*rescale_argument)*rescale_function[j];
+    break;
+  case VECTOR_POLARISATION_B:
+    transfer_zeta_lm(ptr,l_int,1,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,2,1,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    class_call(interpolate_Phi(pHIS, x_size, index_l, chireverse, Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, NULL);
+    s0 = sqrt(1.0+K/k2);
+    ssqrt3 = sqrt(1.0-2.0*K/k2);
+    si = sqrt(1.0+2.0*K/k2);
+    factor = 0.5*sqrt((l-1.0)*(l+2.0))*si/s0/ssqrt3 *zeta_ratio;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*Phi[j]*rescale_function[j];
+    break;
+  case TENSOR_TEMPERATURE_2:
+    transfer_zeta_lm(ptr,l_int,2,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,2,2,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    class_call(interpolate_Phi(pHIS, x_size, index_l, chireverse, Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, NULL);
+    ssqrt2 = sqrt(1.0-1.0*K/k2);
+    si = sqrt(1.0+2.0*K/k2);
+    factor = sqrt(3.0/8.0*(l+2.0)*(l+1.0)*l*(l-1.0))/si/ssqrt2 * zeta_ratio;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*cscKgen[x_size-1-j]*Phi[j]*rescale_function[j];
+    break;
+  case TENSOR_POLARISATION_E:
+    transfer_zeta_lm(ptr,l_int,2,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,2,2,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    //printf("DEBUG zeta_ratio %f %+fi \n",std::real(zeta_ratio),std::imag(zeta_ratio));
+    class_call(interpolate_PhidPhid2Phi(pHIS, x_size, index_l, chireverse, Phi, dPhi, d2Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, NULL);
+    ssqrt2 = sqrt(1.0-1.0*K/k2);
+    si = sqrt(1.0+2.0*K/k2);
+    factor = 0.25/si/ssqrt2 * zeta_ratio;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*(absK_over_k2*d2Phi[j]*rescale_argument*rescale_argument
+                                            +4.0*cotKgen[x_size-1-j]*sqrt_absK_over_k*dPhi[j]*rescale_argument
+                                            -(1.0+4*K/k2-2.0*cotKgen[x_size-1-j]*cotKgen[x_size-1-j])*Phi[j])*rescale_function[j];
+    break;
+  case TENSOR_POLARISATION_B:
+    transfer_zeta_lm(ptr,l_int,2,nu, &zeta_obs);
+    transfer_zeta_lm(ptr,2,2,nu, &zeta_source);
+    zeta_ratio = zeta_obs/zeta_source;
+    //printf("DEBUG zeta_ratio %f %+fi \n",std::real(zeta_ratio),std::imag(zeta_ratio));
+    class_call(interpolate_PhidPhi(pHIS, x_size, index_l, chireverse, Phi, dPhi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, dPhi, NULL);
+    ssqrt2i = sqrt(1.0+3.0*K/k2);
+    ssqrt2 = sqrt(1.0-1.0*K/k2);
+    si = sqrt(1.0+2.0*K/k2);
+    factor = 0.5*ssqrt2i/ssqrt2/si * zeta_ratio;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*(sqrt_absK_over_k*dPhi[j]*rescale_argument+2.0*cotKgen[x_size-1-j]*Phi[j])*rescale_function[j];
+    break;
+  case NC_RSD:
+    class_call(interpolate_Phid2Phi(pHIS, x_size, index_l, chireverse, Phi, d2Phi, ptr->error_message),
+               ptr->error_message, ptr->error_message);
+    //hyperspherical_Hermite_interpolation_vector(pHIS, x_size, index_l, chireverse, Phi, NULL, d2Phi);
+    //s2 = sqrt(1.0-3.0*K/k2);
+    factor = 1.0;
+    for (j=0; j<x_size; j++)
+      radial_function[x_size-1-j] = factor*absK_over_k2*d2Phi[j]*rescale_argument*rescale_argument*rescale_function[j];
+    // Note: in previous line there was a missing factor absK_over_k2 until version 2.4.3. Credits Francesco Montanari.
+    break;
+  }
+
+  free(Phi);
+  free(dPhi);
+  free(d2Phi);
+  free(chireverse);
+  free(rescale_function);
+
+  return _SUCCESS_;
+}
+
+
+
+
+int transfer_update_HIS_ns(
+                        struct precision * ppr,
+                        struct transfer * ptr,
+                        struct transfer_workspace * ptw,
+                        int index_q,
+			double tau0
+                        ) {
+
+  __DOUBLE_OR_COMPLEX__ nu;
+  int int_nu;
+  double xmin, xmax, sampling, phiminabs, xtol;
+  double sqrt_absK, new_nu;
+  int l_size_max;
+  int index_l_left,index_l_right;
+
+  
+  if (ptw->HIS_allocated == _TRUE_) {
+    //printf("DEBUG ptw->HIS is already allocated. We free it \n");
+    class_call(hyperspherical_HIS_free(&(ptw->HIS),ptr->error_message),
+               ptr->error_message,
+               ptr->error_message);
+    ptw->HIS_allocated = _FALSE_;
+  }
+
+  if (ptw->sgnK!=0) {
+    xmin = ppr->hyper_x_min;
+    sqrt_absK = sqrt(ptw->sgnK*ptw->K);
+    xmax = sqrt_absK*tau0;
+    nu = ptr->q_complex[index_q]/sqrt_absK;
+
+    if (ptw->sgnK == 1) {
+      xmax = MIN(xmax,_PI_/2.0-ppr->hyper_x_min); //We only need solution on [0;pi/2]
+      
+      int_nu = (int)(std::real(nu)+0.2);
+      new_nu = (double)int_nu;
+      class_test(std::real(nu)-new_nu > 1.e-6,
+                 ptr->error_message,
+                 "problem in q list definition in closed case for index_q=%d, nu=%e, nu-int(nu)=%e",index_q,nu,nu-new_nu);
+      nu = new_nu;
+
+    }
+
+    if (__DEBUG__)
+      printf("The value of the reduced mode in HIS_ns is nu=%e +i%ei \n",std::real(nu), std::imag(nu) );
+    
+    //I have modified this with respect to the update_HIS function
+    sampling = 2*ppr->hyper_sampling_curved_low_nu;
+    //printf("DEBUG sampling is %f \n",sampling);
+    l_size_max = ptr->l_size_max;
+    if (ptw->sgnK == 1) {//nu is real here
+      while ((double)ptr->l[l_size_max-1] >= std::real(nu))
+        l_size_max--;
+      if (ptr->transfer_verbose > 1)
+	printf("l_max has been reduced to %d \n",ptr->l[l_size_max-1]);
+    }
+    
+    class_call(hyperspherical_CHIS_create(ptw->sgnK,
+					  nu,
+					  l_size_max,
+					  ptr->l,
+					  xmin,
+					  xmax,
+					  sampling,
+					  ptr->l[l_size_max-1]+1,
+					  ppr->hyper_phi_min_abs,
+					  &(ptw->HIS),
+					  ptr->error_message),
+	       ptr->error_message,
+	       ptr->error_message);
+    
+    ptw->HIS_allocated = _TRUE_;
+    
+  }
+  if (__DEBUG__)
+    printf("DEBUG end HIS_ns\n");
+  return _SUCCESS_;
+}
+
+
+/**
+ * This routine (used only for non-stochastic perturbations) defines the number and values of multipoles l for all modes.
+ * It just takes all the value from lmin = m =2 to lmax_tensors
+ *
+ * @param ppr  Input: pointer to precision structure
+ * @param ppt  Input: pointer to perturbation structure
+ * @param ptr  Input/Output: pointer to transfer structure containing l's
+ * @return the error status
+ */
+
+int transfer_get_l_list_ns(
+                        struct precision * ppr,
+                        struct perturbations * ppt,
+                        struct transfer * ptr
+                        ) {
+
+  int index_l,index_tt,index_md;
+  int l_size_max=0, l_min=2, max_l_max=0;
+  /** Summary: */
+
+  if (ppt->has_scalars)
+    max_l_max=MAX(max_l_max,ppt->l_scalar_max);
+  if (ppt->has_vectors)
+    max_l_max=MAX(max_l_max,ppt->l_vector_max);
+  if (ppt->has_tensors)
+    max_l_max=MAX(max_l_max,ppt->l_tensor_max);
+
+  l_min =2;//Do we never care about the dipole ?
+  ptr->l_size_max = max_l_max-l_min+1;
+  class_alloc(ptr->l,ptr->l_size_max*sizeof(int),ptr->error_message);
+  
+  for(index_l=l_min;index_l<=max_l_max;index_l++) 
+    ptr->l[index_l-l_min] = index_l;
+  
+  for (index_md=0; index_md < ppt->md_size; index_md++) {
+    if (_scalars_) {
+      l_size_max=ppt->l_scalar_max-l_min+1;
+    }
+    if (_vectors_) {
+      l_size_max=ppt->l_vector_max-l_min+1;
+    }
+    if (_tensors_) {
+      l_size_max=ppt->l_tensor_max-l_min+1;
+    }
+    ptr->l_size[index_md] = l_size_max;
+    for (index_tt=0;index_tt<ptr->tt_size[index_md];index_tt++)
+      ptr->l_size_tt[index_md][index_tt] = l_size_max;
+  }
+
+  return _SUCCESS_;
+
+}
+
+

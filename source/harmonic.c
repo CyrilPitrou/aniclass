@@ -293,6 +293,7 @@ int harmonic_init(
              phr->error_message,
              phr->error_message);
 
+  printf("DEBUG end of harmonic_indices \n");
   /** - deal with \f$ C_l\f$'s, if any */
 
   if (ppt->has_cls == _TRUE_) {
@@ -371,6 +372,9 @@ int harmonic_free_non_stochastic(
                   ) {
 
   int index_md;
+
+  printf("DEBUG freeing for harmonic non stochastic \n");
+  
   if (phr->md_size > 0) {
     if (phr->ct_size > 0) {
       free(phr->l);
@@ -387,6 +391,7 @@ int harmonic_free_non_stochastic(
     free(phr->alm);//Check if this freeing is correct
   }
 
+  printf("DEBUG end of freeing for harmonic non stochastic \n");
   return _SUCCESS_;
 
 }

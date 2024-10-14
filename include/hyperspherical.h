@@ -190,6 +190,53 @@ int hyperspherical_forwards_recurrence_chunk(int K,
   int hyperspherical_Hermite6_interpolation_vector_dPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
   int hyperspherical_Hermite6_interpolation_vector_PhidPhid2Phi(HyperInterpStruct *pHIS,int nxi,int lnum,double *xinterp,__DOUBLE_OR_COMPLEX__ *Phi,__DOUBLE_OR_COMPLEX__ *dPhi,__DOUBLE_OR_COMPLEX__ *d2Phi, ErrorMsg error_message);
 
+/******************************************************************************/
+//Joao Vicente Gabriel. Functions to compute hyperspherical Bessel functions with complex argument if CLASS is compiled with Complex values.
+  
+int hyperspherical_CHIS_create(int K,
+                           __DOUBLE_OR_COMPLEX__ beta,
+                           int nl,
+                           int *lvec,
+                           double xmin,
+                           double xmax,
+                           double sampling,
+                           int l_WKB,
+                           double phiminabs,
+                           HyperInterpStruct *pHIS,
+                           ErrorMsg error_message);
+
+int get_CFcomplex(int l, 
+	          __DOUBLE_OR_COMPLEX__ beta, 
+	          double cotK, 
+	    	  __DOUBLE_OR_COMPLEX__ *CF, 
+	    	  int *isign_r, 
+	    	  int *isign_i);
+		    
+int hyperspherical_backwards_recurrence_complex(int lmax,
+                                        	__DOUBLE_OR_COMPLEX__ beta,
+                                        	double x,
+                                        	double sinK,
+                                        	double cotK,
+                                        	__DOUBLE_OR_COMPLEX__ *__restrict__ sqrtK,
+                                        	__DOUBLE_OR_COMPLEX__ *__restrict__ one_over_sqrtK,
+                                        	__DOUBLE_OR_COMPLEX__ *__restrict__ PhiL);
+                                        
+int hyperspherical_forwards_recurrence_complex(int lmax,
+                                      	       __DOUBLE_OR_COMPLEX__ beta,
+                                       	       double x,
+                                       	       double sinK,
+                                       	       double cotK,
+                                       	       __DOUBLE_OR_COMPLEX__ *__restrict__ sqrtK,
+                                       	       __DOUBLE_OR_COMPLEX__ *__restrict__ one_over_sqrtK,
+                                       	       __DOUBLE_OR_COMPLEX__ *__restrict__ PhiL);
+                                       	       
+int hyperspherical_explicit_complex(int l, 
+				  __DOUBLE_OR_COMPLEX__ beta,
+				  double x, 
+				  __DOUBLE_OR_COMPLEX__ *Phi);
+
+/******************************************************************************************/
+  
 #ifdef __cplusplus
 }
 #endif

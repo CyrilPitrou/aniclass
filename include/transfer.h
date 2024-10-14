@@ -182,6 +182,9 @@ struct transfer {
 
   double ** k; /**< list of wavenumber values for each requested mode, k[index_md][index_q]. In flat universes k=q. In non-flat universes q and k differ through q2 = k2 + K(1+m), where m=0,1,2 for scalar, vector, tensor. q should be used throughout the transfer module, excepted when interpolating or manipulating the source functions S(k,tau): for a given value of q this should be done in k(q). */
 
+  __DOUBLE_OR_COMPLEX__  * q_complex; /**< List of (complex) q. Identical to real valued except for Bianchi where q_bianchi[index_q]. q = q_Re + i/lc with q_Re = m/ls.*/
+  __DOUBLE_OR_COMPLEX__  ** k_complex; /**< List of (complex) k. Identical to real valued except for Bianchi where k_bianchi[index_md][index_q] is such that q^2 = k^2 + (1+|m|)K, */
+
   int index_q_flat_approximation; /**< index of the first q value using the flat rescaling approximation */
 
   short do_lcmb_full_limber; /**< in this particular run, will we use the full Limber scheme? */
@@ -754,6 +757,116 @@ extern "C" {
                      double* f_evo
                      );
 
+ /**
+  * Functions which are used for non-stochastic perturbations.
+  * For Bianchi perturbations it must also be compiled with complex valued perturbations.
+  * CLASS is compiled with complex types using the -D__COMPLEX_CLASS__ flag for compiler.
+  */
+
+  int transfer_get_q_list_ns(
+			     struct precision * ppr,
+			     struct perturbations * ppt,
+			     struct transfer * ptr,
+			     double K,
+			     int sgnK
+			     );
+  
+  int transfer_compute_for_each_q_ns(
+				     struct precision * ppr,
+				     struct background * pba,
+				     struct perturbations * ppt,
+				     struct transfer * ptr,
+				     int ** tp_of_tt,
+				     int index_q,
+				     int tau_size_max,
+				     double tau_rec,
+				     __DOUBLE_OR_COMPLEX__ *** sources,
+				     __DOUBLE_OR_COMPLEX__ *** sources_spline,
+				     double * window,
+				     struct transfer_workspace * ptw
+				     );
+
+  int transfer_radial_coordinates_ns(
+				     struct transfer * ptr,
+				     struct transfer_workspace * ptw,
+				     int index_md,
+				     int index_q
+				     );
+  
+  int transfer_interpolate_sources_ns(
+				      struct perturbations * ppt,
+				      struct transfer * ptr,
+				      int index_q,
+				      int index_md,
+				      int index_ic,
+				      int index_type,
+				      __DOUBLE_OR_COMPLEX__ * sources,
+				      //__DOUBLE_OR_COMPLEX__ * source_spline,
+				      __DOUBLE_OR_COMPLEX__ * interpolated_sources
+				      );
+
+  int transfer_compute_for_each_l_ns(
+				     struct transfer_workspace * ptw,
+				     struct precision * ppr,
+				     struct perturbations * ppt,
+				     struct transfer * ptr,
+				     int index_q,
+				     int index_md,
+				     int index_ic,
+				     int index_tt,
+				     int index_l,
+				     double l,
+				     //double q_max_bessel,
+				     radial_function_type radial_type
+				     );
+  
+  int transfer_integrate_ns(
+			    struct perturbations * ppt,
+			    struct transfer * ptr,
+			    struct transfer_workspace *ptw,
+			    int index_q,
+			    int index_md,
+			    int index_tt,
+			    double l,
+			    int index_l,
+			    __DOUBLE_OR_COMPLEX__  k,
+			    radial_function_type radial_type,
+			    __DOUBLE_OR_COMPLEX__ * trsf
+			    );
+  
+  int transfer_zeta_lm(struct transfer * ptr,
+		       int l,
+		       int m,
+		       __DOUBLE_OR_COMPLEX__ nu,
+		       __DOUBLE_OR_COMPLEX__ * zetalm
+		       );
+
+  int transfer_radial_function_ns(
+				  struct transfer_workspace * ptw,
+				  struct perturbations * ppt,
+				  struct transfer * ptr,
+				  __DOUBLE_OR_COMPLEX__ k,
+				  int index_q,
+				  int index_l,
+				  int x_size,
+				  __DOUBLE_OR_COMPLEX__ * radial_function,
+				  radial_function_type radial_type
+				  );
+
+  int transfer_update_HIS_ns(
+			     struct precision * ppr,
+			     struct transfer * ptr,
+			     struct transfer_workspace * ptw,
+			     int index_q,
+			     double tau0
+			     );
+
+  int transfer_get_l_list_ns(
+			     struct precision * ppr,
+			     struct perturbations * ppt,
+			     struct transfer * ptr
+			     );
+  
 #ifdef __cplusplus
 }
 #endif

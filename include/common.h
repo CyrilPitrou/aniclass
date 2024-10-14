@@ -10,16 +10,16 @@
 //To choose a complex valued CLASS code. comment to switch to usual real valued CLASS code.
 #define __COMPLEX_CLASS__
 
-//Define a type which can be double for usual class and double complex. This is for Bianchi use.
+//Define a type which can be double for usual class, or complex when studying Bianchi as a non-stochastic perturbation.
+//Aslo, this header is laded by all the modules of CLASS. Some are in C, and others in C++ hence we must distinguish them
 #ifdef __cplusplus
-
-
+//C++ case
 #include <cmath>
 #include <complex>
 #ifdef __COMPLEX_CLASS__
-// Does not work to use C. We must switch to full C++
-#define __DOUBLE_OR_COMPLEX__ std::complex<double>
+// 'Complex double', which is pure C99 code, does not work when compiling as C++. We must switch to full C++
 //#define __DOUBLE_OR_COMPLEX__ _Complex double
+#define __DOUBLE_OR_COMPLEX__ std::complex<double>
 #define __COMPLEX_CLASS_BOOL__ _TRUE_
 #else
 #define __DOUBLE_OR_COMPLEX__ double
@@ -27,7 +27,7 @@
 #endif
 
 #else
-
+//C case
 #include "math.h"
 #include "complex.h"
 #ifdef __COMPLEX_CLASS__
