@@ -177,10 +177,6 @@ extern "C" {
                     struct harmonic * phr
                     );
 
-  int harmonic_free_non_stochastic(
-                  struct harmonic * phr
-                  );
-  
   int harmonic_indices(
                        struct background * pba,
                        struct perturbations * ppt,
@@ -316,6 +312,42 @@ extern "C" {
 
   /* end deprecated functions */
 
+  /* Functions specific to the non-stochastic case */
+  /* The goal is to output the a_lm iin that case and not the C_l */
+  int harmonic_alms(
+                   struct background * pba,
+                   struct perturbations * ppt,
+                   struct transfer * ptr,
+		   struct harmonic * phr
+                   );
+
+  int harmonic_compute_alm(
+                        struct background * pba,
+                        struct perturbations * ppt,
+                        struct transfer * ptr,
+                        struct harmonic * phr,
+                        int index_md,
+                        int index_ic,
+                        int index_l,
+                        int alm_k_num_columns,
+                        __DOUBLE_OR_COMPLEX__ * alm_k,
+                        __DOUBLE_OR_COMPLEX__ * transfer_ic
+			   );
+
+  int harmonic_alm_at_l(
+                        struct transfer * ptr,
+			struct harmonic * phr,
+			int index_md,
+                        int index_l,
+                        int index_q,
+                        int index_ic,
+                        __DOUBLE_OR_COMPLEX__ * * alm_md
+                        );
+
+  int harmonic_free_non_stochastic(
+                  struct harmonic * phr
+                  );
+  
 #ifdef __cplusplus
 }
 #endif

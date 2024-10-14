@@ -298,10 +298,19 @@ int harmonic_init(
 
   if (ppt->has_cls == _TRUE_) {
 
-    class_call(harmonic_cls(ppr,pba,ppt,ptr,ppm,phr),
-               phr->error_message,
-               phr->error_message);
-
+    switch (ptr->statistics) {
+    case stochastic:
+      class_call(harmonic_cls(ppr,pba,ppt,ptr,ppm,phr),
+		 phr->error_message,
+		 phr->error_message);
+      break;
+    case non_stochastic:
+      class_call(harmonic_alms(pba,ppt,ptr,phr),
+		 phr->error_message,
+		 phr->error_message);
+      break;
+    }
+    
   }
   else {
     phr->ct_size=0;
@@ -367,35 +376,6 @@ int harmonic_free(
 
 }
 
-int harmonic_free_non_stochastic(
-                  struct harmonic * phr
-                  ) {
-
-  int index_md;
-
-  printf("DEBUG freeing for harmonic non stochastic \n");
-  
-  if (phr->md_size > 0) {
-    if (phr->ct_size > 0) {
-      free(phr->l);
-      free(phr->l_size);
-    }
-
-    for (index_md=0; index_md < phr->md_size; index_md++){
-      free(phr->alm[index_md]);
-      }
-
-    free(phr->is_non_zero);
-    free(phr->ic_size);
-    free(phr->ic_ic_size);
-    free(phr->alm);//Check if this freeing is correct
-  }
-
-  printf("DEBUG end of freeing for harmonic non stochastic \n");
-  return _SUCCESS_;
-
-}
-
 
 /**
  * This routine defines indices and allocates tables in the harmonic structure
@@ -437,13 +417,24 @@ int harmonic_indices(
               phr->error_message);
 
   for (index_md=0; index_md < phr->md_size; index_md++) {
-    phr->ic_size[index_md] = ppm->ic_size[index_md];
-    phr->ic_ic_size[index_md] = ppm->ic_ic_size[index_md];
-    class_alloc(phr->is_non_zero[index_md],
-                sizeof(short)*phr->ic_ic_size[index_md],
-                phr->error_message);
-    for (index_ic1_ic2=0; index_ic1_ic2 < phr->ic_ic_size[index_md]; index_ic1_ic2++)
-      phr->is_non_zero[index_md][index_ic1_ic2] = ppm->is_non_zero[index_md][index_ic1_ic2];
+    switch (ptr->statistics) {
+    case stochastic:
+      
+      phr->ic_size[index_md] = ppm->ic_size[index_md];
+      phr->ic_ic_size[index_md] = ppm->ic_ic_size[index_md];
+      class_alloc(phr->is_non_zero[index_md],
+		  sizeof(short)*phr->ic_ic_size[index_md],
+		  phr->error_message);
+      for (index_ic1_ic2=0; index_ic1_ic2 < phr->ic_ic_size[index_md]; index_ic1_ic2++)
+	phr->is_non_zero[index_md][index_ic1_ic2] = ppm->is_non_zero[index_md][index_ic1_ic2];
+      
+      break;
+    case non_stochastic:
+      
+      phr->ic_size[index_md] = ppt->ic_size[index_md];
+      
+      break;
+    }
   }
 
   if (ppt->has_cls == _TRUE_) {
@@ -500,6 +491,7 @@ int harmonic_indices(
       phr->has_pp = _FALSE_;
     }
 
+    //TODO put conditions for non stochastic to avoid cross correlations. Not sure what this comment means
     if ((ppt->has_cl_cmb_temperature == _TRUE_) && (ppt->has_cl_cmb_lensing_potential == _TRUE_) && (ppt->has_scalars == _TRUE_)) {
       phr->has_tp = _TRUE_;
       phr->index_ct_tp=index_ct;
@@ -1793,3 +1785,353 @@ int harmonic_tk_at_k_and_z(
 }
 
 /* end deprecated functions */
+
+
+/**
+  * Functions which are used when CLASS is used with non-stochastic perturbations,
+  * in which case we output the a_lm for a list of chosen k modes, and not the C_l integrated over Fourier modes.
+  * This is the case for Bianchi space-times but we can have non-stochastic perturbations without considering the Bianchi case. These are called large_mode perturbations.
+  */
+
+
+int harmonic_free_non_stochastic(
+                  struct harmonic * phr
+                  ) {
+
+  int index_md;
+  if (phr->md_size > 0) {
+    if (phr->ct_size > 0) {
+      free(phr->l);
+      free(phr->l_size);
+    }
+
+    for (index_md=0; index_md < phr->md_size; index_md++){
+      free(phr->alm[index_md]);
+      }
+
+    free(phr->is_non_zero);
+    free(phr->ic_size);
+    free(phr->ic_ic_size);
+    free(phr->alm);//Check if this freeing is correct
+  }
+
+  return _SUCCESS_;
+}
+
+/**
+ * This routine computes a table of values for all \f$ a_lm \f$'s,
+ * given the transfer functions.
+ *
+ * @param pba Input: pointer to background structure
+ * @param ppt Input: pointer to perturbation structure
+ * @param ptr Input: pointer to transfer structure
+ * @param phr Input/Output: pointer to harmonic structure
+ * @return the error status
+ */
+
+int harmonic_alms(
+                 struct background * pba,
+                 struct perturbations * ppt,
+                 struct transfer * ptr,
+		 struct harmonic * phr
+                 ) {
+
+  /** Summary: */
+  /** - define local variables */
+
+  int index_md;
+  int index_ic;
+  int index_l;
+  int index_ct;
+  int alm_k_num_columns;
+  
+  __DOUBLE_OR_COMPLEX__ * alm_k; /* array with argument alm_k[index_k*alm_k_num_columns+1+phr->index_ct] */
+  __DOUBLE_OR_COMPLEX__ * transfer_ic; /* array with argument transfer_ic[index_tt] */
+
+  /** - allocate pointers to arrays where results will be stored */
+
+  class_alloc(phr->l_size,sizeof(int)*phr->md_size,phr->error_message);
+  class_alloc(phr->alm,sizeof(__DOUBLE_OR_COMPLEX__ *)*phr->md_size,phr->error_message);
+
+  phr->l_size_max = ptr->l_size_max;
+  class_alloc(phr->l,sizeof(double)*phr->l_size_max,phr->error_message);
+
+  /** - store values of l */
+  //printf("DEBUG harmonic_alms 1\n");
+  for (index_l=0; index_l < phr->l_size_max; index_l++) {
+    phr->l[index_l] = (double)ptr->l[index_l];
+  }
+
+  /** - loop over modes (scalar, tensors, etc). For each mode: */
+  //printf("DEBUG harmonic_alms 2\n");
+  for (index_md = 0; index_md < phr->md_size; index_md++) {
+
+    /** - --> (a) store number of l values for this mode */
+
+    phr->l_size[index_md] = ptr->l_size[index_md];
+
+    /** - --> (b) allocate arrays where results will be stored */
+
+    class_alloc(phr->alm[index_md],sizeof(__DOUBLE_OR_COMPLEX__)*ptr->q_size*phr->l_size[index_md]*phr->ct_size*phr->ic_size[index_md],phr->error_message);
+    alm_k_num_columns = 1+phr->ct_size; /* one for k, ct_size for each type */
+
+    /** - --> (c) loop over initial conditions */
+    //printf("DEBUG harmonic_alms 3\n");
+    for (index_ic = 0; index_ic < phr->ic_size[index_md]; index_ic++) {
+      class_alloc(alm_k,
+		  ptr->q_size*alm_k_num_columns*sizeof(__DOUBLE_OR_COMPLEX__),
+		  phr->error_message);
+
+      class_alloc(transfer_ic,
+		  ptr->tt_size[index_md]*sizeof(__DOUBLE_OR_COMPLEX__),
+		  phr->error_message);
+
+      /** - ---> loop over l values defined in the transfer module.
+	  For each l, compute the \f$ C_l\f$'s for all types (TT, TE, ...)
+	  by convolving primordial spectra with transfer  functions.
+	  This elementary task is assigned to harmonic_compute_cl() */
+
+      //printf("DEBUG harmonic_alms 4\n");
+      for (index_l=0; index_l < ptr->l_size[index_md]; index_l++) {
+
+	class_call(harmonic_compute_alm(pba,
+					ppt,
+					ptr,
+					phr,
+					index_md,
+					index_ic,
+					index_l,
+					alm_k_num_columns,
+					alm_k,
+					transfer_ic),
+		   phr->error_message,
+		   phr->error_message);
+	
+      } /* end of loop over l */
+      
+      free(alm_k);
+      free(transfer_ic);
+      
+    }
+  }
+
+  return _SUCCESS_;  
+}
+
+
+/**
+ * This routine computes the \f$ a_lm\f$'s for a given mode, initial condition
+ * and multipole, but for all types (TT, TE...)
+ *
+ * @param pba           Input: pointer to background structure
+ * @param ppt           Input: pointer to perturbation structure
+ * @param ptr           Input: pointer to transfer structure
+ * @param phr           Input/Output: pointer to harmonic structure (result stored here)
+ * @param index_md      Input: index of mode under consideration
+ * @param index_ic      Input: index of initial condition in the correlator
+ * @param index_l       Input: index of multipole under consideration
+ * @param alm_k_num_columns Input: number of columns in cl_integrand
+ * @param alm_k         Input: an allocated workspace
+ * @param transfer_ic   Input: table of transfer function values for initial condition
+ * @return the error status
+ */
+
+int harmonic_compute_alm(
+                        struct background * pba,
+                        struct perturbations * ppt,
+                        struct transfer * ptr,
+			struct harmonic * phr,
+                        int index_md,
+                        int index_ic,
+			int index_l,
+                        int alm_k_num_columns,
+                        __DOUBLE_OR_COMPLEX__ * alm_k,
+                        __DOUBLE_OR_COMPLEX__ * transfer_ic
+                        ) {
+
+  int index_q;
+  int index_tt;
+  int index_ct;
+  int index_d1,index_d2;
+  __DOUBLE_OR_COMPLEX__ k;
+  __DOUBLE_OR_COMPLEX__ almvalue;
+  //int index_ic1_ic2;
+  __DOUBLE_OR_COMPLEX__ transfer_ic_temp=0.;
+  //__DOUBLE_OR_COMPLEX__ * transfer_ic_nc=NULL;
+  //double factor;
+
+  //For the moment Bianchi does not work with scalars, but here we think in terms of non-stochastic implementation, in which case scalars might be considered.
+
+  /*if (ppt->has_cl_number_count == _TRUE_ && _scalars_) {
+    class_alloc(transfer_ic_nc,phr->d_size*sizeof(__DOUBLE_OR_COMPLEX__),phr->error_message);
+    }*/
+
+  //printf("DEBUG harmonic_compute_alm 1\n");
+  for (index_q=0; index_q < ptr->q_size; index_q++) {
+
+    //q = ptr->q[index_q];
+    k = ptr->k_complex[index_md][index_q];//What should we do for Bianchi ? TODO
+        
+    alm_k[index_q*alm_k_num_columns+0] = k;
+    
+    //printf("DEBUG harmonic_compute_alm 2\n");
+    for (index_tt=0; index_tt < ptr->tt_size[index_md]; index_tt++) {
+
+      transfer_ic[index_tt] =
+        ptr->transfer[index_md]
+        [((index_ic * ptr->tt_size[index_md] + index_tt)
+          * ptr->l_size[index_md] + index_l)
+         * ptr->q_size + index_q];
+    }
+
+    /* define combinations of transfer functions */
+
+    //printf("DEBUG harmonic_compute_alm 3\n");
+    if (ppt->has_cl_cmb_temperature == _TRUE_) {
+
+      if (_scalars_) {
+
+        transfer_ic_temp = transfer_ic[ptr->index_tt_t0] + transfer_ic[ptr->index_tt_t1] + transfer_ic[ptr->index_tt_t2];
+
+      }
+
+      if (_vectors_) {
+
+        transfer_ic_temp = transfer_ic[ptr->index_tt_t1_v] + transfer_ic[ptr->index_tt_t2];
+
+      }
+
+      if (_tensors_) {
+
+        transfer_ic_temp = transfer_ic[ptr->index_tt_t2];
+
+      }
+    }
+
+    /*if (ppt->has_cl_number_count == _TRUE_ && _scalars_) {
+
+      for (index_d1=0; index_d1<phr->d_size; index_d1++) {
+
+        transfer_ic_nc[index_d1] = 0.;
+        
+        if (ppt->has_nc_density == _TRUE_) {
+          transfer_ic_nc[index_d1] += transfer_ic[ptr->index_tt_density+index_d1];
+        }
+
+        if (ppt->has_nc_rsd     == _TRUE_) {
+          transfer_ic_nc[index_d1]
+            += transfer_ic[ptr->index_tt_rsd+index_d1]
+            + transfer_ic[ptr->index_tt_d0+index_d1]
+            + transfer_ic[ptr->index_tt_d1+index_d1];
+        }
+
+        if (ppt->has_nc_lens == _TRUE_) {
+          transfer_ic_nc[index_d1] +=
+            phr->l[index_l]*(phr->l[index_l]+1.)*transfer_ic[ptr->index_tt_nc_lens+index_d1];
+        }
+
+        if (ppt->has_nc_gr == _TRUE_) {
+          transfer_ic_nc[index_d1]
+            += transfer_ic[ptr->index_tt_nc_g1+index_d1]
+            + transfer_ic[ptr->index_tt_nc_g2+index_d1]
+            + transfer_ic[ptr->index_tt_nc_g3+index_d1]
+            + transfer_ic[ptr->index_tt_nc_g4+index_d1]
+            + transfer_ic[ptr->index_tt_nc_g5+index_d1];
+	}
+	
+      }
+      }*/
+
+    //Now we just recopy because the transfer is directly the a_lm(k). We do not have sums on k as would be the case for C_l.
+    //printf("DEBUG harmonic_compute_alm 4\n");
+    if (phr->has_tt == _TRUE_)
+      alm_k[index_q*alm_k_num_columns+1+phr->index_ct_tt]= transfer_ic_temp;
+
+    if (phr->has_ee == _TRUE_)
+      alm_k[index_q*alm_k_num_columns+1+phr->index_ct_ee]= transfer_ic[ptr->index_tt_e];
+
+    if (_vectors_ && (phr->has_bb == _TRUE_))
+      alm_k[index_q*alm_k_num_columns+1+phr->index_ct_bb]= transfer_ic[ptr->index_tt_b_v];
+    
+    if (_tensors_ && (phr->has_bb == _TRUE_))
+      alm_k[index_q*alm_k_num_columns+1+phr->index_ct_bb]= transfer_ic[ptr->index_tt_b];
+
+    //if (_scalars_ && (phr->has_pp == _TRUE_))
+    //  alm_k[index_q*cl_integrand_num_columns+1+phr->index_ct_pp]= transfer_ic[ptr->index_tt_lcmb];
+
+    //TODO We should put galaxy number counts correctly in the future TODO
+
+    //printf("DEBUG harmonic_compute_alm 5\n");
+    for (index_ct=0; index_ct<phr->ct_size; index_ct++) {
+      
+      /* treat null spectra (C_l^BB of scalars, C_l^pp of tensors, etc. */
+
+      if ((_scalars_ && (phr->has_bb == _TRUE_) && (index_ct == phr->index_ct_bb)) ||
+	  (_tensors_ && (phr->has_pp == _TRUE_) && (index_ct == phr->index_ct_pp)) ||
+	  (_tensors_ && (phr->has_dd == _TRUE_) && (index_ct == phr->index_ct_dd)) ||
+	  (_tensors_ && (phr->has_ll == _TRUE_) && (index_ct == phr->index_ct_ll)) ||
+	  (_vectors_ && (phr->has_pp == _TRUE_) && (index_ct == phr->index_ct_pp)) ||
+	  (_vectors_ && (phr->has_dd == _TRUE_) && (index_ct == phr->index_ct_dd)) ||
+	  (_vectors_ && (phr->has_ll == _TRUE_) && (index_ct == phr->index_ct_ll))
+	  ) {
+
+	//MEGA WARNING the index was  starting with index_q * ptr->q_size + index_l seems completely wrong !!! Harmless because index_q =0.
+	// I have corrected. CP.
+	phr->alm[index_md]
+	  [((index_q * phr->l_size[index_md] + index_l) * phr->ic_size[index_md] + index_ic) * phr->ct_size + index_ct] = 0.;
+	
+      }
+      //We then store it in the phr structure. A simple copy.
+      else {
+	//printf("DEBUG harmonic_compute_alm 7 value stored is %f+i%f \n",creal(alm_k[index_q*alm_k_num_columns+1+index_ct]),cimag(alm_k[index_q*alm_k_num_columns+1+index_ct]));
+	phr->alm[index_md]
+	  [((index_q * phr->l_size[index_md] + index_l) * phr->ic_size[index_md] + index_ic) * phr->ct_size + index_ct]
+	  = alm_k[index_q*alm_k_num_columns+1+index_ct];
+
+	//printf("DEBUG for index_l %d I have stored valued %e \n",index_l,alm_k[index_q*alm_k_num_columns+1+index_ct]);
+      }
+    }
+  }
+
+  //printf("DEBUG harmonic_compute_alm 8\n");
+  /*if (ppt->has_cl_number_count == _TRUE_ && _scalars_) {
+    free(transfer_ic_nc);
+    }*/
+
+  return _SUCCESS_;
+
+}
+
+
+
+
+/**                                                                                                                                                                                                
+ * This routine (used only for Bianchi perturbations) find the list of a_lm                                                                                                                        
+ * to be output for a given perturbation mode index_q. It is used in the output module.
+ *                                                                                                                                                                                                 
+ * @param ptr       Input/Output: pointer to transfer structure containing l's                                                                                                                     
+ * @param index_l   Input index of l (multipole)                                                                                                                                                   
+ * @param index_q   Input index of q (Fourier mode)
+ * @param index_ic  Input index of ic (initial condition)                                                                                                                                          
+ * @param alm_md    Output: pointer to the list of alm for the various modes of perturbations.                                                                                                     
+ */
+
+int harmonic_alm_at_l(
+		      struct transfer * ptr,
+                      struct harmonic * phr,
+		      int index_md,
+		      int index_l,
+                      int index_q,
+                      int index_ic,
+                      __DOUBLE_OR_COMPLEX__ ** alm_md   /* array with argument alm_md[index_md][index_ct] (must be already allocated only if several modes) */
+                      ) {
+  int index_ct;
+
+  for (index_ct = 0; index_ct < phr->ct_size; index_ct++) {    
+    alm_md[index_md][index_ct] = phr->alm[index_md][((index_q * phr->l_size[index_md] + index_l) * phr->ic_size[index_md] + index_ic) * phr->ct_size + index_ct];
+  }
+
+  return _SUCCESS_;
+
+}
+
