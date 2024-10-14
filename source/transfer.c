@@ -641,6 +641,7 @@ int transfer_indices(
 
   class_alloc(ptr->transfer,ptr->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
   if (ptr->do_lcmb_full_limber == _TRUE_) {
+    //printf("DEBUG allocating for transfer_limber \n");
     class_alloc(ptr->transfer_limber,ptr->md_size * sizeof(__DOUBLE_OR_COMPLEX__ *),ptr->error_message);
   }
 
@@ -651,12 +652,25 @@ int transfer_indices(
     class_call(transfer_get_q_list(ppr,ppt,ptr,q_period,K,sgnK),
 	       ptr->error_message,
 	       ptr->error_message);
+
+    /** - get q values in full Limber case using transfer_get_q_limber_list() */
+    
+    if (ptr->do_lcmb_full_limber == _TRUE_) {
+      //printf("DEBUG calling q_limber list \n");
+      class_call(transfer_get_q_limber_list(ppr,ppt,ptr,K,sgnK),
+		 ptr->error_message,
+		 ptr->error_message);
+    }
+    else {
+      ptr->q_size_limber=0;
+    }
     
     /** - get k values using transfer_get_k_list() */
     class_call(transfer_get_k_list(ppt,ptr,K),
 	       ptr->error_message,
 	       ptr->error_message);
     break;
+    
   case non_stochastic:
     class_call(transfer_get_q_list_ns(ppr,ppt,ptr,K,sgnK),
 	       ptr->error_message,
@@ -664,17 +678,7 @@ int transfer_indices(
     break;
   }
 
-  /** - get q values in full Limber case using transfer_get_q_limber_list() */
-
-  if (ptr->do_lcmb_full_limber == _TRUE_) {
-    class_call(transfer_get_q_limber_list(ppr,ppt,ptr,K,sgnK),
-               ptr->error_message,
-               ptr->error_message);
-  }
-  else {
-    ptr->q_size_limber=0;
-  }
-
+  
   /* for testing, it can be useful to print the q list in a file: */
 
   /*
@@ -1403,7 +1407,8 @@ int transfer_get_q_limber_list(
 
   /* number of values */
   ptr->q_size_limber = (int)(log(q_max/q_min)/log(ppr->q_logstep_limber))+1;
-
+  //printf("DEBUG ptr->q_size_limber=%d \n",(int)ptr->q_size_limber);
+  
   class_alloc(ptr->q_limber,
               ptr->q_size_limber*sizeof(double),
               ptr->error_message);
@@ -1463,12 +1468,14 @@ int transfer_get_k_list(
 
     for (index_q=0; index_q < ptr->q_size; index_q++) {
       ptr->k[index_md][index_q] = sqrt(ptr->q[index_q]*ptr->q[index_q]-K*(m+1.));
+      //printf("DEBUG index_md=%d index_q=%d, q=%e  k=%e\n",index_md,index_q,ptr->q[index_q],ptr->k[index_md][index_q]);
     }
     if (ptr->do_lcmb_full_limber == _TRUE_) {
       for (index_q=0; index_q < ptr->q_size_limber; index_q++) {
         ptr->k_limber[index_md][index_q] = sqrt(ptr->q_limber[index_q]*ptr->q_limber[index_q]-K*(m+1.));
       }
     }
+    //printf("DEBUG ppt->k[index_md][0]=%e index_md=%d\n",ppt->k[index_md][0],index_md);
 
     /* check consistency of the first value of ptr->k */
     if (ptr->k[index_md][0] < ppt->k[index_md][0]){
@@ -1476,11 +1483,12 @@ int transfer_get_k_list(
          adjust first value of k_list to avoid interpolation errors: */
       if ((ppt->k[index_md][0]-ptr->k[index_md][0]) < 10.*DBL_EPSILON){
         ptr->k[index_md][0] = ppt->k[index_md][0];
+	//printf("DEBUG I adjust k[index_md][0] to %e \n",ptr->k[index_md][0]);
       }
       else{
         class_stop(ptr->error_message,
                    "bug in k_list calculation: in perturbation module k_min=%e, in transfer module k_min[mode=%d]=%e, interpolation impossible",
-                   ppt->k[0][0],
+                   ppt->k[index_md][0],
                    index_md,
                    ptr->k[index_md][0]);
       }

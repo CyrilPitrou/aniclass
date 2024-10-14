@@ -2275,6 +2275,8 @@ int perturbations_get_k_list(
 
     /** - --> test that result for k_min, k_max make sense */
 
+    printf("DEBUG kmin in ppt is %e \n",k_min);
+    
     class_test(k_min<0.,
                ppt->error_message,
                "buggy definition of k_min");
@@ -2769,6 +2771,8 @@ int perturbations_get_k_list(
     ppt->k_min = MIN(ppt->k_min,ppt->k[ppt->index_md_tensors][0]); /* first value, inferred from perturbations structure */
     ppt->k_max = MAX(ppt->k_max,ppt->k[ppt->index_md_tensors][ppt->k_size[ppt->index_md_tensors]-1]); /* last value, inferred from perturbations structure */
   }
+
+  printf("DEBUG ppt->k[ppt->index_md_scalars][0]=%e in ppt \n",ppt->k[ppt->index_md_scalars][0]);
 
   free(k_max_cmb);
   free(k_max_cl);
