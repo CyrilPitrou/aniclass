@@ -6570,9 +6570,9 @@ int perturbations_initial_conditions(struct precision * ppr,
     //Initial conditions in the isocurvature case
     if ((ppt->has_iso_v == _TRUE_) && (index_ic == ppt->index_ic_iso_v)) {
       Phi0 = 1.;
-      V_init = Phi0 *(1.- cH*tau);
-      l1_ur = -Phi0*((5.*rho_r + 4.*rho_nu) / (4.*rho_nu) + cH*tau);
-      theta_b = Phi0/(1.+R)* (5.*rho_r + 4.*rho_nu) / (4.*rho_g);
+      V_init = Phi0 * (1.- cH*tau);
+      l1_ur = -Phi0 * (5.*rho_r + 4.*rho_nu) / (4.*rho_nu);
+      theta_b = Phi0/(1.+R) * (5.*rho_r + 4.*rho_nu) / (4.*rho_g);
       //If not synchronous gauge we must add V to the velocities
       if (ppt->gauge == newtonian) { 
 	l1_ur += V_init;
