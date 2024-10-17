@@ -4989,7 +4989,6 @@ int input_read_parameters_spectra(struct file_content * pfc,
       /* Complete set of parameters */
       pop->z_pk_num = int1;
       for (i=0; i<int1; i++) {
-	printf("DEBUG I read a z=%e\n",pointer1[i]);
         pop->z_pk[i] = pointer1[i];
       }
       free(pointer1);
