@@ -2613,6 +2613,8 @@ int perturbations_get_k_list(
                 ((int)((k_max_cmb[ppt->index_md_tensors]-k_min)/k_rec/MIN(ppr->k_step_super,ppr->k_step_sub))+1)
                 *sizeof(double),ppt->error_message);
 
+    printf("DEBUG I allocated that much %d \n",((int)((k_max_cmb[ppt->index_md_tensors]-k_min)/k_rec/MIN(ppr->k_step_super,ppr->k_step_sub))+1));
+    
     /* first value */
 
     index_k=0;
@@ -2668,6 +2670,8 @@ int perturbations_get_k_list(
     ppt->k_size_cl[ppt->index_md_tensors] = index_k;
     ppt->k_size[ppt->index_md_tensors] = index_k;
 
+    printf("DEBUG ppt->k_size[ppt->index_md_tensors] is %d \n",ppt->k_size[ppt->index_md_tensors]);
+    
     class_realloc(ppt->k[ppt->index_md_tensors],
                   ppt->k_size[ppt->index_md_tensors]*sizeof(double),
                   ppt->error_message);
