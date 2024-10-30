@@ -106,19 +106,13 @@ int main(int argc, char **argv) {
       return _FAILURE_;
     }
     
-    if (harmonic_free(&hr) == _FAILURE_) {
-      printf("\n\nError in harmonic_free \n=>%s\n",hr.error_message);
-      return _FAILURE_;
-    }
   }
   
-  if(pt.statistics == non_stochastic) {
-    if (harmonic_free_non_stochastic(&hr) == _FAILURE_) {
-      printf("\n\nError in harmonic_free \n=>%s\n",hr.error_message);
-      return _FAILURE_;
-    }
+  if (harmonic_free(&hr) == _FAILURE_) {
+    printf("\n\nError in harmonic_free \n=>%s\n",hr.error_message);
+    return _FAILURE_;
   }
-  
+
   if (transfer_free(&tr) == _FAILURE_) {
     printf("\n\nError in transfer_free \n=>%s\n",tr.error_message);
     return _FAILURE_;

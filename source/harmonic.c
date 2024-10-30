@@ -271,6 +271,9 @@ int harmonic_init(
                   struct harmonic * phr
                   ) {
 
+  /** check the type of perturbations (stochastic or non-stochastic) and use the same for the transfer module. */
+  phr->statistics = ppt->statistics;
+  
   /** Summary: */
 
   /** - check that we really want to compute at least one spectrum */
@@ -298,7 +301,7 @@ int harmonic_init(
 
   if (ppt->has_cls == _TRUE_) {
 
-    switch (ptr->statistics) {
+    switch (phr->statistics) {
     case stochastic:
       class_call(harmonic_cls(ppr,pba,ppt,ptr,ppm,phr),
 		 phr->error_message,
@@ -346,32 +349,53 @@ int harmonic_free(
 
   int index_md;
 
-  if (phr->md_size > 0) {
-    if (phr->ct_size > 0) {
-
-      for (index_md = 0; index_md < phr->md_size; index_md++) {
-        free(phr->l_max_ct[index_md]);
-        free(phr->cl[index_md]);
-        free(phr->ddcl[index_md]);
+  switch (phr->statistics) {
+    case stochastic:
+      if (phr->md_size > 0) {
+	if (phr->ct_size > 0) {
+	  
+	  for (index_md = 0; index_md < phr->md_size; index_md++) {
+	    free(phr->l_max_ct[index_md]);
+	    free(phr->cl[index_md]);
+	    free(phr->ddcl[index_md]);
+	  }
+	  free(phr->l);
+	  free(phr->l_size);
+	  free(phr->l_max_ct);
+	  free(phr->l_max);
+	  free(phr->cl);
+	  free(phr->ddcl);
+	}
+	
+	for (index_md=0; index_md < phr->md_size; index_md++)
+	  free(phr->is_non_zero[index_md]);
+	
+	free(phr->is_non_zero);
+	free(phr->ic_size);
+	free(phr->ic_ic_size);
+	
       }
-      free(phr->l);
-      free(phr->l_size);
-      free(phr->l_max_ct);
-      free(phr->l_max);
-      free(phr->cl);
-      free(phr->ddcl);
+      break;
+  case non_stochastic:    
+    if (phr->md_size > 0) {
+      if (phr->ct_size > 0) {
+	free(phr->l);
+	free(phr->l_size);
+      }
+      
+      for (index_md=0; index_md < phr->md_size; index_md++){
+	free(phr->alm[index_md]);
+      }
+      
+      free(phr->is_non_zero);
+      free(phr->ic_size);
+      free(phr->ic_ic_size);
+      free(phr->alm);//Check if this freeing is correct
     }
-
-    for (index_md=0; index_md < phr->md_size; index_md++)
-      free(phr->is_non_zero[index_md]);
-
-    free(phr->is_non_zero);
-    free(phr->ic_size);
-    free(phr->ic_ic_size);
-
   }
-  phr->is_allocated = _FALSE_;
 
+  phr->is_allocated = _FALSE_;
+  
   return _SUCCESS_;
 
 }
@@ -417,7 +441,7 @@ int harmonic_indices(
               phr->error_message);
 
   for (index_md=0; index_md < phr->md_size; index_md++) {
-    switch (ptr->statistics) {
+    switch (phr->statistics) {
     case stochastic:
       
       phr->ic_size[index_md] = ppm->ic_size[index_md];
@@ -463,7 +487,7 @@ int harmonic_indices(
 
        if ((ppt->has_cl_cmb_temperature == _TRUE_) &&
         (ppt->has_cl_cmb_polarization == _TRUE_) &&
-	(ptr->statistics == stochastic)) {
+	(phr->statistics == stochastic)) {
       phr->has_te = _TRUE_;
       phr->index_ct_te=index_ct;
       index_ct++;
@@ -680,6 +704,7 @@ int harmonic_indices(
         phr->l_max[index_md] = MAX(phr->l_max[index_md],phr->l_max_ct[index_md][index_ct]);
       phr->l_max_tot = MAX(phr->l_max_tot,phr->l_max[index_md]);
     }
+    printf("DEBUG phr->l_max_tot =%d\n",phr->l_max_tot);
   }
 
   return _SUCCESS_;
@@ -1795,7 +1820,7 @@ int harmonic_tk_at_k_and_z(
   */
 
 
-int harmonic_free_non_stochastic(
+/*int harmonic_free_non_stochastic(
                   struct harmonic * phr
                   ) {
 
@@ -1817,7 +1842,7 @@ int harmonic_free_non_stochastic(
   }
 
   return _SUCCESS_;
-}
+  }*/
 
 /**
  * This routine computes a table of values for all \f$ a_lm \f$'s,

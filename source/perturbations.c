@@ -2769,6 +2769,7 @@ int perturbations_get_k_list(
     ppt->k_max = MAX(ppt->k_max,ppt->k[ppt->index_md_tensors][ppt->k_size[ppt->index_md_tensors]-1]); /* last value, inferred from perturbations structure */
   }
 
+
   //printf("DEBUG ppt->k[ppt->index_md_scalars][0]=%e in ppt \n",ppt->k[ppt->index_md_scalars][0]);
 
   free(k_max_cmb);

@@ -139,7 +139,16 @@ struct harmonic {
 
   short is_allocated; /**< flag is set to true if allocated */
 
+
   //@}
+  
+  /** Parameters related to the non-stochastic transfer */
+  //@{
+
+  enum perturbation_statistics statistics;
+  
+  //@}
+
 };
 
 /*************************************************************************************************************/
@@ -344,9 +353,9 @@ extern "C" {
                         __DOUBLE_OR_COMPLEX__ * * alm_md
                         );
 
-  int harmonic_free_non_stochastic(
+  /*  int harmonic_free_non_stochastic(
                   struct harmonic * phr
-                  );
+                  );*/
   
 #ifdef __cplusplus
 }

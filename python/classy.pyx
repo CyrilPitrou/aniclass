@@ -560,6 +560,7 @@ cdef class Class:
 
         # We need to be able to gracefully exit BEFORE allocating things (!)
         lmaxR = self.hr.l_max_tot
+        print("lmaxR is ",lmaxR)
         if lmax == -1:
             lmax = lmaxR
         if lmax > lmaxR:
@@ -3286,3 +3287,94 @@ make        nonlinear_scale_cb(z, z_size)
 
         return (sources, np.asarray(k_array), np.asarray(tau_array))
 
+
+#############################################################################
+# Specific for non-stochastic (aka Bianchi) #
+############################################################################
+
+    def alm(self, lmax=-1):
+        """
+        alm(lmax = -1)
+
+        Return a dictionary of the alm's for each k, mode and spectra
+
+        Parameters
+        ----------
+        lmax : int, optional
+                Define the maximum l for which the C_l will be returned
+                (inclusively). This number will be checked against the maximum l
+                at which they were actually computed by CLASS, and an error will
+                be raised if the desired lmax is bigger than what CLASS can
+                give.
+
+        Returns
+        -------
+        alm : dict
+                Dictionary that contains the arrays of alm's for each ell. It has 
+                the structure: alm['k_output']['perturbation_mode']['spectra'][ell].
+                The keys are:
+                'k_output' :'k_0', 'k_1', ..., are the k output values given in
+                the initialization;
+                'perturbation_mode' : 'v' or 't' for vector and tensor modes respectively;
+                'spectra' : 'T', 'E' or 'B'.
+
+        """
+        cdef:
+            int lmaxR = self.hr.l_max_tot #maximum ell computed
+            int qsize = self.tr.q_size #number of fourier modes
+            int mdsize = self.tr.md_size #number of perturbation modes
+            int ctsize = self.hr.ct_size #number of spectra type
+            int index_ic = 0 # index of initial condition (only one ic)
+            int index_q
+            int index_l
+            int index_ct
+            Py_ssize_t index_md
+
+        if lmax == -1:
+            lmax = lmaxR
+        if lmax > lmaxR:
+            raise CosmoSevereError("Can only compute up to lmax=%d"%lmaxR)
+
+        has_flags = [
+            (self.hr.has_tt, 'T'),
+            (self.hr.has_ee, 'E'),
+            (self.hr.has_bb, 'B')]
+        spectra = []
+
+        for flag, name in has_flags:
+            if flag:
+                spectra.append(name)
+
+        if not spectra:
+            raise CosmoSevereError("No alm computed")
+
+        # Initialise the dictionary
+        alm = {}
+        key_pert_mode = []
+        key_fourier_mode = []
+        for elem in spectra:
+            alm[elem] = np.zeros( lmax -1, dtype = complex)
+            
+        if self.pt.has_vectors == _TRUE_:
+            key_pert_mode.append('v')
+            if self.pt.has_tensors == _TRUE_:
+                key_pert_mode.append('t')
+        else:
+            key_pert_mode.append('t')
+        alm = dict.fromkeys(key_pert_mode, alm)
+
+        for index_q in range (qsize):
+            key_fourier_mode.append('k_'+ str(index_q))
+        alm = dict.fromkeys(key_fourier_mode, alm)
+
+        # Recover for each ell the information from CLASS
+        for index_q in range (qsize):
+            for index_md in range(mdsize):
+                icsize = self.hr.ic_size[index_md]
+                for index_l in range (lmax-1):
+                    if (self.tr.l[index_l] <= self.hr.l_max[index_md]):
+                        for index_ct in range (ctsize):
+                            alm[key_fourier_mode[index_q]][key_pert_mode[index_md]][spectra[index_ct]][index_l] \
+                            = self.hr.alm[index_md][((index_q * qsize + index_l) * icsize + index_ic) *ctsize + index_ct]
+                        
+        return alm

@@ -10,10 +10,6 @@
 ctypedef double complex __DOUBLE_OR_COMPLEX__
 #ctypedef double __DOUBLE_OR_COMPLEX__
 
-#ctypedef fused __DOUBLE_OR_COMPLEX__:
-#    double
-#    double complex
-
 cdef extern from "class.h":
 
     cdef char[10] _VERSION_
@@ -289,6 +285,9 @@ cdef extern from "class.h":
     cdef struct transfer:
         short is_allocated
         ErrorMsg error_message
+        int q_size
+        int md_size
+        int * l
 
     cdef struct primordial:
         short is_allocated
@@ -358,6 +357,8 @@ cdef extern from "class.h":
         int index_ct_tl
         int * l_size
         int index_md_scalars
+        double complex ** alm
+        int * l_max
 
     cdef struct output:
         ErrorMsg error_message

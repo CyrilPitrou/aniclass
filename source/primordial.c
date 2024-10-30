@@ -202,6 +202,10 @@ int primordial_init(
      (for correlated isocurvature modes) */
   //double cos_delta_k;
 
+  /** This module is not used for non stochastic perturbations */
+  if (ppt->statistics == non_stochastic)
+    return _SUCCESS_;
+    
   /** - check that we really need to compute the primordial spectra */
 
   if (ppt->has_perturbations == _FALSE_) {
