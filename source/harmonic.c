@@ -704,7 +704,7 @@ int harmonic_indices(
         phr->l_max[index_md] = MAX(phr->l_max[index_md],phr->l_max_ct[index_md][index_ct]);
       phr->l_max_tot = MAX(phr->l_max_tot,phr->l_max[index_md]);
     }
-    printf("DEBUG phr->l_max_tot =%d\n",phr->l_max_tot);
+    //printf("DEBUG phr->l_max_tot =%d\n",phr->l_max_tot);
   }
 
   return _SUCCESS_;
@@ -1995,6 +1995,7 @@ int harmonic_compute_alm(
   //printf("DEBUG harmonic_compute_alm 1\n");
   for (index_q=0; index_q < ptr->q_size; index_q++) {
 
+    printf("DEBUG harmonic_compute_alm for index_q=%d \n",index_q);
     //q = ptr->q[index_q];
     k = ptr->k_complex[index_md][index_q];//What should we do for Bianchi ? TODO
         
@@ -2153,7 +2154,7 @@ int harmonic_alm_at_l(
                       ) {
   int index_ct;
 
-  for (index_ct = 0; index_ct < phr->ct_size; index_ct++) {    
+  for (index_ct = 0; index_ct < phr->ct_size; index_ct++) {
     alm_md[index_md][index_ct] = phr->alm[index_md][((index_q * phr->l_size[index_md] + index_l) * phr->ic_size[index_md] + index_ic) * phr->ct_size + index_ct];
   }
 

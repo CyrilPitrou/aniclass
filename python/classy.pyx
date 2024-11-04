@@ -22,6 +22,7 @@ cimport cython
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import interp1d
+import copy
 
 # Nils : Added for python 3.x and python 2.x compatibility
 import sys
@@ -3328,6 +3329,8 @@ make        nonlinear_scale_cb(z, z_size)
             int index_q
             int index_l
             int index_ct
+            int icsize
+            int ilsize
             Py_ssize_t index_md
 
         if lmax == -1:
@@ -3348,24 +3351,20 @@ make        nonlinear_scale_cb(z, z_size)
         if not spectra:
             raise CosmoSevereError("No alm computed")
 
-        # Initialise the dictionary
-        alm = {}
         key_pert_mode = []
         key_fourier_mode = []
-        for elem in spectra:
-            alm[elem] = np.zeros( lmax -1, dtype = complex)
-            
+
+        if self.pt.has_vectors == _TRUE_:
+            key_pert_mode.append('s')
         if self.pt.has_vectors == _TRUE_:
             key_pert_mode.append('v')
-            if self.pt.has_tensors == _TRUE_:
-                key_pert_mode.append('t')
-        else:
+        if self.pt.has_tensors == _TRUE_:
             key_pert_mode.append('t')
-        alm = dict.fromkeys(key_pert_mode, alm)
 
         for index_q in range (qsize):
             key_fourier_mode.append('k_'+ str(index_q))
-        alm = dict.fromkeys(key_fourier_mode, alm)
+
+        alm = {key1: {key2: {key3: np.zeros(lmax -1, dtype = complex) for key3 in spectra} for key2 in key_pert_mode } for key1 in key_fourier_mode }
 
         # Recover for each ell the information from CLASS
         for index_q in range (qsize):
@@ -3375,7 +3374,5 @@ make        nonlinear_scale_cb(z, z_size)
                 for index_l in range (lmax-1):
                     if (self.tr.l[index_l] <= self.hr.l_max[index_md]):
                         for index_ct in range (ctsize):
-                            alm[key_fourier_mode[index_q]][key_pert_mode[index_md]][spectra[index_ct]][index_l] \
-                            = self.hr.alm[index_md][((index_q * ilsize + index_l) * icsize + index_ic) *ctsize + index_ct]
-                        
+                            alm[key_fourier_mode[index_q]][key_pert_mode[index_md]][spectra[index_ct]][index_l] = self.hr.alm[index_md][((index_q * ilsize + index_l) * icsize + index_ic) *ctsize + index_ct]
         return alm
