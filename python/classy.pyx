@@ -3371,10 +3371,11 @@ make        nonlinear_scale_cb(z, z_size)
         for index_q in range (qsize):
             for index_md in range(mdsize):
                 icsize = self.hr.ic_size[index_md]
+                ilsize = self.hr.l_size[index_md]
                 for index_l in range (lmax-1):
                     if (self.tr.l[index_l] <= self.hr.l_max[index_md]):
                         for index_ct in range (ctsize):
                             alm[key_fourier_mode[index_q]][key_pert_mode[index_md]][spectra[index_ct]][index_l] \
-                            = self.hr.alm[index_md][((index_q * qsize + index_l) * icsize + index_ic) *ctsize + index_ct]
+                            = self.hr.alm[index_md][((index_q * ilsize + index_l) * icsize + index_ic) *ctsize + index_ct]
                         
         return alm
