@@ -1995,7 +1995,7 @@ int harmonic_compute_alm(
   //printf("DEBUG harmonic_compute_alm 1\n");
   for (index_q=0; index_q < ptr->q_size; index_q++) {
 
-    printf("DEBUG harmonic_compute_alm for index_q=%d \n",index_q);
+    //printf("DEBUG harmonic_compute_alm for index_q=%d \n",index_q);
     //q = ptr->q[index_q];
     k = ptr->k_complex[index_md][index_q];//What should we do for Bianchi ? TODO
         
