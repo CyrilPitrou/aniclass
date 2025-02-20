@@ -3354,7 +3354,7 @@ make        nonlinear_scale_cb(z, z_size)
         key_pert_mode = []
         key_fourier_mode = []
 
-        if self.pt.has_vectors == _TRUE_:
+        if self.pt.has_scalars == _TRUE_:
             key_pert_mode.append('s')
         if self.pt.has_vectors == _TRUE_:
             key_pert_mode.append('v')
