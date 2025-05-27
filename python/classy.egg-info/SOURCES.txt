@@ -1,7 +1,0 @@
-README
-setup.py
-/home/joao/class/python/../python/classy.cpp
-classy.egg-info/PKG-INFO
-classy.egg-info/SOURCES.txt
-classy.egg-info/dependency_links.txt
-classy.egg-info/top_level.txt

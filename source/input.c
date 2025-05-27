@@ -5054,7 +5054,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
     
     else if ((strcmp(string1,"non_stochastic") ==0) || (strcmp(string1,"Non_Stochastic") ==0) || (strcmp(string1,"NON_STOCHASTIC") ==0)) {
       ppt->statistics = non_stochastic;
-      printf("Choosing non-stochastic perturbations !\n");
+      //printf("Choosing non-stochastic perturbations !\n");
     }
   }
   
@@ -5066,12 +5066,12 @@ int input_read_parameters_spectra(struct file_content * pfc,
   if (flag1 == _TRUE_){
     if ((strstr(string1,"bianchi") != NULL) || (strstr(string1,"BIANCHI") != NULL)){
       ppt->non_stochastic_type = bianchi;
-      printf("Choosing Bianchi perturbations !\n");
+      //printf("Choosing Bianchi perturbations !\n");
       class_test( ((ppt->has_vectors) && (pba->K>0)),
 		  errmsg,
 		  "Inconsistent perturbation type (vectors). Only tensor perturbations exist with positive curvature Bianchi (Bianchi IX type seen as a maximal perturbation around a closed FL)");
       if (pba->K == 0.) {
-	pba->Omega0_k = 1e-8;
+	pba->Omega0_k = 1e-5;
 	pba->K = -pba->Omega0_k*pow(pba->H0,2);
 	pba->sgnK = -1;
 	printf("WARNING. Flat background asked with Bianchi type non stochastic perturbations.\nHowever, the current implementation requires a non-vanishing curvature (but possibly very small). Therefore we have replaced Omega0_k = %e \n",pba->Omega0_k);

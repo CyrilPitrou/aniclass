@@ -5970,7 +5970,11 @@ int transfer_compute_for_each_l_ns(
     break;
   case observable_multipoles:
     convention_factor *= pow(Imaginary,l)*sqrt(4*_PI_*(2.*l+1.));//Eq. 6.8 of 1909.13688 combined with the (2l+1) of Eq. 6.4.
-    if ( (index_tt == ptr->index_tt_b) || (index_tt == ptr->index_tt_b_v) )
+    // if ( (index_tt == ptr->index_tt_b) || (index_tt == ptr->index_tt_b_v) )
+    //   convention_factor *= -1.;//Extra minus sign for B modes because parity rule is (-1)^l for T and E but (-1)^(l+1) for B modes.
+    if ( (index_tt == ptr->index_tt_b) && (_tensors_))
+      convention_factor *= -1.;//Extra minus sign for B modes because parity rule is (-1)^l for T and E but (-1)^(l+1) for B modes.
+    if ( (index_tt == ptr->index_tt_b_v) && (_vectors_))
       convention_factor *= -1.;//Extra minus sign for B modes because parity rule is (-1)^l for T and E but (-1)^(l+1) for B modes.
     break;
   }
@@ -6428,7 +6432,7 @@ int transfer_radial_function_ns(
     si = sqrt(1.0+2.0*K/k2);
     factor = 0.5*sqrt((l-1.0)*(l+2.0))*si/s0/ssqrt3 *zeta_ratio;
     for (j=0; j<x_size; j++)
-      radial_function[x_size-1-j] = factor*cscKgen[x_size-1-j]*Phi[j]*rescale_function[j];
+      radial_function[x_size-1-j] = -factor*cscKgen[x_size-1-j]*Phi[j]*rescale_function[j]; //added a minus sign. See arxiv:1909.13687 Eq. 4.7
     break;
   case TENSOR_TEMPERATURE_2:
     transfer_zeta_lm(ptr,l_int,2,nu, &zeta_obs);
@@ -6472,7 +6476,7 @@ int transfer_radial_function_ns(
     si = sqrt(1.0+2.0*K/k2);
     factor = 0.5*ssqrt2i/ssqrt2/si * zeta_ratio;
     for (j=0; j<x_size; j++)
-      radial_function[x_size-1-j] = factor*(sqrt_absK_over_k*dPhi[j]*rescale_argument+2.0*cotKgen[x_size-1-j]*Phi[j])*rescale_function[j];
+      radial_function[x_size-1-j] = -factor*(sqrt_absK_over_k*dPhi[j]*rescale_argument+2.0*cotKgen[x_size-1-j]*Phi[j])*rescale_function[j]; //added a minus sign. See arxiv:1909.13687 Eq. 4.10
     break;
   case NC_RSD:
     class_call(interpolate_Phid2Phi(pHIS, x_size, index_l, chireverse, Phi, d2Phi, ptr->error_message),
