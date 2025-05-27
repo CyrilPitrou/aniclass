@@ -1,0 +1,4 @@
+# Workaround for the issues with pip and make
+[build-system]
+requires = ["setuptools", "cython", "numpy"]
+build-backend = "setuptools.build_meta"
