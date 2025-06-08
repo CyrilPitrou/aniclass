@@ -5696,6 +5696,19 @@ int input_read_parameters_output(struct file_content * pfc,
   class_read_int("distortions_verbose",psd->distortions_verbose);
   class_read_int("output_verbose",pop->output_verbose);
 
+  /* To inform the user which value of sqrth k_output is associated*/
+   double curvature_radius, spiral_length_tensor, spiral_length_vector, sqrth_tensor, sqrth_vector;
+   if ((ppt->statistics == non_stochastic) && (ppt->non_stochastic_type == bianchi) && (pba->K<=0) && (pba->background_verbose > 0)){
+    curvature_radius = 1 / (pba->H0 * sqrt(fabs(pba->Omega0_k)));
+    for (i=0; i<ppt->k_output_values_num; i++){
+      spiral_length_tensor = 2 / ppt->k_output_values[i];
+      spiral_length_vector = 1 / ppt->k_output_values[i];
+      sqrth_tensor = spiral_length_tensor / curvature_radius;
+      sqrth_vector = spiral_length_vector / curvature_radius;
+      printf("k_output_values[%d] = %e corresponds to sqrth = %e for tensor modes and %e for vector modes\n", i, ppt->k_output_values[i], sqrth_tensor, sqrth_vector);
+    }
+   }
+
   return _SUCCESS_;
 
 }
